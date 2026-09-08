@@ -1,0 +1,6 @@
+{
+  "name": "Quantum Engine",
+  "description": "High-fidelity quantum-inspired simulator for business optimization. Features mobile-optimized dashboards and professional PDF reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

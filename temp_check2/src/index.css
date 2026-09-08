@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-quantum-primary: #00f2ff;
+  --color-quantum-secondary: #7000ff;
+  --color-quantum-bg: #050505;
+  --color-quantum-surface: #0f1115;
+  --color-quantum-border: #1f2937;
+}
+
+@layer base {
+  body {
+    @apply bg-quantum-bg text-gray-300 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .quantum-card {
+    @apply bg-quantum-surface border border-quantum-border rounded-xl p-6 shadow-2xl;
+  }
+  
+  .quantum-glass {
+    @apply bg-quantum-surface/60 backdrop-blur-md border border-white/10 rounded-xl p-6;
+  }
+  
+  .quantum-gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-quantum-primary to-quantum-secondary;
+  }
+  
+  .btn-quantum {
+    @apply px-6 py-2 rounded-full font-medium transition-all duration-300 border border-quantum-primary/50 text-quantum-primary hover:bg-quantum-primary hover:text-quantum-bg hover:shadow-[0_0_15px_rgba(0,242,255,0.4)];
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-quantum-bg;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-quantum-border rounded-full hover:bg-quantum-primary/50;
+}
