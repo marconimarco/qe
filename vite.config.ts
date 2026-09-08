@@ -18,7 +18,9 @@ export default defineConfig(({mode}) => {
     },
     build: {
       rollupOptions: {
+        external: ['react-is'],
         output: {
+          format: 'iife',
           entryFileNames: 'assets/[name].js',
           chunkFileNames: 'assets/[name].js',
           assetFileNames: 'assets/[name].[ext]'
