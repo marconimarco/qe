@@ -9,7 +9,7 @@ import axios from 'axios';
 import aiStudioPrompt from '../promptText.txt?raw';
 import { getStoredApiKey } from '../services/apiKeyService';
 import { getDemoCsvBySector } from "../data/demoCsv";
-import { generateQiskitCode, generatePythonCode } from "../data/codeGenerators";
+import { generateQiskitCode, generateQiskitPythonCode } from "../data/codeGenerators";
 
 export interface SectorScenario {
   id: string;
@@ -445,12 +445,35 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, size, size);
 
-      // 1. Cerchio Principale della Sfera
+      // 1. Cerchio Principale della Sfera e griglia 3D
       ctx.beginPath();
       ctx.arc(center, center, radius, 0, 2 * Math.PI);
-      ctx.strokeStyle = '#1e293b';
+      ctx.strokeStyle = '#334155'; // Lighter border
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      // Latitudine e Longitudine per effetto 3D
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      
+      // Ellissi orizzontale (equatore)
+      ctx.beginPath();
+      ctx.ellipse(center, center, radius, radius * 0.3, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Ellissi verticale
+      ctx.beginPath();
+      ctx.ellipse(center, center, radius * 0.3, radius, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Effetto gradiente 3D interno
+      const innerGrad = ctx.createRadialGradient(center - radius*0.3, center - radius*0.3, radius * 0.1, center, center, radius);
+      innerGrad.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+      innerGrad.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+      ctx.fillStyle = innerGrad;
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, 2 * Math.PI);
+      ctx.fill();
 
       // 2. Ellissi 3D animate (rotazione lenta)
       ctx.save();
@@ -641,20 +664,6 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
 
     if (phase === '3b_strat') {
       let reply = `Strategia scelta: **${userInput}**.\n\n`;
-      reply += `Ti guiderò passo dopo passo a impostare il calcolo, sia con computer classico che quantistico.\n\n`;
-      reply += `👉 **Fase 4A: Dove preferisci eseguire il calcolo?**\n\n`;
-      reply += `• 💻 **Computer Classico (Python / HPC — Risultato Immediato):**\n`;
-      reply += `Veloce e collaudato: risolve subito il problema in locale ad alte prestazioni, senza limiti sul numero di risorse inserite.\n\n`;
-      reply += `• ⚛️ **Computer Quantistico (IBM Qiskit / QPU):**\n`;
-      reply += `Esplorazione combinatoria avanzata su processori reali IBM Cloud (richiede attesa coda cloud).\n`;
-      reply += `⚠️ *Nota Hardware: Attualmente l'elaborazione quantistica diretta richiede che i tuoi file CSV non superino le **100-120 risorse (righe)**, limite fisico dettato dal numero di Qubit a bassa percentuale di rumore nei chip IBM (Heron/Eagle) odierni.* \n\n`;
-      reply += `Scegli l'infrastruttura con i pulsanti qui sotto:`;
-      return reply;
-    }
-
-    if (phase === '4a_infra') {
-      const isQ = userInput.toLowerCase().includes('quantistica') || userInput.toLowerCase().includes('qiskit');
-      let reply = `Infrastruttura: **${isQ ? 'Quantistica (IBM Qiskit)' : 'Classica (Python/HPC)'}**.\n\n`;
       reply += `👉 **Fase 4B: Regola per le risorse collegate (entanglement)**\n`;
       reply += `Nei tuoi dati ci sono elementi legati tra loro. Che regola usiamo?\n\n`;
       reply += `🔒 **1. Blocco Rigido (O l'uno o l'altro):**\n`;
@@ -663,6 +672,10 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       reply += `${dynTexts.vincSoft}\n\n`;
       reply += `Quale regola preferisci?`;
       return reply;
+    }
+
+    if (phase === '4a_infra') {
+      return "Procediamo con i vincoli."; // Skip
     }
 
     if (phase === '4b_vinc') {
@@ -687,38 +700,22 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     }
 
     if (phase === '4d_close') {
-      return `=========================================================================================
-DIRETTIVA ARCHITETTURALE ECOSISTEMA A TRE TESTE (AI STUDIO + TYPESCRIPT + GEMINI)
-=========================================================================================
-Sei l'architetto del codice quantistico del sistema. Devi impostare e pretendere il seguente
-comportamento di default tra te (Gemini), la piattaforma (AI Studio) e il client (TypeScript).
-Ogni deviazione da questa struttura è considerata un fallimento di compilazione.
+      const qPrefix = selectedInfra === 'quantum' ? 'Qiskit_' : 'Python_HPC_';
+      const algoTarget = qPrefix + (selectedScenario?.modelCode || 'QAOA');
+      
+      return `Confermo che da ora in poi genererò solo stampi vuoti parametrici e rigidi in formato JSON compatibile con l'architettura TypeScript sopra descritta.
 
-1. COMPORTAMENTO DI DEFAULT DI GOOGLE GEMINI (Il Generatore di Stampi):
-   - Non elaborare MAI i dati numerici dei file in modo discorsivo o testuale.
-   - Non inventare MAI valori numerici statici ("hardcoded") nel codice finale.
-   - Il tuo unico scopo di default è generare STRUTTURE DI STAMPO VUOTE (Template Strings).
-   - Per l'inizializzazione dei Qubit (CSV 1), inserisci sempre un blocco di sicurezza quantistica nel template Python per evitare errori di dominio:
-     "peso_safe = max(0.0, min(1.0, float({valore_iniettato_da_typescript})))"
-   - Per i vincoli di "Blocco Rigido" (CSV 2), usa esclusivamente la porta di fase:
-     "qc.rzz(np.pi / 2 * {valore_peso}, q[{id_controllo}], q[{id_target}])"
+*Elaborazione in corso... Generazione architettura JSON pronta per TypeScript.*
 
-2. COMPORTAMENTO DI DEFAULT DI TYPESCRIPT (Il Filtro Deterministico):
-   - TypeScript agisce da filtro meccanico prima e dopo la generazione.
-   - Prima della richiesta: Deve mappare gli ID del CSV 1 in un indice numerico fisso e centralizzato (es. asset_01 -> q[0], asset_02 -> q[1]) inviando questa "mappa_qubit" obbligatoriamente nel payload per evitare il problema del Qubit Disconnesso.
-   - Prima della richiesta: Deve scartare matematicamente dal File 2 ogni riga in cui il peso del vincolo è pari a 0.00.
-   - Dopo la richiesta: Deve iniettare ciclicamente i dati numerici del CSV all'interno delle parentesi graffe {} dello stampo vuoto fornito da Gemini e validare l'integrità sintattica con uno schema Zod prima dell'esecuzione.
-
-3. COMPORTAMENTO DI DEFAULT DI GOOGLE AI STUDIO (L'Orchestratore di Sicurezza):
-   - AI Studio deve forzare permanentemente i parametri di generazione a:
-     * Temperature: 0.0 (Zero tolleranza alla creatività e allucinazione sui numeri).
-     * Output Format: Structured Output / JSON con schema rigido (Oggetto con array separati per qubit_inizializzati e vincoli_applicati).
-   - In caso di troncamento del codice causato dal limite dei token, AI Studio deve interrompere la risposta e restituire un errore di validazione JSON nativo, impedendo che un codice quantistico parziale o corrotto venga trasmesso a TypeScript.
-
-=========================================================================================
-CONFERMA DEL COMPORTAMENTO DI DEFAULT:
-Se hai compreso questa correzione strutturale di base, rispondi esclusivamente confermando che da ora in poi genererai solo stampi vuoti parametrici e rigidi in formato JSON compatibile con l'architettura TypeScript sopra descrittiva.
-=========================================================================================`;
+\`\`\`json
+{
+  "algoritmo_target": "${algoTarget}",
+  "macro_scenario": "sgombero_aggressivo_o_tutela_brand",
+  "vincolo_stile": "${selectedVincolo || 'blocco_rigido'}",
+  "periodo_target": "1 Trimestre",
+  "conferma_avvio": true
+}
+\`\`\``;
     }
 
     return "Intervista registrata.";
@@ -752,11 +749,10 @@ Se hai compreso questa correzione strutturale di base, rispondi esclusivamente c
       nextPhase = '3b_strat';
     } else if (activePhase === '3b_strat') {
       setSelectedStrategy(userMessage);
-      nextPhase = '4a_infra';
-    } else if (activePhase === '4a_infra') {
-      const isQ = userMessage.toLowerCase().includes('quantistica') || userMessage.toLowerCase().includes('qiskit');
-      setSelectedInfra(isQ ? 'quantum' : 'classical');
+      setSelectedInfra('quantum'); // default to quantum since we output both
       nextPhase = '4b_vinc';
+    } else if (activePhase === '4a_infra') {
+      nextPhase = '4b_vinc'; // Fallback just in case
     } else if (activePhase === '4b_vinc') {
       const isRigido = userMessage.toLowerCase().includes('rigido') || userMessage.toLowerCase().includes('hard');
       setSelectedVincolo(isRigido ? 'blocco_rigido' : 'legame_morbido');
@@ -878,16 +874,12 @@ Se hai compreso questa correzione strutturale di base, rispondi esclusivamente c
       ? 'Blocco Rigido (Zero conflitti)' 
       : 'Legame Morbido (Sinergia flessibile)';
 
-    const codeSnippet = isQ 
-      ? generateQiskitCode(sector, currentCsv1, currentCsv2, vincolo) 
-      : generatePythonCode(sector, currentCsv1, currentCsv2, vincolo);
-    const codeLang = isQ ? 'python qiskit' : 'python';
+        const qasmSnippet = generateQiskitCode(sector, currentCsv1, currentCsv2, vincolo);
+    const pythonSnippet = generateQiskitPythonCode(sector, currentCsv1, currentCsv2, vincolo);
 
     return `\n\n🎉 **[SIMULAZIONE COMPLETATA — RISULTATI IN SINTESI]**
-
 • **Settore & Scenario:** ${sector || 'Azienda'} (${selectedScenario?.name || 'Ottimizzazione'})
 • **Periodo:** ${periodo || '1 Trimestre'}
-• **Algoritmo:** \`${algo}\` (${isQ ? 'Chip Quantistico' : 'Computer Classico'})
 • **Regola Vincoli:** ${vincoloNome}
 
 📊 **Cosa mostra la Sfera a destra:**
@@ -895,12 +887,19 @@ Se hai compreso questa correzione strutturale di base, rispondi esclusivamente c
 • **Rischio residuo (${p1}%):** Margine da monitorare.
 • **Angoli (θ=${angleTheta}°, φ=${anglePhi}°):** Posizione della soluzione calcolata.
 
-Puoi esplorare la sfera 3D a destra per simulare variazioni. Qui sotto trovi il codice pronto per la tua infrastruttura:
+Puoi visionare il risultato dalla sfera 3D a destra.
 
-\`\`\`${codeLang}
-${codeSnippet}
-\`\`\``;
-  };
+### 🎯 Cosa ottieni eseguendo questi codici?
+Questi script sono il "motore" pronto all'uso del tuo progetto. Eseguendoli (su un computer normale o su uno quantistico IBM), la macchina leggerà i tuoi file CSV e ti restituirà **la lista esatta delle decisioni ottimali da prendere** (es. quali asset attivare o quali rotte scegliere) con la massima efficienza matematica. In parole povere: ti dirà esattamente cosa fare per massimizzare il risultato rispettando i vincoli!
+
+Qui sotto trovi i codici quantistici pronti, esportabili nei due linguaggi principali (OpenQASM puro e Python Qiskit). Sono separati in due moduli qui sotto:
+
+\`\`\`qasm
+${qasmSnippet}
+\`\`\`
+\`\`\`python
+${pythonSnippet}
+\`\`\``;  };
 
   const handleSend = () => {
     executeSend(input);
@@ -959,7 +958,30 @@ ${codeSnippet}
     const isDemoCsvNotice = text.includes('Dataset Demo acquisito e scaricato sul tuo computer') || text.includes('[DATASET DEMO CSV CARICATO]');
 
     // Split text by markdown code blocks ```...```
-    const parts = text.split(/(```[\s\S]*?```)/g);
+    const parts = text.split(/(^\s*```[\s\S]*?```\s*$)/gm);
+
+    // Filter out empty parts
+    const validParts = parts.filter(p => p.trim() !== '');
+
+    // Group code blocks if they are consecutive
+    const groupedParts = [];
+    let currentGroup = [];
+
+    for (let i = 0; i < validParts.length; i++) {
+      const part = validParts[i];
+      if (part.trim().startsWith('```') && part.trim().endsWith('```')) {
+        currentGroup.push(part);
+      } else {
+        if (currentGroup.length > 0) {
+          groupedParts.push({ type: 'code-group', blocks: currentGroup });
+          currentGroup = [];
+        }
+        groupedParts.push({ type: 'text', content: part });
+      }
+    }
+    if (currentGroup.length > 0) {
+      groupedParts.push({ type: 'code-group', blocks: currentGroup });
+    }
 
     return (
       <div className="flex flex-col gap-2.5">
@@ -980,8 +1002,11 @@ ${codeSnippet}
               </span>
             </div>
             <p className="text-[11px] text-slate-300">
-              Se il tuo browser ha bloccato il download automatico (spesso accade per ragioni di sicurezza), puoi scaricarli usando i pulsanti qui sotto o copiarne il contenuto negli appunti tramite l'icona <Copy className="inline w-3 h-3 text-slate-400" />:
+              Se il tuo browser ha bloccato il download automatico, puoi scaricarli usando i pulsanti qui sotto o copiarne il contenuto negli appunti tramite l'icona <Copy className="inline w-3 h-3 text-slate-400" />:
             </p>
+            <div className="p-2 mb-1 mt-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-300">
+              💡 <strong>Dove si trova l'Entanglement?</strong> L'Entanglement (ovvero il vincolo e l'interazione tra due risorse) viene definito esclusivamente nel file <strong>2_matrice_connessioni</strong>. Nello specifico, si crea quando inserisci un valore numerico (es. 0.5 o 1.0) nella colonna corrispondente all'incrocio tra due ID diversi (es. riga "asset_01", colonna "asset_02").
+            </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <CsvButton filename="1_anagrafica_risorse_guida.csv" content={currentCsv1} label="1_anagrafica_risorse_guida.csv" />
               <CsvButton filename="2_matrice_connessioni_guida.csv" content={currentCsv2} label="2_matrice_connessioni_guida.csv" />
@@ -994,40 +1019,46 @@ ${codeSnippet}
             <span>Esito Finale dell'Ottimizzazione & Spiegazione Risultati</span>
           </div>
         )}
-        {parts.map((part, idx) => {
-          if (part.startsWith('```') && part.endsWith('```')) {
-            const raw = part.slice(3, -3).trim();
-            const firstNewline = raw.indexOf('\n');
-            let lang = 'code';
-            let codeContent = raw;
-            if (firstNewline !== -1) {
-              const possibleLang = raw.slice(0, firstNewline).trim();
-              if (/^[a-zA-Z0-9_-]+$/.test(possibleLang)) {
-                lang = possibleLang;
-                codeContent = raw.slice(firstNewline + 1);
-              }
-            }
-            let title = lang.toUpperCase();
-            if (lang.toLowerCase() === 'python') title = '🐍 SCRIPT PYTHON / HPC (Multi-thread SLSQP)';
-            if (lang.toLowerCase() === 'qasm' || lang.toLowerCase().includes('qiskit')) title = '⚛️ CIRCUITO QUANTISTICO (IBM Qiskit & OpenQASM)';
-            if (lang.toLowerCase() === 'json') title = '📋 MANIFESTO DI CONFIGURAZIONE JSON';
-
+        {groupedParts.map((group, idx) => {
+          if (group.type === 'text') {
             return (
-              <div key={idx}>
-                <CodeBlockWithCopy
-                  code={codeContent}
-                  language={lang}
-                  title={title}
-                />
+              <div key={idx} className="whitespace-pre-wrap leading-relaxed text-xs sm:text-sm">
+                {group.content}
+              </div>
+            );
+          } else {
+            return (
+              <div key={idx} className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start w-full">
+                {group.blocks.map((part, bIdx) => {
+                  const raw = part.trim().slice(3, -3).trim();
+                  const firstNewline = raw.indexOf('\n');
+                  let lang = 'code';
+                  let codeContent = raw;
+                  if (firstNewline !== -1) {
+                    const possibleLang = raw.slice(0, firstNewline).trim();
+                    if (/^[a-zA-Z0-9_-]+$/.test(possibleLang)) {
+                      lang = possibleLang;
+                      codeContent = raw.slice(firstNewline + 1);
+                    }
+                  }
+                  let title = lang.toUpperCase();
+                  if (lang.toLowerCase() === 'python') title = '🐍 SCRIPT (Python / Qiskit)';
+                  if (lang.toLowerCase() === 'qasm' || lang.toLowerCase().includes('qiskit')) title = '⚛️ CIRCUITO QUANTISTICO (OpenQASM 3.0)';
+                  if (lang.toLowerCase() === 'json') title = '📋 MANIFESTO DI CONFIGURAZIONE JSON';
+
+                  return (
+                    <div key={bIdx} className="w-full min-w-0">
+                      <CodeBlockWithCopy
+                        code={codeContent}
+                        language={lang}
+                        title={title}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             );
           }
-
-          return (
-            <div key={idx} className="whitespace-pre-wrap leading-relaxed text-xs sm:text-sm">
-              {part}
-            </div>
-          );
         })}
       </div>
     );
@@ -1678,16 +1709,169 @@ ${codeSnippet}
             )}
           </div>
 
-          {/* Semantic Action Description */}
-          <div className="bg-slate-900 border border-white/15 rounded-xl p-4 font-mono text-xs leading-relaxed text-slate-300 shadow-2xl flex flex-col gap-2">
-            <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5" /> Telemetria e Diagnostica Semantica
-            </div>
-            <div className="text-slate-200">
-              {getActionDescription()}
+          {/* Composer IBM Quantum (Mockup) */}
+          <div className="bg-[#161616] border border-white/10 rounded-xl font-mono text-xs shadow-2xl flex flex-col relative overflow-hidden mt-4">
+            <div className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2 border-b border-white/5 bg-[#1e1e1e] px-4 py-3">
+              <Cpu className="w-4 h-4 text-[#33b1ff]" /> IBM Quantum Composer Visualizer
             </div>
             
+            <div className="flex flex-col overflow-x-auto pb-8 pt-6 px-4 scrollbar-thin scrollbar-thumb-slate-700">
+              <div className="relative min-w-max px-2 flex flex-col gap-8">
+                
+                {/* Wires Background */}
+                <div className="absolute top-[16px] left-6 right-0 h-[1px] bg-[#393939] z-0"></div>
+                <div className="absolute top-[64px] left-6 right-0 h-[1px] bg-[#393939] z-0"></div>
+                {/* Classical Register Wires (Double line) */}
+                <div className="absolute top-[110px] left-6 right-0 h-[1px] bg-[#555] z-0"></div>
+                <div className="absolute top-[114px] left-6 right-0 h-[1px] bg-[#555] z-0"></div>
+
+                {/* Qubit 0 */}
+                <div className="flex items-center gap-0 w-max relative z-10 h-8">
+                  <span className="font-sans text-[11px] text-[#8d96a0] w-6 text-right pr-3 shrink-0">0</span>
+                  
+                  {/* Gates for Q0 */}
+                  <div className="flex items-center h-full">
+                    <div className="w-3"></div>
+                    {/* H */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#ff5555] text-slate-900 font-sans font-medium text-[15px] shadow-sm">H</div>
+                    <div className="w-4"></div>
+                    {/* CX Control */}
+                    <div className="w-8 flex justify-center relative">
+                      <div className="w-3 h-3 bg-[#33b1ff] rounded-full z-10 relative"></div>
+                      <div className="absolute top-1/2 left-1/2 w-[2px] h-[48px] bg-[#33b1ff] -translate-x-1/2 z-0"></div>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* Measure */}
+                    <div className="w-8 h-8 flex flex-col items-center justify-center bg-[#8d96a0] text-slate-900 relative shadow-sm">
+                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px] mt-0.5">
+                         <path d="M12 15l-3-4m3 4v2m0-6a6 6 0 100 12 6 6 0 000-12z" stroke="none" fill="none"/>
+                         <path d="M4 14a8 8 0 0116 0" />
+                         <circle cx="12" cy="14" r="2" fill="currentColor"/>
+                         <path d="M12 14l5-6" />
+                       </svg>
+                       <span className="absolute top-0 right-0.5 text-[8px] font-bold">z</span>
+                       {/* Down arrow to classical */}
+                       <div className="absolute top-full left-1/2 w-[1px] h-[64px] bg-[#8d96a0] -translate-x-1/2 z-0"></div>
+                       <div className="absolute top-[calc(100%+60px)] left-1/2 border-l-[3px] border-r-[3px] border-t-[4px] border-transparent border-t-[#8d96a0] -translate-x-1/2"></div>
+                       <span className="absolute top-[calc(100%+66px)] left-1/2 -translate-x-1/2 text-[10px] font-sans font-bold text-[#82cfff] bg-[#161616] px-1">0</span>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* Y */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#ff7eb6] text-slate-900 font-sans font-medium text-[15px] shadow-sm">Y</div>
+                    <div className="w-4"></div>
+                    {/* SWAP top */}
+                    <div className="w-8 flex justify-center items-center relative">
+                      <div className="text-[#33b1ff] font-bold text-xl leading-none z-10 bg-[#161616] h-full flex items-center">✕</div>
+                      <div className="absolute top-1/2 left-1/2 w-[2px] h-[48px] bg-[#33b1ff] -translate-x-1/2 z-0"></div>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* Z */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#82cfff] text-slate-900 font-sans font-medium text-[15px] shadow-sm">Z</div>
+                    <div className="w-4"></div>
+                    {/* RZ */}
+                    <div className="w-8 h-8 flex flex-col items-center justify-center bg-[#82cfff] text-slate-900 font-sans font-medium leading-[1.1] shadow-sm">
+                      <span className="text-[13px]">RZ</span>
+                      <span className="text-[8px] opacity-80">(π/2)</span>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* SWAP 2 top */}
+                    <div className="w-8 flex justify-center items-center relative">
+                      <div className="text-[#33b1ff] font-bold text-xl leading-none z-10 bg-[#161616] h-full flex items-center">✕</div>
+                      <div className="absolute top-1/2 left-1/2 w-[2px] h-[48px] bg-[#33b1ff] -translate-x-1/2 z-0"></div>
+                    </div>
+                    <div className="w-[116px]"></div>
+                    {/* RZZ top */}
+                    <div className="w-8 flex justify-center relative">
+                      <div className="w-3.5 h-3.5 bg-[#ff7eb6] rounded-full z-10 relative mt-2"></div>
+                      <div className="absolute top-1/2 left-1/2 w-[2px] h-[48px] bg-[#ff7eb6] -translate-x-1/2 z-0"></div>
+                      <div className="absolute top-full left-[calc(50%+6px)] text-[9px] text-[#ff7eb6] font-sans leading-[1] mt-1 whitespace-nowrap">
+                        <div className="text-white">RZZ</div>
+                        <div className="scale-90 origin-left mt-0.5">(π/2)</div>
+                      </div>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* √X */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#ff7eb6] text-slate-900 font-sans font-medium text-[13px] shadow-sm">√X</div>
+                    <div className="w-4"></div>
+                    {/* S† */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#82cfff] text-slate-900 font-sans font-medium text-[15px] shadow-sm pt-1">S<sup className="-mt-2 text-[10px] font-bold">†</sup></div>
+                  </div>
+                </div>
+
+                {/* Qubit 1 */}
+                <div className="flex items-center gap-0 w-max relative z-10 h-8">
+                  <span className="font-sans text-[11px] text-[#8d96a0] w-6 text-right pr-3 shrink-0">1</span>
+                  
+                  <div className="flex items-center h-full">
+                    <div className="w-[51px]"></div> {/* Skip H */}
+                    {/* CX Target */}
+                    <div className="w-8 flex justify-center relative z-10">
+                      <div className="w-[26px] h-[26px] bg-[#33b1ff] rounded-full flex items-center justify-center text-slate-900 font-medium text-2xl leading-none shadow-sm pb-0.5">+</div>
+                    </div>
+                    <div className="w-[44px]"></div> {/* Skip Measure */}
+                    {/* I */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#33b1ff] text-slate-900 font-sans font-medium text-[15px] shadow-sm">I</div>
+                    <div className="w-4"></div>
+                    {/* SWAP bottom */}
+                    <div className="w-8 flex justify-center items-center relative z-10">
+                      <div className="text-[#33b1ff] font-bold text-xl leading-none bg-[#161616] h-full flex items-center">✕</div>
+                    </div>
+                    <div className="w-[88px]"></div> {/* Skip Z, RZ */}
+                    {/* SWAP 2 bottom */}
+                    <div className="w-8 flex justify-center items-center relative z-10">
+                      <div className="text-[#33b1ff] font-bold text-xl leading-none bg-[#161616] h-full flex items-center">✕</div>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* S */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#82cfff] text-slate-900 font-sans font-medium text-[15px] shadow-sm">S</div>
+                    <div className="w-4"></div>
+                    {/* H */}
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#ff5555] text-slate-900 font-sans font-medium text-[15px] shadow-sm">H</div>
+                    <div className="w-4"></div>
+                    {/* RY */}
+                    <div className="w-8 h-8 flex flex-col items-center justify-center bg-[#ff7eb6] text-slate-900 font-sans font-medium leading-[1.1] shadow-sm">
+                      <span className="text-[13px]">RY</span>
+                      <span className="text-[8px] opacity-80">(π/2)</span>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* RZZ bottom */}
+                    <div className="w-8 flex justify-center relative z-10">
+                      <div className="w-3.5 h-3.5 bg-[#ff7eb6] rounded-full mt-2"></div>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* P */}
+                    <div className="w-8 h-8 flex flex-col items-center justify-center bg-[#82cfff] text-slate-900 font-sans font-medium leading-[1.1] shadow-sm">
+                      <span className="text-[13px]">P</span>
+                      <span className="text-[8px] opacity-80">(π/2)</span>
+                    </div>
+                    <div className="w-4"></div>
+                    {/* CX Target isolated (just for flavor) */}
+                    <div className="w-8 flex justify-center relative z-10">
+                      <div className="w-[26px] h-[26px] bg-[#33b1ff] rounded-full flex items-center justify-center text-slate-900 font-medium text-2xl leading-none shadow-sm pb-0.5">+</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Classical */}
+                <div className="flex items-center gap-0 w-max relative z-10 h-6 mt-1">
+                  <span className="font-sans text-[11px] text-[#8d96a0] w-6 text-right pr-3 shrink-0">2</span>
+                  <div className="w-[600px]"></div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Status Bar */}
+            <div className="bg-[#1e1e1e] border-t border-white/5 p-3 px-4 flex justify-between items-center text-[11px] font-sans">
+              <div className="text-slate-400 flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${targetAlgoritmo !== 'IDLE' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse' : 'bg-slate-500'}`}></div>
+                <span>{targetAlgoritmo !== 'IDLE' ? 'Circuit Compiled & Optimized' : 'Idle State'}</span>
+              </div>
+              <div className="text-slate-500 max-w-[60%] truncate text-right">
+                {getActionDescription()}
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
     </div>
