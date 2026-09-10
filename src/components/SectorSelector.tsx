@@ -48,12 +48,12 @@ interface Props {
   onSelect: (id: SectorId) => void;
   initialSubMenu?: SectorId | null;
   onSubMenuToggle?: (isSub: boolean) => void;
-  onOpenAgents?: () => void;
   onOpenIbm?: () => void;
   onOpenHelp?: () => void;
+  onOpenTest?: () => void;
 }
 
-export default function SectorSelector({ onSelect, initialSubMenu = null, onSubMenuToggle, onOpenAgents, onOpenIbm, onOpenHelp }: Props) {
+export default function SectorSelector({ onSelect, initialSubMenu = null, onSubMenuToggle, onOpenIbm, onOpenHelp, onOpenTest }: Props) {
   const { t, language } = useTranslation();
   const [activeSubMenu, setActiveSubMenu] = useState<SectorId | null>(initialSubMenu);
 
@@ -299,14 +299,14 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                 })}
               </motion.div>
 
-              {/* Central Fixed Sun (Primary Portal - Quantum AI Agents) */}
+              {/* Central Fixed Sun (Primary Portal - TEST Simulation) */}
               <div className="absolute w-[28vmin] h-[28vmin] max-w-[155px] max-h-[155px] sm:w-36 sm:h-36 rounded-full flex items-center justify-center z-30 pointer-events-auto">
                 <motion.div
                   whileHover={{ scale: 1.1, boxShadow: "0 0 55px rgba(0,242,255,0.5)" }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => onOpenAgents?.()}
+                  onClick={() => onOpenTest?.()}
                   className="w-full h-full bg-black/95 border-2 border-quantum-primary hover:border-quantum-primary rounded-full flex flex-col items-center justify-center cursor-pointer shadow-[0_0_35px_rgba(0,242,255,0.25)] relative overflow-hidden backdrop-blur-xl group/hub"
-                  title={t('ai_agents')}
+                  title="TEST"
                 >
                   <div className="absolute inset-0 bg-gradient-to-b from-quantum-primary/10 to-transparent pointer-events-none animate-pulse" />
                   
@@ -314,7 +314,7 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                     <div className="flex flex-col items-center justify-center">
                       <Cpu className="w-8 h-8 sm:w-10 sm:h-10 text-quantum-primary filter drop-shadow-[0_0_12px_rgba(0,242,255,0.6)] group-hover/hub:scale-110 transition-transform duration-300 animate-pulse" />
                       <span className="text-[10px] sm:text-[11px] md:text-xs font-display font-black uppercase tracking-widest text-white mt-1.5 group-hover/hub:text-quantum-primary transition-colors max-w-[125px]">
-                        {t('ai_agents')}
+                        TEST
                       </span>
                       <span className="text-[5px] sm:text-[7px] font-mono text-quantum-primary/60 uppercase tracking-widest mt-0.5 scale-90">
                         {t('launch_gateway')}

@@ -3,7 +3,6 @@ import SectorSelector from './components/SectorSelector';
 import QuantumDashboard from './components/QuantumDashboard';
 import LanguageSelector from './components/LanguageSelector';
 import IBMQuantumInterface from './components/IBMQuantumInterface';
-import QuantumAgentsInterface from './components/QuantumAgentsInterface';
 import ApiKeyModal from './components/ApiKeyModal';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import DisclaimerModal from './components/DisclaimerModal';
@@ -102,7 +101,6 @@ function AppContent({
   const [selectedSectorId, setSelectedSectorId] = useState<SectorId | null>(null);
   const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
   const [isIbmInterfaceOpen, setIsIbmInterfaceOpen] = useState(false);
-  const [isAgentsOpen, setIsAgentsOpen] = useState(false);
   const [isTestPageOpen, setIsTestPageOpen] = useState(false);
   const [returnToSubMenu, setReturnToSubMenu] = useState<SectorId | null>(null);
   const [sharedQasm, setSharedQasm] = useState<string>('');
@@ -131,10 +129,7 @@ function AppContent({
   const selectedSector = SECTORS.find(s => s.id === selectedSectorId);
 
   const handleSelectSector = (id: SectorId) => {
-    if (id === 'quantum_code') {
-      // "Write Q Code" triggers our advanced Quantum AI Agents system directly!
-      setIsAgentsOpen(true);
-    } else if (id === 'send_to_ibm') {
+    if (id === 'quantum_code' || id === 'send_to_ibm') {
       setIsIbmInterfaceOpen(true);
     } else if (id === 'realq') {
       setIsHelpModalOpen(true);
@@ -145,13 +140,6 @@ function AppContent({
 
   const handleBackFromDashboard = () => {
     setSelectedSectorId(null);
-  };
-
-  const handleSendToIbm = (qasmCode: string) => {
-    setSharedQasm(qasmCode);
-    setReturnToSubMenu('quantum_code');
-    setIsIbmInterfaceOpen(true);
-    setIsAgentsOpen(false);
   };
 
   return (
@@ -319,20 +307,8 @@ function AppContent({
           <IBMQuantumInterface 
             onBack={() => {
               setIsIbmInterfaceOpen(false);
-              // Return to the sub-view we originated from
-              if (returnToSubMenu === 'quantum_code') {
-                setIsAgentsOpen(true);
-              }
             }} 
             initialCode={sharedQasm}
-          />
-        ) : isAgentsOpen ? (
-          <QuantumAgentsInterface 
-            onBack={() => {
-              setIsAgentsOpen(false);
-              setReturnToSubMenu(null);
-            }}
-            onSendToIbm={handleSendToIbm}
           />
         ) : selectedSector ? (
           <QuantumDashboard 
@@ -342,31 +318,14 @@ function AppContent({
             onOpenHelp={() => setIsHelpModalOpen(true)}
           />
         ) : (
-          <>
-            <SectorSelector 
-              onSelect={handleSelectSector}
-              initialSubMenu={returnToSubMenu}
-              onSubMenuToggle={setIsSubMenuVisible}
-              onOpenAgents={() => setIsAgentsOpen(true)}
-              onOpenIbm={() => setIsIbmInterfaceOpen(true)}
-              onOpenHelp={() => setIsHelpModalOpen(true)}
-            />
-            {/* Pulsing 3D Test Icon */}
-            <motion.div
-              onClick={() => setIsTestPageOpen(true)}
-              animate={{
-                rotateY: 360,
-                opacity: [1, 0.4, 1]
-              }}
-              transition={{
-                rotateY: { repeat: Infinity, duration: 3, ease: "linear" },
-                opacity: { repeat: Infinity, duration: 1.5, ease: "easeInOut" }
-              }}
-              className="fixed top-24 right-8 sm:top-24 sm:right-12 w-12 h-12 bg-black rounded-full border border-white flex items-center justify-center shadow-[0_0_15px_#fff,inset_0_0_8px_#fff] z-50 cursor-pointer hover:scale-110 transition-transform"
-            >
-              <span className="text-white text-[10px] font-bold tracking-widest uppercase" style={{ textShadow: "0 0 5px #fff" }}>test</span>
-            </motion.div>
-          </>
+          <SectorSelector 
+            onSelect={handleSelectSector}
+            initialSubMenu={returnToSubMenu}
+            onSubMenuToggle={setIsSubMenuVisible}
+            onOpenIbm={() => setIsIbmInterfaceOpen(true)}
+            onOpenHelp={() => setIsHelpModalOpen(true)}
+            onOpenTest={() => setIsTestPageOpen(true)}
+          />
         )}
       </main>
 
