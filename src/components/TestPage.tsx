@@ -89,17 +89,14 @@ function CsvButton({ filename, content, label }: { filename: string; content: st
     setTimeout(() => setCopied(false), 2200);
   };
 
-  const encodedUri = `data:text/csv;charset=utf-8,${encodeURIComponent(content)}`;
-
   return (
     <div className="flex items-stretch shadow-sm">
-       <a
-         href={encodedUri}
-         download={filename}
+       <button
+         onClick={() => triggerCsvDownload(filename, content)}
          className="px-2.5 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-l text-[11px] font-mono text-cyan-200 flex items-center gap-1.5 transition-all"
        >
          <Download className="w-3.5 h-3.5 text-cyan-400" /> {label}
-       </a>
+       </button>
        <button
          type="button"
          onClick={handleCopy}
@@ -373,9 +370,7 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     // 1. Trigger del download automatico di entrambi i file CSV di esempio con guida interna
     const { csv1, csv2 } = getDemoCsvBySector(selectedSector);
     triggerCsvDownload("1_anagrafica_risorse_guida.csv", csv1);
-    setTimeout(() => {
-      triggerCsvDownload("2_matrice_connessioni_guida.csv", csv2);
-    }, 250);
+    triggerCsvDownload("2_matrice_connessioni_guida.csv", csv2);
 
     const demoFiles = [
       { name: "1_anagrafica_risorse_guida.csv", size: "2.4 KB", rows: 8 },
@@ -679,31 +674,10 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     }
 
     if (phase === '4b_vinc') {
-      let reply = `Regola impostata: **${userInput}**.\n\n`;
-      reply += `👉 **Fase 4C: Livello di Precisione**\n\n`;
-      reply += `Un'ultima scelta: preferisci una risposta "Buona e Subita" o la "Perfezione Assoluta"?\n`;
-      reply += `*(Nel **calcolo quantistico**, questo definisce la "Profondità del Circuito". Un circuito corto è super veloce e immune ai disturbi termici, perfetto per i chip di oggi. Un circuito profondo usa una potente interferenza per cercare la precisione millimetrica, ma rischia di perdere i dati per il "rumore" del chip. È la stessa logica di fare 10 vs 10.000 iterazioni su un PC classico, ma con le leggi della fisica!)*\n\n`;
-      reply += `⚡ **1. Rapido e Robusto (Circuito Corto/Euristiche):**\n`;
-      reply += `Risposta solida immediata, minimizza i rischi di errore hardware.\n\n`;
-      reply += `🎯 **2. Profondo e Perfetto (Circuito Profondo/Ricerca Esaustiva):**\n`;
-      reply += `Sfrutta al massimo l'hardware per cercare l'ottimo assoluto.\n\n`;
-      reply += `Quale approccio scegli?`;
-      return reply;
-    }
-
-    if (phase === '4c_depth') {
-      let reply = `Precisione impostata: **${userInput}**.\n\n`;
-      reply += `👉 **Fase 4D: Pronto ad avviare!**\n`;
-      reply += `Tutti i parametri quantistici e di business sono configurati.\n\n`;
-      reply += `Confermi l'avvio della simulazione e l'aggiornamento della Sfera di Bloch?`;
-      return reply;
-    }
-
-    if (phase === '4d_close') {
       const qPrefix = selectedInfra === 'quantum' ? 'Qiskit_' : 'Python_HPC_';
       const algoTarget = qPrefix + (selectedScenario?.modelCode || 'QAOA');
       
-      return `Confermo che da ora in poi genererò solo stampi vuoti parametrici e rigidi in formato JSON compatibile con l'architettura TypeScript sopra descritta.
+      return `Regola impostata: **${userInput}**.\n\nTutti i parametri quantistici e di business sono configurati.\n\nConfermo che da ora in poi genererò solo stampi vuoti parametrici e rigidi in formato JSON compatibile con l'architettura TypeScript sopra descritta.
 
 *Elaborazione in corso... Generazione architettura JSON pronta per TypeScript.*
 
@@ -757,10 +731,6 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       const isRigido = userMessage.toLowerCase().includes('rigido') || userMessage.toLowerCase().includes('hard');
       setSelectedVincolo(isRigido ? 'blocco_rigido' : 'legame_morbido');
       setVincoloStile(isRigido ? 'blocco_rigido' : 'legame_morbido');
-      nextPhase = '4c_depth';
-    } else if (activePhase === '4c_depth') {
-      nextPhase = '4d_close';
-    } else if (activePhase === '4d_close') {
       nextPhase = '5_done';
     }
 
