@@ -59,36 +59,42 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
     let labelStato1 = "Rischio Residuo";
     let labelColonna = "Rendimento/Priorità";
 
-    const settoreLower = dati.settore.toLowerCase();
-    if (settoreLower.includes("finanz")) {
+    const sLower = dati.settore.toLowerCase();
+    if (sLower.includes("finanz")) {
       labelColonna = "Rendimento/Priorità";
       labelStato0 = "Stabilità";
       labelStato1 = "Rischio Residuo";
-    } else if (settoreLower.includes("chimic") || settoreLower.includes("farmaceutica") || settoreLower.includes("materiali")) {
+    } else if (sLower.includes("chimic") || sLower.includes("farmaceutica") || sLower.includes("materiali")) {
       labelColonna = "Affinità Legame";
       labelStato0 = "Stato Fondamentale Orbitale";
       labelStato1 = "Eccitazione Molecolare/Instabilità";
-    } else if (settoreLower.includes("produzion") || settoreLower.includes("manifattura")) {
+    } else if (sLower.includes("produzion") || sLower.includes("manifattura")) {
       labelColonna = "Priorità Commessa";
       labelStato0 = "Efficienza OEE Impianto";
       labelStato1 = "Rischio Fermo Macchina (Makespan)";
-    } else if (settoreLower.includes("sicurezz") || settoreLower.includes("telecomunicazion") || settoreLower.includes("reti")) {
-      labelColonna = "Criticità Log";
-      labelStato0 = "Integrità Rete/Core Network";
-      labelStato1 = "Contenimento Minacce/Anomalie";
-    } else if (settoreLower.includes("sanità") || settoreLower.includes("sanita") || settoreLower.includes("genomica")) {
-      labelColonna = "Espressione Genica";
+    } else if (sLower.includes("sicurezz") || sLower.includes("telecomunicazion") || sLower.includes("reti")) {
+      labelColonna = "Criticità Log SIEM";
+      labelStato0 = "Integrità Network";
+      labelStato1 = "Contenimento Minacce";
+    } else if (sLower.includes("sanità") || sLower.includes("sanita") || sLower.includes("genomica")) {
+      labelColonna = "Livello Espressione Genica";
       labelStato0 = "Omeostasi/Cellula Sana";
-      labelStato1 = "Mutazione/Variabilità Genica";
+      labelStato1 = "Mutazione Cellulare";
     }
 
-    return `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V3 COMPLETATA]**
+    let outputBase = `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V4 COMPLETATA]**
 • **Settore:** ${dati.settore}
 • **Scenario:** ${dati.scenario}
 • **Strategia Energetica:** ${dati.strategia}
 • **Traduzione Input (Amplitude Encoding):** Colonna 6 CSV mappata su '${labelColonna}'
 • **Fisica Entanglement:** ${dati.entanglement === 'cx' ? 'Blocco Rigido (Porta CX)' : dati.entanglement === 'cp' ? 'Legame Morbido (Porta CP)' : 'Risorse Indipendenti'}
 • **Stato Qubit[0]:** ${labelStato0} |0⟩ = ${stabilita0}% | ${labelStato1} |1⟩ = ${rischio1}% (θ=${thetaGradi}°, φ=${fasePhiGradi}°)`;
+
+    if (dati.predisposizione_grafico) {
+      outputBase += `\n\n📊 *[Avviso di Sistema]: Predisposizione grafico istogramma attivata dal simulatore Qiskit.*`;
+    }
+
+    return outputBase;
 
   } catch (error) {
     console.error("Errore critico pipeline quantistica:", error);
