@@ -21,6 +21,51 @@ export interface SectorScenario {
   description: string;
 }
 
+export interface ContenitoreQuantistico {
+  settore: string;
+  scenario: string;
+  strategia: string;
+  entanglement: 'cx' | 'cp' | 'none';
+  theta_radianti: number;
+  phi_radianti: number;
+}
+
+/**
+ * Parsa il JSON universale e renderizza la UI in modo coerente e data-driven al 100%.
+ * Include una valvola di sicurezza Regex per estrarre la verità direttamente dal circuito.
+ */
+export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, codicePythonDaGemini: string): string {
+  try {
+    const dati: ContenitoreQuantistico = JSON.parse(jsonDaGemini);
+    
+    // VALVOLA DI SICUREZZA (Regex): Isola l'angolo reale dal codice qc.ry(VALORE, q[0])
+    const matchRy = codicePythonDaGemini.match(/qc\.ry\(([\d.]+),\s*q\[0\]\)/);
+    
+    // Se trova il valore reale nel codice quantistico usa quello, altrimenti usa il JSON
+    const rad = matchRy ? parseFloat(matchRy[1]) : dati.theta_radianti;
+    const phiRad = dati.phi_radianti;
+
+    // Calcoli geometrici e probabilistici puri eseguiti dal motore del browser
+    const thetaGradi = Math.round((rad * 180) / Math.PI);
+    const fasePhiGradi = Math.round((phiRad * 180) / Math.PI);
+    
+    // Formula quantistica dell'ampiezza di probabilità: P(|0>) = cos²(θ/2)
+    const stabilita0 = Math.round(Math.pow(Math.cos(rad / 2), 2) * 100);
+    const rischio1 = Math.round(Math.pow(Math.sin(rad / 2), 2) * 100);
+
+    return `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V3 COMPLETATA]**
+• **Settore:** ${dati.settore}
+• **Scenario:** ${dati.scenario}
+• **Strategia Energetica:** ${dati.strategia}
+• **Fisica Entanglement:** ${dati.entanglement === 'cx' ? 'Blocco Rigido (Porta CX)' : dati.entanglement === 'cp' ? 'Legame Morbido (Porta CP)' : 'Risorse Indipendenti'}
+• **Stato Qubit[0]:** Stabilità |0⟩ = ${stabilita0}% | Rischio residuo |1⟩ = ${rischio1}% (θ=${thetaGradi}°, φ=${fasePhiGradi}°)`;
+
+  } catch (error) {
+    console.error("Errore critico pipeline quantistica:", error);
+    return "Errore di sincronizzazione hardware della pipeline quantistica.";
+  }
+}
+
 // Funzione per scaricare qualsiasi file CSV lato client
 export const triggerCsvDownload = (filename: string, content: string) => {
   try {
@@ -896,30 +941,36 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
 
     // Mathematical correlation (Backend sync)
     const thetaRad = 2 * Math.asin(Math.sqrt(pesoFinale));
+    
+    // UI State for the 3D Bloch sphere view on the side
     const angleTheta = Math.round((thetaRad * 180) / Math.PI);
-    const anglePhi = (!isNone && !isHard) ? 90 : 0; // Se morbido, CP può applicare una fase
-
+    const anglePhi = (!isNone && !isHard) ? 90 : 0;
     setTheta(angleTheta);
     setPhi(anglePhi);
-
-    // Calcolo rigoroso basato sull'angolo in radianti (legge di Born per la sfera di Bloch)
-    const p1 = Math.round(Math.pow(Math.sin(thetaRad / 2), 2) * 100);
-    const p0 = Math.round(Math.pow(Math.cos(thetaRad / 2), 2) * 100);
 
     const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId);
 
     const entanglementType = isNone ? "none" : (isHard ? "cx" : "cp");
     const phiRad = 0.0; // Phi is always 0 in this simplified amplitude encoding unless RZ/P is explicitly added.
 
-    return `\`\`\`json
-{
-  "settore": "${taxSector.name}",
-  "scenario": "${selectedScenario?.name || 'Ottimizzazione'}",
-  "strategia": "${effectiveStrategy}",
-  "entanglement": "${entanglementType}",
-  "theta_radianti": ${parseFloat(thetaRad.toFixed(4))},
-  "phi_radianti": ${phiRad}
-}
+    const jsonObj = {
+      settore: taxSector.name,
+      scenario: selectedScenario?.name || 'Ottimizzazione',
+      strategia: effectiveStrategy,
+      entanglement: entanglementType,
+      theta_radianti: parseFloat(thetaRad.toFixed(4)),
+      phi_radianti: phiRad
+    };
+    
+    const jsonString = JSON.stringify(jsonObj, null, 2);
+    
+    // Pass the generated JSON string and Python code to the universal UI renderer
+    const uiText = renderizzaInterfacciaUniversaleBlindata(jsonString, pythonSnippet);
+
+    return `${uiText}
+
+\`\`\`json
+${jsonString}
 \`\`\`
 
 \`\`\`qasm
