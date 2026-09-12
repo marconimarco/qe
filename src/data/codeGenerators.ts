@@ -1,4 +1,13 @@
-export const generateQiskitCode = (sector: string, csv1: string, csv2: string, vincolo: string): string => {
+// MOTORE QUANTISTICO DETERMINISTICO V3 (TAXONOMIC QUANTUM ENGINE)
+// Compilazione OpenQASM 3.0 e Python Qiskit conforme alle direttive matematiche
+
+export const generateQiskitCode = (
+  sector: string, 
+  csv1: string, 
+  csv2: string, 
+  vincolo: string, 
+  strategy: string
+): string => {
   const colId = 'id_risorsa';
   const colPeso = 'priorita_peso';
 
@@ -21,14 +30,12 @@ export const generateQiskitCode = (sector: string, csv1: string, csv2: string, v
 
   lines1.forEach((l) => {
     if (l.includes(colId)) return;
-    
     const parts = l.split(',');
     if (parts.length <= Math.max(idColIndex, pesoColIndex)) return;
 
     const id = parts[idColIndex].trim();
     const rawPeso = parseFloat(parts[pesoColIndex] || '0.5');
     
-    // Validazione e Push: mappa l'indice SOLO se il parse va a buon fine
     if (!isNaN(rawPeso) && rawPeso >= 0 && rawPeso <= 1.0) {
       const qubitIndex = parsedRisorse.length; 
       mappa_qubit.set(id, qubitIndex);
@@ -36,7 +43,7 @@ export const generateQiskitCode = (sector: string, csv1: string, csv2: string, v
     }
   });
   
-  const numItems = parsedRisorse.length;
+  const numItems = parsedRisorse.length > 0 ? parsedRisorse.length : 4;
 
   const lines2 = csv2.split('\n').filter(l => l.trim() !== '' && !l.startsWith('#'));
   const activeRelations: Array<{id_controllo: number, id_target: number, valore_peso: number}> = [];
@@ -56,8 +63,6 @@ export const generateQiskitCode = (sector: string, csv1: string, csv2: string, v
         const idxB = mappa_qubit.get(idTarget);
         
         if (idxB === undefined) continue;
-
-        // FIX: Evita l'entanglement su se stessi e doppioni
         if (idxA === idxB) continue; 
 
         const peso = parseFloat(parts[j]);
@@ -68,42 +73,56 @@ export const generateQiskitCode = (sector: string, csv1: string, csv2: string, v
     }
   }
 
-  const geminiTemplate = {
-    initQubit: `// Inizializzazione q[{id}] (Peso sicuro: {valore_iniettato_da_typescript})\nry({theta}) q[{id}];`,
-    constraintHard: `cx q[{id_controllo}], q[{id_target}]; // Blocco Rigido (Peso correlazione: {valore_peso})`,
-    constraintSoft: `cp({angolo_fase}) q[{id_controllo}], q[{id_target}]; // Legame Morbido (Peso correlazione: {valore_peso})`
-  };
+  const stratLower = strategy.toLowerCase();
+  const isAggressiva = stratLower.includes('aggressiva') || stratLower.includes('spinta') || stratLower.includes('massimizz') || stratLower.includes('sfruttamento') || stratLower.includes('alpha') || stratLower.includes('makespan') || stratLower.includes('throughput') || stratLower.includes('screening') || strategy.includes('⚡');
+  const isPrudente = stratLower.includes('prudent') || stratLower.includes('conservazion') || stratLower.includes('tutela') || stratLower.includes('bilanciamento') || stratLower.includes('margin') || stratLower.includes('sharpe') || stratLower.includes('longevità') || stratLower.includes('riserve') || stratLower.includes('continuità') || strategy.includes('🛡️');
 
+  // 1. Inizializzazione Qubit (Amplitude Encoding)
   const initBlocks = parsedRisorse.map((r, i) => {
-    const pesoSafe = Math.max(0.0, Math.min(1.0, r.peso));
-    const theta = (2 * Math.asin(Math.sqrt(pesoSafe))).toFixed(4);
-    return geminiTemplate.initQubit
-      .replace(/{id}/g, i.toString())
-      .replace('{valore_iniettato_da_typescript}', r.peso.toString())
-      .replace('{theta}', theta.toString());
-  }).join('\n\n');
-
-  const constraintBlocks = activeRelations.length > 0 ? activeRelations.map(rel => {
-    if (vincolo === 'blocco_rigido') {
-      return geminiTemplate.constraintHard
-        .replace('{valore_peso}', rel.valore_peso.toString())
-        .replace(/{id_controllo}/g, rel.id_controllo.toString())
-        .replace(/{id_target}/g, rel.id_target.toString());
-    } else {
-      const phaseAngle = ((Math.PI / 4) * rel.valore_peso).toFixed(4);
-      return geminiTemplate.constraintSoft
-        .replace('{valore_peso}', rel.valore_peso.toString())
-        .replace(/{id_controllo}/g, rel.id_controllo.toString())
-        .replace(/{id_target}/g, rel.id_target.toString())
-        .replace('{angolo_fase}', phaseAngle.toString());
+    let adjustedPeso = r.peso;
+    if (isAggressiva) {
+      adjustedPeso = Math.min(1.0, r.peso * 1.15);
+    } else if (isPrudente) {
+      adjustedPeso = r.peso * 0.85;
     }
-  }).join('\n') : '// Nessun vincolo attivo';
+    const pesoSafe = Math.max(0.0, Math.min(1.0, adjustedPeso));
+    const theta = (2 * Math.asin(Math.sqrt(pesoSafe))).toFixed(4);
+    return `// Inizializzazione q[${i}]\nry(${theta}) q[${i}];`;
+  }).join('\n');
 
-  return `OPENQASM 3.0;\ninclude "stdgates.inc";\n\n// OpenQASM 3.0 — Compilazione Circuito Quantistico per ${sector || 'Settore Aziendale'}\n// Creazione dei registri quantistici (${numItems} qubit mappati deterministicamente)\nqubit[${numItems}] q;\nbit[${numItems}] c;\n\n// 1. Encoding ampiezze: Inizializzazione sicura\n${initBlocks}\n\n// 2. Entanglement e Relazioni di Vincolo Dinamiche\n// Applicazione rigorosa operatore di sfasamento (Vincolo: ${vincolo === 'blocco_rigido' ? 'Hard' : 'Soft'})\n${constraintBlocks}\n\n// 3. Misurazione collasso nello spazio di Hilbert\nc = measure q;`;
+  // 2. Entanglement e Vincoli
+  const isNone = vincolo === 'nessun_vincolo' || vincolo === 'senza_entanglement' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
+  const isHard = !isNone && (vincolo === 'blocco_rigido' || vincolo.includes('rigido') || vincolo.includes('hard'));
+
+  let constraintBlocks = '// Nessun vincolo attivo';
+  if (isNone) {
+    constraintBlocks = '// Nessun Entanglement (Risorse Indipendenti)';
+  } else if (activeRelations.length > 0) {
+    constraintBlocks = activeRelations.map(rel => {
+      if (isHard) {
+        return `cx q[${rel.id_controllo}], q[${rel.id_target}]; // Blocco Rigido`;
+      } else {
+        const phaseAngle = ((Math.PI / 4) * rel.valore_peso).toFixed(4);
+        return `cp(${phaseAngle}) q[${rel.id_controllo}], q[${rel.id_target}]; // Legame Morbido`;
+      }
+    }).join('\n');
+  }
+
+  let measureBlocks = '';
+  for (let i = 0; i < numItems; i++) {
+    measureBlocks += `measure q[${i}] -> c[${i}];\n`;
+  }
+
+  return `OPENQASM 3.0;\ninclude "stdgates.inc";\n\nqubit[${numItems}] q;\nbit[${numItems}] c;\n\n${initBlocks}\n\n${constraintBlocks}\n\n${measureBlocks}`;
 };
 
-
-export const generateQiskitPythonCode = (sector: string, csv1: string, csv2: string, vincolo: string): string => {
+export const generateQiskitPythonCode = (
+  sector: string, 
+  csv1: string, 
+  csv2: string, 
+  vincolo: string, 
+  strategy: string
+): string => {
   const colId = 'id_risorsa';
   const colPeso = 'priorita_peso';
 
@@ -112,7 +131,7 @@ export const generateQiskitPythonCode = (sector: string, csv1: string, csv2: str
   const parsedRisorse: Array<{id: string, peso: number}> = [];
   
   let idColIndex = 0;
-  let pesoColIndex = 1;
+  let pesoColIndex = 5;
   
   const firstLine = lines1.find(l => l.includes(colId));
   if (firstLine) {
@@ -138,7 +157,7 @@ export const generateQiskitPythonCode = (sector: string, csv1: string, csv2: str
     }
   });
   
-  const numItems = parsedRisorse.length > 0 ? parsedRisorse.length : 2;
+  const numItems = parsedRisorse.length > 0 ? parsedRisorse.length : 4;
 
   const lines2 = csv2.split('\n').filter(l => l.trim() !== '' && !l.startsWith('#'));
   const activeRelations: Array<{id_controllo: number, id_target: number, valore_peso: number}> = [];
@@ -148,7 +167,7 @@ export const generateQiskitPythonCode = (sector: string, csv1: string, csv2: str
     
     for (let i = 1; i < lines2.length; i++) {
       const parts = lines2[i].split(',').map(p => p.trim());
-      const idControllo = parts[0]; // RICEVUTO FIX: Estratto correttamente il singolo ID stringa invece dell'intero array
+      const idControllo = parts[0];
       const idxA = mappa_qubit.get(idControllo);
       
       if (idxA === undefined) continue;
@@ -168,40 +187,54 @@ export const generateQiskitPythonCode = (sector: string, csv1: string, csv2: str
     }
   }
 
-  // GENERAZIONE STRINGA PYTHON QISKIT (RICEVUTO FIX SPECULARE AL QASM)
+  const stratLower = strategy.toLowerCase();
+  const isAggressiva = stratLower.includes('aggressiva') || stratLower.includes('spinta') || stratLower.includes('massimizz') || stratLower.includes('sfruttamento') || stratLower.includes('alpha') || stratLower.includes('makespan') || stratLower.includes('throughput') || stratLower.includes('screening') || strategy.includes('⚡');
+  const isPrudente = stratLower.includes('prudent') || stratLower.includes('conservazion') || stratLower.includes('tutela') || stratLower.includes('bilanciamento') || stratLower.includes('margin') || stratLower.includes('sharpe') || stratLower.includes('longevità') || stratLower.includes('riserve') || stratLower.includes('continuità') || strategy.includes('🛡️');
+
   let pyCode = `import numpy as np\n`;
-  pyCode += `from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister\n`;
+  pyCode += `from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile\n`;
   pyCode += `from qiskit_aer import AerSimulator\n\n`;
-  pyCode += `# Python (Qiskit) — Compilazione Circuito Quantistico per ${sector || 'Settore Aziendale'}\n`;
-  pyCode += `q = QuantumRegister(${numItems}, name="q_risorse")\n`;
-  pyCode += `c = ClassicalRegister(${numItems}, name="c_misura")\n`;
+
+  pyCode += `q = QuantumRegister(${numItems}, name="q")\n`;
+  pyCode += `c = ClassicalRegister(${numItems}, name="c")\n`;
   pyCode += `qc = QuantumCircuit(q, c)\n\n`;
 
-  pyCode += `# 1. Encoding ampiezze: Inizializzazione sicura\n`;
+  // 1. Inizializzazione Qubit (Amplitude Encoding)
   parsedRisorse.forEach((r, i) => {
-    const theta = (2 * Math.asin(Math.sqrt(r.peso))).toFixed(4);
-    pyCode += `qc.ry(${theta}, q[${i}])  # Inizializzazione q[${i}] (Peso sicuro: ${r.peso})\n`;
+    let adjustedPeso = r.peso;
+    if (isAggressiva) {
+      adjustedPeso = Math.min(1.0, r.peso * 1.15);
+    } else if (isPrudente) {
+      adjustedPeso = r.peso * 0.85;
+    }
+    const pesoSafe = Math.max(0.0, Math.min(1.0, adjustedPeso));
+    const theta = (2 * Math.asin(Math.sqrt(pesoSafe))).toFixed(4);
+    pyCode += `qc.ry(${theta}, q[${i}])  # Inizializzazione q[${i}]\n`;
   });
 
-  pyCode += `\n# 2. Entanglement e Relazioni di Vincolo Dinamiche\n`;
-  pyCode += `# Applicazione rigorosa operatore di sfasamento (Vincolo: ${vincolo === 'blocco_rigido' ? 'Hard' : 'Soft'})\n`;
-  if (activeRelations.length > 0) {
+  // 2. Entanglement e Relazioni di Vincolo
+  pyCode += `\n`;
+  const isNone = vincolo === 'nessun_vincolo' || vincolo === 'senza_entanglement' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
+  const isHard = !isNone && (vincolo === 'blocco_rigido' || vincolo.includes('rigido') || vincolo.includes('hard'));
+
+  if (isNone) {
+    pyCode += `# Nessun Entanglement (Risorse Indipendenti)\n`;
+  } else if (activeRelations.length > 0) {
     activeRelations.forEach(rel => {
-      if (vincolo === 'blocco_rigido') {
-        pyCode += `qc.cx(q[${rel.id_controllo}], q[${rel.id_target}])  # Blocco Rigido (Peso correlazione: ${rel.valore_peso})\n`;
+      if (isHard) {
+        pyCode += `qc.cx(q[${rel.id_controllo}], q[${rel.id_target}])  # Blocco Rigido\n`;
       } else {
         const phaseAngle = ((Math.PI / 4) * rel.valore_peso).toFixed(4);
-        pyCode += `qc.cp(${phaseAngle}, q[${rel.id_controllo}], q[${rel.id_target}])  # Legame Morbido (Peso correlazione: ${rel.valore_peso})\n`;
+        pyCode += `qc.cp(${phaseAngle}, q[${rel.id_controllo}], q[${rel.id_target}])  # Legame Morbido\n`;
       }
     });
-  } else {
-    pyCode += `# Nessun vincolo attivo\n`;
   }
 
-  pyCode += `\n# 3. Misurazione collasso nello spazio di Hilbert ed esecuzione\n`;
-  pyCode += `qc.measure(q, c)\n\n`;
+  // 3. Misurazione e Simulatore Locale AerSimulator
+  pyCode += `\nqc.measure(q, c)\n`;
   pyCode += `simulator = AerSimulator()\n`;
-  pyCode += `job = simulator.run(qc, shots=1024)\n`;
+  pyCode += `compiled_circuit = transpile(qc, simulator)\n`;
+  pyCode += `job = simulator.run(compiled_circuit, shots=1024)\n`;
   pyCode += `print(job.result().get_counts())\n`;
 
   return pyCode;

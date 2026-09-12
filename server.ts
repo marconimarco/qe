@@ -807,16 +807,28 @@ async function startServer() {
         return res.status(400).json({ error: "Messaggi non validi" });
       }
 
+      // Purge parasitic string directive
+      const purge = (str: string) => {
+        if (!str) return "";
+        return str
+          .replace(/Confermo che da ora in poi genererò solo stampi vuoti[^.\n]*\.?/gi, "")
+          .replace(/Confermo che da ora in poi genererò solo stampi vuoti parametrici e rigidi in formato JSON[^.\n]*\.?/gi, "")
+          .trim();
+      };
+
       const validMessages = messages.filter(m => m.text && m.text.trim() !== "");
       let firstUserIndex = validMessages.findIndex(m => m.role === "user");
       
       const contents = [];
       if (firstUserIndex !== -1) {
         validMessages.slice(firstUserIndex).forEach(m => {
-          contents.push({
-            role: m.role === "user" ? "user" : "model",
-            parts: [{ text: m.text }],
-          });
+          const cleanedText = purge(m.text);
+          if (cleanedText) {
+            contents.push({
+              role: m.role === "user" ? "user" : "model",
+              parts: [{ text: cleanedText }],
+            });
+          }
         });
       } else {
         contents.push({ role: "user", parts: [{ text: "Iniziamo l'intervista" }] });
@@ -829,16 +841,18 @@ async function startServer() {
       }
 
       try {
+        const cleanedSystemPrompt = purge(systemPrompt || "");
         const result = await aiClient.models.generateContent({
           model: "gemini-2.5-flash",
           contents: contents,
           config: {
-            systemInstruction: systemPrompt || "",
-            temperature: 0.7,
+            systemInstruction: cleanedSystemPrompt,
+            temperature: 0.0,
           },
         });
 
-        return res.json({ success: true, text: result.text });
+        const sanitizedResultText = purge(result.text || "");
+        return res.json({ success: true, text: sanitizedResultText });
       } catch (callErr: any) {
         const errStr = (callErr.status ? `Status ${callErr.status} ` : "") + (callErr.message || "") + (JSON.stringify(callErr) || "");
         if (callErr.status === 400 || callErr.status === 401 || errStr.includes("API_KEY_INVALID") || errStr.includes("API key not valid")) {

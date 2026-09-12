@@ -10,6 +10,7 @@ import aiStudioPrompt from '../promptText.txt?raw';
 import { getStoredApiKey } from '../services/apiKeyService';
 import { getDemoCsvBySector } from "../data/demoCsv";
 import { generateQiskitCode, generateQiskitPythonCode } from "../data/codeGenerators";
+import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfile } from "../data/taxonomicEngine";
 
 export interface SectorScenario {
   id: string;
@@ -48,8 +49,8 @@ function CodeBlockWithCopy({ code, language, title }: { code: string; language: 
   };
 
   return (
-    <div className="my-2.5 rounded-xl overflow-hidden border border-white/20 bg-slate-950 shadow-xl">
-      <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/90 border-b border-white/10 text-[11px] font-mono">
+    <div className="my-2.5 rounded-xl overflow-hidden border border-white/20 bg-slate-950 shadow-xl flex flex-col h-full">
+      <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/90 border-b border-white/10 text-[11px] font-mono shrink-0">
         <span className="text-cyan-300 font-semibold tracking-wide flex items-center gap-1.5">
           <Terminal className="w-3.5 h-3.5 text-amber-400" />
           {title}
@@ -72,7 +73,7 @@ function CodeBlockWithCopy({ code, language, title }: { code: string; language: 
           )}
         </button>
       </div>
-      <pre className="p-3.5 text-[11px] font-mono text-slate-200 overflow-x-auto leading-relaxed max-h-64 bg-slate-950/90 border-t border-white/5">
+      <pre className="p-3.5 text-[11px] font-mono text-slate-200 overflow-auto leading-relaxed flex-1 bg-slate-950/90 border-t border-white/5">
         <code>{code}</code>
       </pre>
     </div>
@@ -265,15 +266,22 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
   // 0: Categoria, 1: Scenario, 2: CSV, 3A: Periodo, 3B: Strategia, 4A: Infrastruttura, 4B: Vincolo, 4C: Chiusura, 5: Completed
   const [currentPhase, setCurrentPhase] = useState<'0_cat' | '1_scen' | '2_csv' | '3a_per' | '3b_strat' | '4a_infra' | '4b_vinc' | '4c_depth' | '4d_close' | '5_done'>('0_cat');
   const [selectedSector, setSelectedSector] = useState<string>('');
-  const { csv1: currentCsv1, csv2: currentCsv2 } = getDemoCsvBySector(selectedSector || "");
   const [selectedScenario, setSelectedScenario] = useState<SectorScenario | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [selectedStrategy, setSelectedStrategy] = useState<string>('');
   const [selectedInfra, setSelectedInfra] = useState<'quantum' | 'classical'>('quantum');
   const [selectedVincolo, setSelectedVincolo] = useState<'blocco_rigido' | 'legame_morbido'>('blocco_rigido');
+  const { csv1: currentCsv1, csv2: currentCsv2 } = getDemoCsvBySector(
+    selectedSector || "", 
+    selectedScenario?.id || "", 
+    selectedVincolo || "blocco_rigido", 
+    selectedStrategy || "aggressiva"
+  );
 
   // CSV Uploaded info state (visual feedback in chat & sidebar)
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; size: string; rows: number }[]>([]);
+  const [customCsv1Content, setCustomCsv1Content] = useState<string | null>(null);
+  const [customCsv2Content, setCustomCsv2Content] = useState<string | null>(null);
   const [customPeriodInput, setCustomPeriodInput] = useState<string>('');
   
   // Date precise personalizzate da calendario (es. dal 01/04/26 al 23/06/26)
@@ -348,6 +356,27 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
 
     setUploadedFiles(parsedInfo);
 
+    // Leggi il contenuto testuale reale dei file caricati
+    if (filesArray[0]) {
+      const reader1 = new FileReader();
+      reader1.onload = (e) => {
+        if (typeof e.target?.result === 'string') {
+          setCustomCsv1Content(e.target.result);
+        }
+      };
+      reader1.readAsText(filesArray[0]);
+    }
+
+    if (filesArray[1]) {
+      const reader2 = new FileReader();
+      reader2.onload = (e) => {
+        if (typeof e.target?.result === 'string') {
+          setCustomCsv2Content(e.target.result);
+        }
+      };
+      reader2.readAsText(filesArray[1]);
+    }
+
     const file1 = parsedInfo[0];
     const file2 = parsedInfo[1] || { name: "matrice_correlazioni_default.csv", size: "1.8 KB", rows: 24 };
 
@@ -367,6 +396,10 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
 
   // Caricamento rapido dati CSV di esempio con download automatico per l'utente
   const handleDemoCsv = () => {
+    // Resetta file custom caricati per usare il dataset demo dello scenario corrente
+    setCustomCsv1Content(null);
+    setCustomCsv2Content(null);
+
     // 1. Trigger del download automatico di entrambi i file CSV di esempio con guida interna
     const { csv1, csv2 } = getDemoCsvBySector(selectedSector);
     triggerCsvDownload("1_anagrafica_risorse_guida.csv", csv1);
@@ -556,47 +589,10 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     };
   }, [theta, phi, targetAlgoritmo]);
 
-  // Generate deterministic architectural replies faithful to promptText.txt if AI call is fallback or fails
+  // Generate deterministic architectural replies faithful to promptText.txt and Taxonomic Engine V3
   const generateArchitectResponse = (phase: string, userInput: string): string => {
-    const getDynamicTexts = () => {
-      const isFinanza = selectedSector.toLowerCase().includes('finanza');
-      const isLogistica = selectedSector.toLowerCase().includes('logistica');
-      const isSanita = selectedSector.toLowerCase().includes('sanità') || selectedSector.toLowerCase().includes('sanita') || selectedSector.toLowerCase().includes('sanit');
-      
-      if (isFinanza) {
-        return {
-          stratAgg: `Massimizza i profitti e taglia immediatamente gli asset in perdita o a basso rendimento.`,
-          stratPrud: `Bilancia il portafoglio riducendo l'esposizione al rischio e proteggendo il capitale.`,
-          vincHard: `Come due titoli altamente correlati: mai comprarli insieme per evitare di sommare i rischi.`,
-          vincSoft: `Come azioni e obbligazioni: meglio bilanciarli insieme, ma senza bloccare se uno manca.`
-        };
-      }
-      if (isLogistica) {
-        return {
-          stratAgg: `Risolve subito i colli di bottiglia, satura i mezzi e smaltisce le scorte per la massima velocità.`,
-          stratPrud: `Mantiene margini di sicurezza nei magazzini e prevede percorsi alternativi per evitare blocchi.`,
-          vincHard: `Come due consegne urgenti in direzioni opposte: impossibile farle con lo stesso mezzo.`,
-          vincSoft: `Come due pacchi per la stessa città: meglio accorparli, ma possono viaggiare separati.`
-        };
-      }
-      if (isSanita) {
-        return {
-          stratAgg: `Massimizza il numero di pazienti trattati o test eseguiti, spingendo le risorse al limite.`,
-          stratPrud: `Garantisce turni di riposo al personale e riserve di farmaci per le emergenze.`,
-          vincHard: `Come due interventi complessi: lo stesso chirurgo non può essere in due sale contemporaneamente.`,
-          vincSoft: `Come un medico e il suo infermiere preferito: lavorano meglio in team, ma possono operare separatamente.`
-        };
-      }
-      // Default (Energia or fallback)
-      return {
-        stratAgg: `Sfrutta al massimo gli impianti per il picco produttivo, riducendo i costi a breve termine.`,
-        stratPrud: `Bilancia i carichi sulla rete per evitare blackout e allunga la vita degli impianti.`,
-        vincHard: `Come l'immissione di energia solare e eolica sulla stessa linea già satura: non possono sommarsi.`,
-        vincSoft: `Come batterie e pannelli solari: lavorano in sinergia perfetta, ma funzionano anche in modo indipendente.`
-      };
-    };
+    const taxSector = getTaxonomicSector(selectedSector, selectedScenario?.id || "");
 
-    const dynTexts = getDynamicTexts();
     if (phase === '0_cat') {
       const sector = userInput;
       let reply = `Hai scelto il settore: **${sector}**.\n\n`;
@@ -610,19 +606,14 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       const lowerInput = userInput.toLowerCase();
       
       if (lowerInput.includes('hedging') || (lowerInput.includes('cross-asset') && lowerInput.includes('ottimizzazione'))) {
-        simpleExplanation = `💡 **In parole semplici:**\n` +
-          `Significa creare uno **"scudo protettivo (ombrello finanziario)"** su misura per la tua azienda.\n` +
-          `• **Hedging:** È una protezione contro le perdite (come una polizza assicurativa).\n` +
-          `• **Cross-Asset:** Invece di proteggere un solo investimento, analizza insieme mercati diversi ma collegati (azioni, cambi di valuta, tassi d'interesse, materie prime) per non mettere tutte le uova nello stesso paniere.\n` +
-          `• **Ottimizzazione Combinatoria:** Esplora miliardi di combinazioni possibili tra strumenti di protezione per individuare l'unica combinazione ideale che ti protegge al 100% spendendo il minimo indispensabile.\n\n`;
+        simpleExplanation = `💡 **Inquadramento Operativo:**\n` +
+          `Protezione attiva e bilanciamento del portafoglio analizzando asset correlati per massimizzare il rendimento al minimo costo di copertura.\n\n`;
       } else {
-        // Cerca lo scenario nei dati dei settori per arricchirne la spiegazione elementare
         const allScenarios = Object.values(SECTOR_DATA).flatMap(d => d.scenarios);
         const matched = allScenarios.find(s => lowerInput.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(lowerInput));
         if (matched) {
-          simpleExplanation = `💡 **In parole semplici:**\n` +
-            `${matched.description}.\n` +
-            `L'algoritmo valuterà le relazioni tra le tue risorse per trovare automaticamente la soluzione più conveniente ed efficiente.\n\n`;
+          simpleExplanation = `💡 **Inquadramento Operativo:**\n` +
+            `${matched.description}.\n\n`;
         }
       }
 
@@ -630,42 +621,55 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       reply += simpleExplanation;
       reply += `👉 **Fase 2: I tuoi dati (File CSV)**\n`;
       reply += `Per procedere servono 2 file CSV:\n`;
-      reply += `• **File 1 (Anagrafica):** Elenco dei tuoi elementi, costi, capacità e scorte.\n`;
-      reply += `• **File 2 (Relazioni/Vincoli):** Matrice di correlazioni o conflitti tra le risorse.\n\n`;
-      reply += `💡 *Puoi caricare i tuoi file personali, oppure cliccare su **[Dataset Demo (Scarica e Testa)]**: il sistema scaricherà automaticamente entrambi i file CSV modello sul tuo computer con tutte le istruzioni dettagliate su come compilarli (virgole, punti decimali, underscore e formato).*`;
+      reply += `• **File 1 (Anagrafica Risorse):** Elenco risorse, pesi e costi.\n`;
+      reply += `• **File 2 (Matrice Vincoli):** Matrice di correlazioni, conflitti o sinergie tra risorse.\n\n`;
+      reply += `💡 *Puoi caricare i tuoi file personali, oppure scaricare i dataset modello pre-compilati per questo scenario.*`;
       return reply;
     }
 
     if (phase === '2_csv') {
       let reply = `Dati acquisiti in memoria locale con successo.\n\n`;
-      reply += `👉 **Fase 3A: Arco di tempo e Date del Calcolo**\n`;
+      reply += `👉 **Fase 3A: Arco Temporale del Calcolo**\n`;
       reply += `Per quale periodo vuoi calcolare la soluzione migliore?\n\n`;
-      reply += `• 📅 **Date Precise da Calendario:** puoi impostare date di inizio e fine specifiche (es. *dal 01/04/26 al 23/06/26*)\n`;
-      reply += `• ⏱️ **Finestre Predefinite:** 1 Mese (30 gg), 1 Trimestre (3 mesi), 1 Semestre (6 mesi), 1 Anno (12 mesi)\n`;
-      reply += `• ✏️ **Arco su Misura:** oppure indicare liberamente i giorni desiderati (es. 45 giorni)\n\n`;
+      reply += `• 📅 **Date Precise da Calendario:** puoi impostare date di inizio e fine specifiche\n`;
+      reply += `• ⏱️ **Finestre Predefinite:** 1 Mese (30 gg), 1 Trimestre (3 mesi), 1 Semestre (6 mesi), 1 Anno (12 mesi)\n\n`;
       reply += `Scegli l'opzione che preferisci con i selettori qui sotto:`;
       return reply;
     }
 
     if (phase === '3a_per') {
       let reply = `Periodo impostato: **${userInput}**.\n\n`;
-      reply += `👉 **Fase 3B: Strategia Operativa (Cost Hamiltonian / Paesaggio Energetico)**\n\n`;
-      reply += `Quale approccio preferisci applicare al calcolo?\n`;
-      reply += `*(Nel **calcolo quantistico**, questa scelta "scolpisce" il panorama energetico dell'algoritmo. L'universo quantistico tende sempre verso lo stato di minima energia. Una strategia aggressiva scaverà "valli" profonde in corrispondenza delle soluzioni più audaci, mentre una prudente le scaverà nelle soluzioni più stabili. I Qubit scivoleranno naturalmente verso il fondo della valle, il cosiddetto Ground State!)*\n\n`;
-      reply += `1. ⚡ **Massima Spinta (Aggressiva):** ${dynTexts.stratAgg}\n`;
-      reply += `2. 🛡️ **Prudente (Conservativa):** ${dynTexts.stratPrud}`;
+      reply += `👉 **Fase 3B: Strategia Operativa (Hamiltoniana di Costo / Paesaggio Energetico)**\n\n`;
+      reply += `*${taxSector.spiegazioneStrategia}*\n\n`;
+      reply += `Scegli l'approccio per la funzione di costo:\n`;
+      reply += `1. ⚡ **${taxSector.stratAggTitle}**\n`;
+      reply += `2. 🛡️ **${taxSector.stratPrudTitle}**`;
       return reply;
     }
 
     if (phase === '3b_strat') {
+      const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
       let reply = `Strategia scelta: **${userInput}**.\n\n`;
-      reply += `👉 **Fase 4B: Regola per le risorse collegate (entanglement)**\n`;
-      reply += `Nei tuoi dati ci sono elementi legati tra loro. Che regola usiamo?\n\n`;
-      reply += `🔒 **1. Blocco Rigido (O l'uno o l'altro):**\n`;
-      reply += `${dynTexts.vincHard}\n\n`;
-      reply += `🔀 **2. Legame Morbido (Meglio insieme):**\n`;
-      reply += `${dynTexts.vincSoft}\n\n`;
-      reply += `Quale regola preferisci?`;
+
+      if (!entProfile.needsEntanglement) {
+        reply += `👉 **Fase 4B: Configurazione Relazioni tra Risorse (Entanglement)**\n\n`;
+        reply += `💡 *${entProfile.reason}*\n\n`;
+        reply += `${entProfile.question}\n\n`;
+        reply += `Scegli la configurazione per il circuito quantistico:\n`;
+        reply += `1. ⚡ **Nessun Entanglement (Risorse Indipendenti - Consigliato)**: Stato quantistico separabile puro a zero rumore a due qubit.\n`;
+        reply += `2. 🔀 **Legame Morbido Facoltativo (Porta di Fase Controllata / CP)**: Sinergia elastica debole opzionale per esplorare ipotetiche covarianze.\n`;
+        reply += `3. 🔒 **Blocco Rigido Facoltativo (Porta Controlled-NOT / CX)**: Vincolo forzato di esclusione categorica.\n\n`;
+        reply += `Quale configurazione preferisci?`;
+      } else {
+        reply += `👉 **Fase 4B: Regola per le Risorse Collegate (Entanglement / Vincoli)**\n\n`;
+        reply += `🔒 *${entProfile.reason}*\n\n`;
+        reply += `${entProfile.question}\n\n`;
+        reply += `Scegli la tipologia di vincolo quantistico:\n`;
+        reply += `1. 🔒 **Blocco Rigido (Vincolo Hard - Porta Controlled-NOT / CX)**: Esclusione totale e assenza di conflitti simultanei.\n`;
+        reply += `2. 🔀 **Legame Morbido (Vincolo Soft - Porta di Fase Controllata / CP)**: Penalità o sinergia di fase modulata.\n`;
+        reply += `3. ⚡ **Nessun Entanglement (Risorse Indipendenti - Sperimentale)**: Disattiva l'accoppiamento per testare lo stato separabile.\n\n`;
+        reply += `Quale regola preferisci?`;
+      }
       return reply;
     }
 
@@ -676,17 +680,26 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     if (phase === '4b_vinc') {
       const qPrefix = selectedInfra === 'quantum' ? 'Qiskit_' : 'Python_HPC_';
       const algoTarget = qPrefix + (selectedScenario?.modelCode || 'QAOA');
+      const msgLower = userInput.toLowerCase();
+      let style = 'legame_morbido';
+      if (msgLower.includes('nessun') || msgLower.includes('indipendent') || msgLower.includes('senza') || msgLower.includes('separabile')) {
+        style = 'nessun_vincolo';
+      } else if (msgLower.includes('rigido') || msgLower.includes('hard')) {
+        style = 'blocco_rigido';
+      }
       
-      return `Regola impostata: **${userInput}**.\n\nTutti i parametri quantistici e di business sono configurati.\n\nConfermo che da ora in poi genererò solo stampi vuoti parametrici e rigidi in formato JSON compatibile con l'architettura TypeScript sopra descritta.
+      const descrRegola = style === 'nessun_vincolo'
+        ? 'Risorse Indipendenti (Senza Entanglement - Stato Separabile Puro)'
+        : (style === 'blocco_rigido' ? 'Blocco Rigido (Porta CX)' : 'Legame Morbido (Porta CP)');
 
-*Elaborazione in corso... Generazione architettura JSON pronta per TypeScript.*
+      return `Regola impostata: **${descrRegola}**.\n\nTutti i parametri quantistici e di business sono configurati.\n\n*Elaborazione in corso... Compilazione modello quantistico.*
 
 \`\`\`json
 {
   "algoritmo_target": "${algoTarget}",
-  "macro_scenario": "sgombero_aggressivo_o_tutela_brand",
-  "vincolo_stile": "${selectedVincolo || 'blocco_rigido'}",
-  "periodo_target": "1 Trimestre",
+  "macro_scenario": "${selectedScenario?.id || 'ottimizzazione'}",
+  "vincolo_stile": "${style}",
+  "periodo_target": "${selectedPeriod || '1 Trimestre'}",
   "conferma_avvio": true
 }
 \`\`\``;
@@ -728,9 +741,15 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     } else if (activePhase === '4a_infra') {
       nextPhase = '4b_vinc'; // Fallback just in case
     } else if (activePhase === '4b_vinc') {
-      const isRigido = userMessage.toLowerCase().includes('rigido') || userMessage.toLowerCase().includes('hard');
-      setSelectedVincolo(isRigido ? 'blocco_rigido' : 'legame_morbido');
-      setVincoloStile(isRigido ? 'blocco_rigido' : 'legame_morbido');
+      const msgLower = userMessage.toLowerCase();
+      let chosenStyle = 'legame_morbido';
+      if (msgLower.includes('nessun') || msgLower.includes('indipendent') || msgLower.includes('senza') || msgLower.includes('separabile')) {
+        chosenStyle = 'nessun_vincolo';
+      } else if (msgLower.includes('rigido') || msgLower.includes('hard')) {
+        chosenStyle = 'blocco_rigido';
+      }
+      setSelectedVincolo(chosenStyle);
+      setVincoloStile(chosenStyle);
       nextPhase = '5_done';
     }
 
@@ -752,6 +771,8 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
         replyText = generateArchitectResponse(activePhase, userMessage);
       }
 
+      replyText = purgeParasiticStrings(replyText);
+
       // Check for JSON block (either from AI or fallback)
       const jsonMatch = replyText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || replyText.match(/(\{[\s\S]*"algoritmo_target"[\s\S]*\})/);
       if (jsonMatch) {
@@ -763,22 +784,14 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
           setTargetAlgoritmo(targetAlgo);
           setVincoloStile(style);
           
-          // Deterministic angles derived from CSV element math
-          const calcTheta = style === 'blocco_rigido' ? 68 : 42;
-          const calcPhi = style === 'blocco_rigido' ? 90 : 45;
-          setTheta(calcTheta);
-          setPhi(calcPhi);
-
           const finalExplanation = buildFinalOutcomeExplanation(
             targetAlgo,
             assetSector || selectedSector,
             style,
-            selectedPeriod || '1 Trimestre',
-            calcTheta,
-            calcPhi
+            selectedPeriod || '1 Trimestre'
           );
 
-          replyText = replyText.replace(jsonMatch[0], finalExplanation);
+          replyText = replyText.replace(jsonMatch[0], () => finalExplanation);
           nextPhase = '5_done';
         } catch (e) {
           // parsing error fallback
@@ -789,7 +802,7 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       setCurrentPhase(nextPhase);
     } catch (error) {
       // Seamlessly supply the authentic architectural response
-      let fallbackReply = generateArchitectResponse(activePhase, userMessage);
+      let fallbackReply = purgeParasiticStrings(generateArchitectResponse(activePhase, userMessage));
       
       const jsonMatch = fallbackReply.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || fallbackReply.match(/(\{[\s\S]*"algoritmo_target"[\s\S]*\})/);
       if (jsonMatch) {
@@ -800,20 +813,15 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
           
           setTargetAlgoritmo(targetAlgo);
           setVincoloStile(style);
-          const calcTheta = style === 'blocco_rigido' ? 68 : 42;
-          const calcPhi = style === 'blocco_rigido' ? 90 : 45;
-          setTheta(calcTheta);
 
           const finalExplanation = buildFinalOutcomeExplanation(
             targetAlgo,
             assetSector || selectedSector,
             style,
-            selectedPeriod || '1 Trimestre',
-            calcTheta,
-            calcPhi
+            selectedPeriod || '1 Trimestre'
           );
 
-          fallbackReply = fallbackReply.replace(jsonMatch[0], finalExplanation);
+          fallbackReply = fallbackReply.replace(jsonMatch[0], () => finalExplanation);
           nextPhase = '5_done';
         } catch (e) {
           // ignore
@@ -831,45 +839,88 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     algo: string, 
     sector: string, 
     vincolo: string, 
-    periodo: string,
-    angleTheta: number,
-    anglePhi: number
+    periodo: string
   ) => {
-    const isQ = algo.startsWith('Qiskit_');
-    const rad = (angleTheta * Math.PI) / 180;
-    const p0 = Math.round(Math.pow(Math.cos(rad / 2), 2) * 100);
-    const p1 = Math.round(Math.pow(Math.sin(rad / 2), 2) * 100);
+    const isNone = vincolo === 'nessun_vincolo' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
+    const isHard = !isNone && (vincolo === 'blocco_rigido' || vincolo.includes('rigido') || vincolo.includes('hard'));
 
-    const vincoloNome = vincolo === 'blocco_rigido' 
-      ? 'Blocco Rigido (Zero conflitti)' 
-      : 'Legame Morbido (Sinergia flessibile)';
+    const vincoloNome = isNone
+      ? 'Risorse Indipendenti (Senza Entanglement - Stato Separabile Puro)'
+      : (isHard
+        ? 'Blocco Rigido (Porta Controlled-NOT / CX)' 
+        : 'Legame Morbido (Porta di Fase Controllata / CP)');
 
-        const qasmSnippet = generateQiskitCode(sector, currentCsv1, currentCsv2, vincolo);
-    const pythonSnippet = generateQiskitPythonCode(sector, currentCsv1, currentCsv2, vincolo);
+    const effectiveStrategy = selectedStrategy || 'Aggressiva';
+    const effectiveSector = sector || selectedSector || 'Finanza e Mercati';
+    const effectiveScenarioId = selectedScenario?.id || '';
 
-    return `\n\n🎉 **[SIMULAZIONE COMPLETATA — RISULTATI IN SINTESI]**
-• **Settore & Scenario:** ${sector || 'Azienda'} (${selectedScenario?.name || 'Ottimizzazione'})
-• **Periodo:** ${periodo || '1 Trimestre'}
-• **Regola Vincoli:** ${vincoloNome}
+    const { csv1: genCsv1, csv2: genCsv2 } = getDemoCsvBySector(effectiveSector, effectiveScenarioId, vincolo, effectiveStrategy);
+    const sourceCsv1 = customCsv1Content || genCsv1;
+    const sourceCsv2 = customCsv2Content || genCsv2;
+    const qasmSnippet = generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
+    const pythonSnippet = generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
+    
+    // Extract real theta from CSV for the first qubit
+    const lines1 = sourceCsv1.split('\n').filter(l => l.trim() !== '' && !l.startsWith('#'));
+    let pesoFinale = 0.5;
+    
+    const stratLower = effectiveStrategy.toLowerCase();
+    const isAggressiva = stratLower.includes('aggressiva') || stratLower.includes('spinta') || stratLower.includes('massimizz');
+    const isPrudente = stratLower.includes('prudent') || stratLower.includes('conservazion') || stratLower.includes('tutela');
+    
+    let idColIndex = 0;
+    let pesoColIndex = 5;
+    const firstLine = lines1.find(l => l.includes('id_risorsa'));
+    if (firstLine) {
+       const headers = firstLine.split(',').map(h => h.trim());
+       const foundIdIdx = headers.indexOf('id_risorsa');
+       const foundPesoIdx = headers.indexOf('priorita_peso');
+       if (foundIdIdx !== -1) idColIndex = foundIdIdx;
+       if (foundPesoIdx !== -1) pesoColIndex = foundPesoIdx;
+    }
 
-📊 **Cosa mostra la Sfera a destra:**
-• **Stabilità (${p0}%):** Solidità e sicurezza del piano trovato.
-• **Rischio residuo (${p1}%):** Margine da monitorare.
-• **Angoli (θ=${angleTheta}°, φ=${anglePhi}°):** Posizione della soluzione calcolata.
+    const firstDataLine = lines1.find(l => !l.includes('id_risorsa') && l.trim().length > 0);
+    if (firstDataLine) {
+        const parts = firstDataLine.split(',');
+        const rawPeso = parseFloat(parts[pesoColIndex] || '0.5');
+        if (!isNaN(rawPeso) && rawPeso >= 0 && rawPeso <= 1.0) {
+            let adjustedPeso = rawPeso;
+            if (isAggressiva) {
+              adjustedPeso = Math.min(1.0, rawPeso * 1.15);
+            } else if (isPrudente) {
+              adjustedPeso = rawPeso * 0.85;
+            }
+            pesoFinale = Math.max(0.0, Math.min(1.0, adjustedPeso));
+        }
+    }
 
-Puoi visionare il risultato dalla sfera 3D a destra.
+    // Mathematical correlation (Backend sync)
+    const thetaRad = 2 * Math.asin(Math.sqrt(pesoFinale));
+    const angleTheta = Math.round((thetaRad * 180) / Math.PI);
+    const anglePhi = (!isNone && !isHard) ? 90 : 0; // Se morbido, CP può applicare una fase
 
-### 🎯 Cosa ottieni eseguendo questi codici?
-Questi script sono il "motore" pronto all'uso del tuo progetto. Eseguendoli (su un computer normale o su uno quantistico IBM), la macchina leggerà i tuoi file CSV e ti restituirà **la lista esatta delle decisioni ottimali da prendere** (es. quali asset attivare o quali rotte scegliere) con la massima efficienza matematica. In parole povere: ti dirà esattamente cosa fare per massimizzare il risultato rispettando i vincoli!
+    setTheta(angleTheta);
+    setPhi(anglePhi);
 
-Qui sotto trovi i codici quantistici pronti, esportabili nei due linguaggi principali (OpenQASM puro e Python Qiskit). Sono separati in due moduli qui sotto:
+    // Calcolo rigoroso basato sull'angolo in radianti (legge di Born per la sfera di Bloch)
+    const p1 = Math.round(Math.pow(Math.sin(thetaRad / 2), 2) * 100);
+    const p0 = Math.round(Math.pow(Math.cos(thetaRad / 2), 2) * 100);
+
+    const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId);
+
+    return `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V3 COMPLETATA]**
+• **Settore:** ${taxSector.name} (${selectedScenario?.name || 'Ottimizzazione'})
+• **Strategia Energetica:** ${effectiveStrategy}
+• **Fisica Entanglement:** ${vincoloNome}
+• **Stato Qubit[0]:** Stabilità |0⟩ = ${p0}% | Rischio residuo |1⟩ = ${p1}% (θ=${angleTheta}°, φ=${anglePhi}°)
 
 \`\`\`qasm
 ${qasmSnippet}
 \`\`\`
 \`\`\`python
 ${pythonSnippet}
-\`\`\``;  };
+\`\`\``;
+  };
 
   const handleSend = () => {
     executeSend(input);
@@ -998,7 +1049,7 @@ ${pythonSnippet}
             );
           } else {
             return (
-              <div key={idx} className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start w-full">
+              <div key={idx} className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch w-full">
                 {group.blocks.map((part, bIdx) => {
                   const raw = part.trim().slice(3, -3).trim();
                   const firstNewline = raw.indexOf('\n');
@@ -1017,7 +1068,7 @@ ${pythonSnippet}
                   if (lang.toLowerCase() === 'json') title = '📋 MANIFESTO DI CONFIGURAZIONE JSON';
 
                   return (
-                    <div key={bIdx} className="w-full min-w-0">
+                    <div key={bIdx} className="w-full min-w-0 h-full">
                       <CodeBlockWithCopy
                         code={codeContent}
                         language={lang}
@@ -1092,7 +1143,7 @@ ${pythonSnippet}
 
               return (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[88%] rounded-xl p-4 font-mono text-sm leading-relaxed ${
+                  <div className={`max-w-[88%] rounded-xl p-4 font-['Comfortaa'] font-light text-sm leading-relaxed ${
                     msg.role === 'user' 
                       ? isCsvUploadMsg 
                         ? 'bg-emerald-950/50 text-emerald-200 border-2 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
@@ -1409,58 +1460,32 @@ ${pythonSnippet}
             {/* Phase 3B: Strategia Operativa */}
             {currentPhase === '3b_strat' && (
               (() => {
-                const isFinanza = selectedSector.toLowerCase().includes('finanza');
-                const isLogistica = selectedSector.toLowerCase().includes('logistica');
-                const isSanita = selectedSector.toLowerCase().includes('sanità') || selectedSector.toLowerCase().includes('sanita') || selectedSector.toLowerCase().includes('sanit');
-                
-                let titleAgg = "⚡ Massima Spinta Efficienza";
-                let descAgg = "Risoluzione rapida e forzata dei colli di bottiglia";
-                let titlePrud = "🛡️ Conservazione Risorse";
-                let descPrud = "Approccio prudenziale, bilanciato e conservativo";
-
-                if (isFinanza) {
-                  titleAgg = "⚡ Massimizza i Profitti / Taglio Rischio";
-                  descAgg = "Taglia immediatamente gli asset in perdita o a basso rendimento.";
-                  titlePrud = "🛡️ Bilanciamento Portafoglio / Tutela Capitale";
-                  descPrud = "Riduce l'esposizione al rischio e protegge il capitale a lungo termine.";
-                } else if (isLogistica) {
-                  titleAgg = "⚡ Sgombero Magazzino Aggressivo / Velocità";
-                  descAgg = "Satura i mezzi e smaltisce le scorte per la massima rapidità.";
-                  titlePrud = "🛡️ Margini di Sicurezza / Percorsi Alternativi";
-                  descPrud = "Prevede riserve nei magazzini per evitare blocchi improvvisi.";
-                } else if (isSanita) {
-                  titleAgg = "⚡ Massimizza Trattamenti / Efficienza Critica";
-                  descAgg = "Spinge le risorse al limite per il massimo dei pazienti o test.";
-                  titlePrud = "🛡️ Tutela Personale / Riserve di Emergenza";
-                  descPrud = "Garantisce turni di riposo e stock strategico di farmaci.";
-                } else {
-                  titleAgg = "⚡ Sfruttamento Massimo Impianti (Breve Termine)";
-                  descAgg = "Punta al picco produttivo riducendo i costi immediati.";
-                  titlePrud = "🛡️ Bilanciamento Carichi (Lungo Termine)";
-                  descPrud = "Allunga la vita degli impianti e previene i sovraccarichi.";
-                }
+                const taxSector = getTaxonomicSector(selectedSector, selectedScenario?.id || "");
 
                 return (
                   <div className="flex flex-col gap-2">
                     <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-amber-400" /> Imposta la Strategia Operativa (Pesi Funzione Costo):
+                      <Zap className="w-3.5 h-3.5 text-amber-400" /> Imposta la Strategia Operativa (Hamiltoniana di Costo):
+                    </div>
+                    <div className="text-[11px] text-slate-300 italic mb-1">
+                      {taxSector.spiegazioneStrategia}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button
-                        onClick={() => handleQuickClick(titleAgg)}
+                        onClick={() => handleQuickClick(taxSector.stratAggTitle)}
                         disabled={isLoading}
-                        className="px-3 py-2.5 bg-slate-800/90 hover:bg-amber-950/40 hover:border-amber-500/60 border border-amber-500/30 rounded-lg font-mono text-xs text-amber-200 transition-all text-left flex flex-col gap-0.5"
+                        className="px-3 py-2.5 bg-slate-800/90 hover:bg-amber-950/40 hover:border-amber-500/60 border border-amber-500/30 rounded-lg font-mono text-xs text-amber-200 transition-all text-left flex flex-col gap-0.5 shadow-sm"
                       >
-                        <span className="font-bold">{titleAgg}</span>
-                        <span className="text-[10px] text-slate-400">{descAgg}</span>
+                        <span className="font-bold">{taxSector.stratAggTitle}</span>
+                        <span className="text-[10px] text-slate-400">Scava valli energetiche profonde per soluzioni audaci ad alto rendimento.</span>
                       </button>
                       <button
-                        onClick={() => handleQuickClick(titlePrud)}
+                        onClick={() => handleQuickClick(taxSector.stratPrudTitle)}
                         disabled={isLoading}
-                        className="px-3 py-2.5 bg-slate-800/90 hover:bg-cyan-950/40 hover:border-cyan-500/60 border border-cyan-500/30 rounded-lg font-mono text-xs text-cyan-200 transition-all text-left flex flex-col gap-0.5"
+                        className="px-3 py-2.5 bg-slate-800/90 hover:bg-cyan-950/40 hover:border-cyan-500/60 border border-cyan-500/30 rounded-lg font-mono text-xs text-cyan-200 transition-all text-left flex flex-col gap-0.5 shadow-sm"
                       >
-                        <span className="font-bold">{titlePrud}</span>
-                        <span className="text-[10px] text-slate-400">{descPrud}</span>
+                        <span className="font-bold">{taxSector.stratPrudTitle}</span>
+                        <span className="text-[10px] text-slate-400">Protegge la stabilità dello stato fondamentale e mitiga il rischio.</span>
                       </button>
                     </div>
                   </div>
@@ -1506,42 +1531,144 @@ ${pythonSnippet}
               </div>
             )}
 
-            {/* Phase 4B: Vincoli */}
+            {/* Phase 4B: Vincoli / Entanglement */}
             {currentPhase === '4b_vinc' && (
-              <div className="flex flex-col gap-2">
-                <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-cyan-400" /> Scegli la Regola per le Risorse Collegate (Entanglement):
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-normal">Esempi pratici immediati</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleQuickClick("Blocco Rigido (Esclusione totale / Vincolo Hard)")}
-                    disabled={isLoading}
-                    className="p-3 bg-slate-800/90 hover:bg-rose-950/50 hover:border-rose-500/70 border border-rose-500/40 rounded-lg font-mono text-xs text-rose-200 transition-all text-left flex flex-col gap-1 group"
-                  >
-                    <span className="font-bold flex items-center gap-1.5 text-rose-300 group-hover:text-rose-200">
-                      🔒 Blocco Rigido (Porta Logica CNOT)
-                    </span>
-                    <span className="text-[11px] text-slate-300 font-normal leading-normal">
-                      O l'uno o l'altro (Esclusione totale). Esempio banale: come due riunioni alla stessa ora, zero conflitti o sovrapposizioni.
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => handleQuickClick("Legame Morbido (Sinergia flessibile / Vincolo Soft)")}
-                    disabled={isLoading}
-                    className="p-3 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/70 border border-indigo-500/40 rounded-lg font-mono text-xs text-indigo-200 transition-all text-left flex flex-col gap-1 group"
-                  >
-                    <span className="font-bold flex items-center gap-1.5 text-indigo-300 group-hover:text-indigo-200">
-                      🔀 Legame Morbido (Porta Logica CZ)
-                    </span>
-                    <span className="text-[11px] text-slate-300 font-normal leading-normal">
-                      Meglio insieme (Sinergia flessibile). Esempio banale: come fragole e panna, lavorano meglio insieme ma operano anche divisi.
-                    </span>
-                  </button>
-                </div>
-              </div>
+              (() => {
+                const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
+
+                if (!entProfile.needsEntanglement) {
+                  return (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-emerald-400" /> Configurazione Relazioni tra Risorse (Scenario a Risorse Indipendenti):
+                        </span>
+                        <span className="text-[10px] text-emerald-400/90 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                          Entanglement non necessario
+                        </span>
+                      </div>
+
+                      {/* Box esplicativo: Perché l'entanglement non serve in questo scenario */}
+                      <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-lg text-[11px] text-emerald-200 leading-relaxed font-mono flex flex-col gap-1.5 shadow-sm">
+                        <div className="font-bold flex items-center gap-1.5 text-emerald-300">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>Perché in questo scenario l'entanglement NON è richiesto:</span>
+                        </div>
+                        <p className="text-slate-300 font-sans text-xs leading-relaxed">
+                          {entProfile.reason}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          onClick={() => handleQuickClick("Nessun Entanglement (Risorse Indipendenti - Consigliato)")}
+                          disabled={isLoading}
+                          className="p-3 bg-emerald-950/70 hover:bg-emerald-900/90 hover:border-emerald-400 border-2 border-emerald-500/80 rounded-lg font-mono text-xs text-emerald-100 transition-all text-left flex flex-col gap-1 group shadow-md"
+                        >
+                          <span className="font-bold flex items-center gap-1.5 text-emerald-300 group-hover:text-emerald-200">
+                            ⚡ Nessun Entanglement (Consigliato)
+                          </span>
+                          <span className="text-[10px] text-slate-300 font-normal leading-normal">
+                            Stato separabile puro. Zero porte a due qubit: massima fedeltà e campionamento parallelo senza rumore.
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => handleQuickClick("Legame Morbido Facoltativo (Sinergia flessibile / Vincolo Soft - Porta CP)")}
+                          disabled={isLoading}
+                          className="p-3 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/70 border border-indigo-500/30 rounded-lg font-mono text-xs text-indigo-200 transition-all text-left flex flex-col gap-1 group shadow-sm opacity-90 hover:opacity-100"
+                        >
+                          <span className="font-bold flex items-center gap-1.5 text-indigo-300 group-hover:text-indigo-200">
+                            🔀 Legame Morbido Facoltativo (Porta CP)
+                          </span>
+                          <span className="text-[10px] text-slate-300 font-normal leading-normal">
+                            Opzionale: sfasamento debole se desideri esplorare un'ipotetica covarianza residua tra i canali.
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => handleQuickClick("Blocco Rigido Facoltativo (Esclusione totale / Vincolo Hard - Porta CX)")}
+                          disabled={isLoading}
+                          className="p-3 bg-slate-800/90 hover:bg-rose-950/50 hover:border-rose-500/70 border border-rose-500/30 rounded-lg font-mono text-xs text-rose-200 transition-all text-left flex flex-col gap-1 group shadow-sm opacity-90 hover:opacity-100"
+                        >
+                          <span className="font-bold flex items-center gap-1.5 text-rose-300 group-hover:text-rose-200">
+                            🔒 Blocco Rigido Facoltativo (Porta CX)
+                          </span>
+                          <span className="text-[10px] text-slate-300 font-normal leading-normal">
+                            Opzionale: forza vincoli rigidi di mutua esclusione non necessari.
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Scenario ad alto accoppiamento (Entanglement Indispensabile)
+                return (
+                  <div className="flex flex-col gap-2.5">
+                    <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-amber-400" /> Scegli la Regola per le Risorse Collegate (Entanglement Indispensabile):
+                      </span>
+                      <span className="text-[10px] text-amber-400/90 font-mono bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30">
+                        Entanglement richiesto
+                      </span>
+                    </div>
+
+                    {/* Box esplicativo: Perché l'entanglement è necessario */}
+                    <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-lg text-[11px] text-amber-200 leading-relaxed font-mono flex flex-col gap-1.5 shadow-sm">
+                      <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                        <Layers className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>Perché in questo scenario l'entanglement è INDISPENSABILE:</span>
+                      </div>
+                      <p className="text-slate-300 font-sans text-xs leading-relaxed">
+                        {entProfile.reason}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        onClick={() => handleQuickClick("Blocco Rigido (Esclusione totale / Vincolo Hard - Porta CX)")}
+                        disabled={isLoading}
+                        className="p-3 bg-slate-800/90 hover:bg-rose-950/50 hover:border-rose-500/70 border border-rose-500/40 rounded-lg font-mono text-xs text-rose-200 transition-all text-left flex flex-col gap-1 group shadow-sm"
+                      >
+                        <span className="font-bold flex items-center gap-1.5 text-rose-300 group-hover:text-rose-200">
+                          🔒 Blocco Rigido (Porta Controlled-NOT / CX)
+                        </span>
+                        <span className="text-[10px] text-slate-300 font-normal leading-normal">
+                          Esclusione categorica: impedisce conflitti simultanei e sovrapposizioni mutualmente esclusive.
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => handleQuickClick("Legame Morbido (Sinergia flessibile / Vincolo Soft - Porta CP)")}
+                        disabled={isLoading}
+                        className="p-3 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/70 border border-indigo-500/40 rounded-lg font-mono text-xs text-indigo-200 transition-all text-left flex flex-col gap-1 group shadow-sm"
+                      >
+                        <span className="font-bold flex items-center gap-1.5 text-indigo-300 group-hover:text-indigo-200">
+                          🔀 Legame Morbido (Porta di Fase Controllata / CP)
+                        </span>
+                        <span className="text-[10px] text-slate-300 font-normal leading-normal">
+                          Sinergia elastica: introduce sfasamento angolare modulato sulla correlazione.
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => handleQuickClick("Nessun Entanglement (Risorse Indipendenti - Senza Vincoli)")}
+                        disabled={isLoading}
+                        className="p-3 bg-slate-800/90 hover:bg-slate-700/60 hover:border-slate-400/50 border border-white/15 rounded-lg font-mono text-xs text-slate-300 transition-all text-left flex flex-col gap-1 group shadow-sm opacity-80 hover:opacity-100"
+                      >
+                        <span className="font-bold flex items-center gap-1.5 text-slate-300 group-hover:text-white">
+                          ⚡ Nessun Vincolo (Sperimentale)
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-normal leading-normal">
+                          Disattiva l'accoppiamento per testare lo stato separabile puro ignorando le interdipendenze.
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()
             )}
 
             {/* Phase 4C: Chiusura */}
