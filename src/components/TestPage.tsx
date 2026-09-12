@@ -908,11 +908,19 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
 
     const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId);
 
-    return `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V3 COMPLETATA]**
-• **Settore:** ${taxSector.name} (${selectedScenario?.name || 'Ottimizzazione'})
-• **Strategia Energetica:** ${effectiveStrategy}
-• **Fisica Entanglement:** ${vincoloNome}
-• **Stato Qubit[0]:** Stabilità |0⟩ = ${p0}% | Rischio residuo |1⟩ = ${p1}% (θ=${angleTheta}°, φ=${anglePhi}°)
+    const entanglementType = isNone ? "none" : (isHard ? "cx" : "cp");
+    const phiRad = 0.0; // Phi is always 0 in this simplified amplitude encoding unless RZ/P is explicitly added.
+
+    return `\`\`\`json
+{
+  "settore": "${taxSector.name}",
+  "scenario": "${selectedScenario?.name || 'Ottimizzazione'}",
+  "strategia": "${effectiveStrategy}",
+  "entanglement": "${entanglementType}",
+  "theta_radianti": ${parseFloat(thetaRad.toFixed(4))},
+  "phi_radianti": ${phiRad}
+}
+\`\`\`
 
 \`\`\`qasm
 ${qasmSnippet}
