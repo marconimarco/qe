@@ -28,6 +28,7 @@ export interface ContenitoreQuantistico {
   entanglement: 'cx' | 'cp' | 'none';
   theta_radianti: number;
   phi_radianti: number;
+  predisposizione_grafico?: boolean;
 }
 
 /**
@@ -53,12 +54,41 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
     const stabilita0 = Math.round(Math.pow(Math.cos(rad / 2), 2) * 100);
     const rischio1 = Math.round(Math.pow(Math.sin(rad / 2), 2) * 100);
 
+    // TRADUTTORE SEMANTICO UNIVERSALE
+    let labelStato0 = "Stabilità";
+    let labelStato1 = "Rischio Residuo";
+    let labelColonna = "Rendimento/Priorità";
+
+    const settoreLower = dati.settore.toLowerCase();
+    if (settoreLower.includes("finanz")) {
+      labelColonna = "Rendimento/Priorità";
+      labelStato0 = "Stabilità";
+      labelStato1 = "Rischio Residuo";
+    } else if (settoreLower.includes("chimic") || settoreLower.includes("farmaceutica") || settoreLower.includes("materiali")) {
+      labelColonna = "Affinità Legame";
+      labelStato0 = "Stato Fondamentale Orbitale";
+      labelStato1 = "Eccitazione Molecolare/Instabilità";
+    } else if (settoreLower.includes("produzion") || settoreLower.includes("manifattura")) {
+      labelColonna = "Priorità Commessa";
+      labelStato0 = "Efficienza OEE Impianto";
+      labelStato1 = "Rischio Fermo Macchina (Makespan)";
+    } else if (settoreLower.includes("sicurezz") || settoreLower.includes("telecomunicazion") || settoreLower.includes("reti")) {
+      labelColonna = "Criticità Log";
+      labelStato0 = "Integrità Rete/Core Network";
+      labelStato1 = "Contenimento Minacce/Anomalie";
+    } else if (settoreLower.includes("sanità") || settoreLower.includes("sanita") || settoreLower.includes("genomica")) {
+      labelColonna = "Espressione Genica";
+      labelStato0 = "Omeostasi/Cellula Sana";
+      labelStato1 = "Mutazione/Variabilità Genica";
+    }
+
     return `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V3 COMPLETATA]**
 • **Settore:** ${dati.settore}
 • **Scenario:** ${dati.scenario}
 • **Strategia Energetica:** ${dati.strategia}
+• **Traduzione Input (Amplitude Encoding):** Colonna 6 CSV mappata su '${labelColonna}'
 • **Fisica Entanglement:** ${dati.entanglement === 'cx' ? 'Blocco Rigido (Porta CX)' : dati.entanglement === 'cp' ? 'Legame Morbido (Porta CP)' : 'Risorse Indipendenti'}
-• **Stato Qubit[0]:** Stabilità |0⟩ = ${stabilita0}% | Rischio residuo |1⟩ = ${rischio1}% (θ=${thetaGradi}°, φ=${fasePhiGradi}°)`;
+• **Stato Qubit[0]:** ${labelStato0} |0⟩ = ${stabilita0}% | ${labelStato1} |1⟩ = ${rischio1}% (θ=${thetaGradi}°, φ=${fasePhiGradi}°)`;
 
   } catch (error) {
     console.error("Errore critico pipeline quantistica:", error);
@@ -905,42 +935,15 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     const qasmSnippet = generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
     const pythonSnippet = generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
     
-    // Extract real theta from CSV for the first qubit
-    const lines1 = sourceCsv1.split('\n').filter(l => l.trim() !== '' && !l.startsWith('#'));
-    let pesoFinale = 0.5;
-    
-    const stratLower = effectiveStrategy.toLowerCase();
-    const isAggressiva = stratLower.includes('aggressiva') || stratLower.includes('spinta') || stratLower.includes('massimizz');
-    const isPrudente = stratLower.includes('prudent') || stratLower.includes('conservazion') || stratLower.includes('tutela');
-    
-    let idColIndex = 0;
-    let pesoColIndex = 5;
-    const firstLine = lines1.find(l => l.includes('id_risorsa'));
-    if (firstLine) {
-       const headers = firstLine.split(',').map(h => h.trim());
-       const foundIdIdx = headers.indexOf('id_risorsa');
-       const foundPesoIdx = headers.indexOf('priorita_peso');
-       if (foundIdIdx !== -1) idColIndex = foundIdIdx;
-       if (foundPesoIdx !== -1) pesoColIndex = foundPesoIdx;
+    // STRATEGIA DI UNIFICAZIONE (Sorgente Unica di Verità)
+    // Invece di ri-parsare il CSV con regole potenzialmente diverse per ogni settore, 
+    // estraiamo il theta_radianti REALE direttamente dal codice Python appena generato.
+    // Questo elimina per sempre i disallineamenti o fallback hardcoded.
+    let thetaRad = 0.5;
+    const matchRy = pythonSnippet.match(/qc\.ry\(([\d.]+),\s*q\[0\]\)/);
+    if (matchRy) {
+       thetaRad = parseFloat(matchRy[1]);
     }
-
-    const firstDataLine = lines1.find(l => !l.includes('id_risorsa') && l.trim().length > 0);
-    if (firstDataLine) {
-        const parts = firstDataLine.split(',');
-        const rawPeso = parseFloat(parts[pesoColIndex] || '0.5');
-        if (!isNaN(rawPeso) && rawPeso >= 0 && rawPeso <= 1.0) {
-            let adjustedPeso = rawPeso;
-            if (isAggressiva) {
-              adjustedPeso = Math.min(1.0, rawPeso * 1.15);
-            } else if (isPrudente) {
-              adjustedPeso = rawPeso * 0.85;
-            }
-            pesoFinale = Math.max(0.0, Math.min(1.0, adjustedPeso));
-        }
-    }
-
-    // Mathematical correlation (Backend sync)
-    const thetaRad = 2 * Math.asin(Math.sqrt(pesoFinale));
     
     // UI State for the 3D Bloch sphere view on the side
     const angleTheta = Math.round((thetaRad * 180) / Math.PI);
@@ -959,7 +962,8 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       strategia: effectiveStrategy,
       entanglement: entanglementType,
       theta_radianti: parseFloat(thetaRad.toFixed(4)),
-      phi_radianti: phiRad
+      phi_radianti: phiRad,
+      predisposizione_grafico: true
     };
     
     const jsonString = JSON.stringify(jsonObj, null, 2);

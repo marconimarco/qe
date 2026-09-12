@@ -86,7 +86,7 @@ export const generateQiskitCode = (
       adjustedPeso = r.peso * 0.85;
     }
     const pesoSafe = Math.max(0.0, Math.min(1.0, adjustedPeso));
-    const theta = (2 * Math.asin(Math.sqrt(pesoSafe))).toFixed(4);
+    const theta = (2 * Math.acos(Math.sqrt(pesoSafe))).toFixed(4);
     return `// Inizializzazione q[${i}]\nry(${theta}) q[${i}];`;
   }).join('\n');
 
@@ -208,7 +208,7 @@ export const generateQiskitPythonCode = (
       adjustedPeso = r.peso * 0.85;
     }
     const pesoSafe = Math.max(0.0, Math.min(1.0, adjustedPeso));
-    const theta = (2 * Math.asin(Math.sqrt(pesoSafe))).toFixed(4);
+    const theta = (2 * Math.acos(Math.sqrt(pesoSafe))).toFixed(4);
     pyCode += `qc.ry(${theta}, q[${i}])  # Inizializzazione q[${i}]\n`;
   });
 
