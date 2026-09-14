@@ -1,3 +1,4 @@
+import EndInterviewModal from "./EndInterviewModal";
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, Send, Terminal, Loader2, Sparkles, Cpu, RotateCcw, 
@@ -337,7 +338,7 @@ const SECTOR_DATA: Record<string, { icon: string; scenarios: SectorScenario[] }>
   }
 };
 
-export default function TestPage({ onBack }: { onBack: () => void }) {
+export default function TestPage({ onBack, onOpenIbm, setSharedQasm }: { onBack: () => void; onOpenIbm?: () => void; setSharedQasm?: (code: string) => void; }) {
   const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string }[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -351,6 +352,10 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [selectedStrategy, setSelectedStrategy] = useState<string>('');
   const [selectedInfra, setSelectedInfra] = useState<'quantum' | 'classical'>('quantum');
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [finalQasm, setFinalQasm] = useState("");
+  const [finalPython, setFinalPython] = useState("");
+  const [finalJson, setFinalJson] = useState("");
   const [selectedVincolo, setSelectedVincolo] = useState<'blocco_rigido' | 'legame_morbido'>('blocco_rigido');
   const { csv1: currentCsv1, csv2: currentCsv2 } = getDemoCsvBySector(
     selectedSector || "", 
@@ -832,6 +837,7 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       setSelectedVincolo(chosenStyle);
       setVincoloStile(chosenStyle);
       nextPhase = '5_done';
+          setShowEndModal(true);
     }
 
     try {
@@ -858,6 +864,7 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       const jsonMatch = replyText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || replyText.match(/(\{[\s\S]*"algoritmo_target"[\s\S]*\})/);
       if (jsonMatch) {
         try {
+          setFinalJson(jsonMatch[1]);
           const parsed = JSON.parse(jsonMatch[1]);
           const targetAlgo = parsed.algoritmo_target || (selectedInfra === 'quantum' ? 'Qiskit_QAOA' : 'Python_HPC_LSTM');
           const style = parsed.vincolo_stile || selectedVincolo || 'blocco_rigido';
@@ -874,6 +881,7 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
 
           replyText = replyText.replace(jsonMatch[0], () => finalExplanation);
           nextPhase = '5_done';
+          setShowEndModal(true);
         } catch (e) {
           // parsing error fallback
         }
@@ -888,6 +896,7 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
       const jsonMatch = fallbackReply.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || fallbackReply.match(/(\{[\s\S]*"algoritmo_target"[\s\S]*\})/);
       if (jsonMatch) {
         try {
+          setFinalJson(jsonMatch[1]);
           const parsed = JSON.parse(jsonMatch[1]);
           const targetAlgo = parsed.algoritmo_target || (selectedInfra === 'quantum' ? 'Qiskit_QAOA' : 'Python_HPC_LSTM');
           const style = parsed.vincolo_stile || selectedVincolo || 'blocco_rigido';
@@ -904,6 +913,7 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
 
           fallbackReply = fallbackReply.replace(jsonMatch[0], () => finalExplanation);
           nextPhase = '5_done';
+          setShowEndModal(true);
         } catch (e) {
           // ignore
         }
@@ -938,6 +948,8 @@ export default function TestPage({ onBack }: { onBack: () => void }) {
     const { csv1: genCsv1, csv2: genCsv2 } = getDemoCsvBySector(effectiveSector, effectiveScenarioId, vincolo, effectiveStrategy);
     const sourceCsv1 = customCsv1Content || genCsv1;
     const sourceCsv2 = customCsv2Content || genCsv2;
+    setFinalQasm(generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy));
+    setFinalPython(generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy));
     const qasmSnippet = generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
     const pythonSnippet = generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
     
@@ -1019,6 +1031,7 @@ ${pythonSnippet}
   };
 
   const radTheta = (theta * Math.PI) / 180;
+  const radPhi = (phi * Math.PI) / 180;
   const prob0 = Math.pow(Math.cos(radTheta / 2), 2);
   const prob1 = Math.pow(Math.sin(radTheta / 2), 2);
   const isQuantum = targetAlgoritmo.startsWith('Qiskit_');

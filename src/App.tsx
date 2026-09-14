@@ -307,7 +307,7 @@ function AppContent({
         {isBlankPageOpen ? (
           <MedicalScreening onBack={() => setIsBlankPageOpen(false)} />
         ) : isTestPageOpen ? (
-          <TestPage onBack={() => setIsTestPageOpen(false)} />
+          <TestPage onBack={() => setIsTestPageOpen(false)} onOpenIbm={() => { setIsTestPageOpen(false); setIsIbmInterfaceOpen(true); }} setSharedQasm={setSharedQasm} />
         ) : isIbmInterfaceOpen ? (
           <IBMQuantumInterface 
             onBack={() => {
