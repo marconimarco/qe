@@ -32,7 +32,7 @@ interface Message {
   isEncrypted?: boolean;
 }
 
-export default function QuantumChat() {
+export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean) => void }) {
   const { t } = useTranslation();
   const [view, setView] = useState<'lobby' | 'chat'>('lobby');
   const [roomId, setRoomId] = useState<string | null>(null);

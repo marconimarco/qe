@@ -2,6 +2,8 @@ export interface MicroCategory {
   t: string;
   d: string;
   icon: string;
+  seAlti?: string;
+  seBassi?: string;
 }
 
 export interface CategoryData {
@@ -23,82 +25,214 @@ export interface CategoryData {
 export const CATEGORY_DETAILS_ENRICHED: CategoryData[] = [
   {
     id: 0,
-    title: "I Parametri Vitali",
-    valore: "Il controllo della propria sicurezza e stabilità immediata.",
-    obiettivo: "Il controllo della propria sicurezza e stabilità immediata.",
+    title: "I Parametri Vitali & Emostasi d'Emergenza",
+    valore: "Il controllo della propria sicurezza e stabilità emodinamica immediata.",
+    obiettivo: "Sorveglianza tempestiva dei circuiti di sopravvivenza: perfusione, ossigenazione, cinetica cardiaca e assetto coagulativo acuto.",
     urgenza: "🔴 Urgenza Alta / Immediata (Se alterati, il corpo è in pericolo adesso).",
     urgenzaTag: "Urgenza Alta / Immediata",
-    urgenzaDesc: "Se alterati, il corpo è in pericolo adesso.",
+    urgenzaDesc: "Se alterati, il corpo è in pericolo acuto con rischio ischemico, ipossico o emorragico.",
     urgenzaBadgeColor: "bg-red-500/10 border-red-500/30 text-red-400",
     punti: [
-      { t: "Monitoraggio Emodinamico", d: "Valutazione della pressione arteriosa (sistolica/diastolica) e della salute dei vasi.", icon: "🩺" },
-      { t: "Efficienza Respiratoria", d: "Livelli di saturazione dell'ossigeno nel sangue e frequenza respiratoria a riposo e sotto sforzo.", icon: "🫁" },
-      { t: "Cronotropismo e Ritmo", d: "Analisi della frequenza cardiaca a riposo e variabilità cardiaca (HRV).", icon: "💓" },
-      { t: "Termoregolazione", d: "Stato del bilancio termico corporeo.", icon: "🌡️" }
+      {
+        t: "Monitoraggio Emodinamico & Pressione Arteriosa",
+        d: "Pressione sistolica e diastolica; resistenza periferica e tono vascolare.",
+        icon: "🩺",
+        seAlti: "Ipertensione severa, rischio rottura aneurismi, ictus emorragico, sovraccarico ventricolare.",
+        seBassi: "Ipotensione acuta, collasso emodinamico, shock ipovolemico o distributivo, lipotimia."
+      },
+      {
+        t: "Efficienza Respiratoria & Saturazione SpO2",
+        d: "Saturazione dell'ossigeno periferico e scambi gassosi alveolari.",
+        icon: "🫁",
+        seAlti: "Iperventilazione psicogena con alcalosi respiratoria ipocapnica.",
+        seBassi: "Ipossia tessutale acuta, insufficienza respiratoria, broncospasmo, polmonite, cianosi periferica."
+      },
+      {
+        t: "Cronotropismo & Biomarcatori di Danno Miocardico",
+        d: "Frequenza cardiaca (BPM), variabilità HRV, Troponina I/T hs, CK-MB, Mioglobina.",
+        icon: "💓",
+        seAlti: "Troponina/CK-MB alti: necrosi miocardica (infarto STEMI/NSTEMI), miocardite, tachiaritmie maligne.",
+        seBassi: "Bradicardia sintomatica severa, blocchi atrio-ventricolari, deficit di conduzione elettrica."
+      },
+      {
+        t: "Coagulazione & Profilo Emostatico Rapido (PT/INR, aPTT, Fibrinogeno, D-Dimero)",
+        d: "Velocità di coagulazione plasmatica e degradazione della fibrina vascolare.",
+        icon: "🩸",
+        seAlti: "INR/aPTT alti: emorragie spontanee, deficit fattori via estrinseca/intrinseca. D-Dimero alto: trombosi venosa profonda, embolia polmonare.",
+        seBassi: "Fibrinogeno o Antitrombina III bassi: CID da consumo massivo, coagulopatia grave, rischio tromboembolico incontrollato."
+      },
+      {
+        t: "Biomarcatori di Sovraccarico Ventricolare (NT-proBNP / BNP)",
+        d: "Stiramento delle pareti dei ventricoli cardiaci ed espansione volumetrica intracardiaca.",
+        icon: "⚡",
+        seAlti: "Scompenso cardiaco congestizio, edema polmonare acuto, insufficienza ventricolare sinistra/destra.",
+        seBassi: "Esclude con altissima specificità lo scompenso cardiaco in presenza di dispnea."
+      }
     ],
-    allarmi: "Giramenti di testa improvvisi, stanchezza inspiegabile alzandosi in piedi, affanno anche a riposo, palpitazioni, estremità fredde.",
-    cause: "Disidratazione, stress acuto, ansia, carenza di sonno, sedentarietà o sforzi eccessivi.",
-    consigli: "Tecniche di respirazione guidata, apporto di acqua giornaliero, monitoraggio autonomo a casa.",
-    interconnessione: "Sapevi che un'alterazione improvvisa dei parametri vitali è spesso la risposta d'emergenza del corpo a uno stato infiammatorio acuto o a un improvviso blocco dei filtri d'organo?"
+    allarmi: "Dolore toracico oppressivo retrosternale irradiato al braccio o mandibola, affanno a riposo, improvvisa perdita di coscienza, emorragie cutanee a petecchie, arti cianotici freddi.",
+    cause: "Disidratazione massiva, rottura di placca aterosclerotica, aritmie ventricolari, shock ipovolemico o settico, sovradosaggio di anticoagulanti orali.",
+    consigli: "Accesso immediato a pronto soccorso o monitoraggio continuo con elettrocardiogramma, ossigenoterapia e profilassi tromboembolica controllata dal cardiologo.",
+    interconnessione: "Un'alterazione improvvisa dei parametri vitali è spesso la fase finale di un Effetto Domino partito da un'infiammazione silente trascurata o da un blocco acuto dei filtri d'organo (rene e fegato)."
   },
   {
     id: 1,
-    title: "I Parametri Metabolici e Longevità",
-    valore: "La chiave per la prevenzione dell'invecchiamento precoce e delle malattie croniche.",
-    obiettivo: "La chiave per la prevenzione dell'invecchiamento precoce e delle malattie croniche.",
+    title: "I Parametri Metabolici, Glucidici & Longevità",
+    valore: "La chiave per la prevenzione dell'invecchiamento precoce, aterosclerosi e diabete.",
+    obiettivo: "Mantenimento dell'omeostasi cellulare, modulazione del glicometabolismo e protezione della parete vascolare endoteliale.",
     urgenza: "🟢 Urgenza a Lungo Termine (Silenziosi, determinano la salute tra 5 o 10 anni).",
     urgenzaTag: "Urgenza a Lungo Termine",
-    urgenzaDesc: "Silenziosi, determinano la salute tra 5 o 10 anni.",
+    urgenzaDesc: "Silenziosi nel breve periodo, ma se alterati erodono inesorabilmente vasi sanguigni, cuore e cervello.",
     urgenzaBadgeColor: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
     punti: [
-      { t: "Glicolisi e Gestione Zuccheri", d: "Livelli di glicemia a digiuno ed emoglobina glicata.", icon: "🍬" },
-      { t: "Profilo Lipidico e Cardio-Rischio", d: "Bilancio tra colesterolo LDL, HDL e trigliceridi.", icon: "🧬" },
-      { t: "Antropometria Clinica", d: "Analisi della composizione corporea e livello di grasso viscerale addominale.", icon: "⚖️" },
-      { t: "Efficienza Mitocondriale", d: "Conversione del cibo in energia cellulare e stabilità energetica.", icon: "🔥" }
+      {
+        t: "Assetto Glucidico (Glicemia a Digiuno, HbA1c, Insulina, C-Peptide, HOMA-IR)",
+        d: "Glucosio circolante, memoria glicemica trimestrale ed efficienza dei recettori insulinici.",
+        icon: "🍬",
+        seAlti: "Iperglicemia cronica, glicazione delle proteine endoteliali, micro e macroangiopatia, diabete mellito, acidosi chetoacidosica.",
+        seBassi: "Ipoglicemia severa, neuroglicopenia, sudorazione algida, tremori, confusione mentale e coma ipoglicemico."
+      },
+      {
+        t: "Assetto Lipidico Aterogeno (Colesterolo Totale, LDL, HDL, Trigliceridi)",
+        d: "Equilibrio tra frazione aterogena (LDL) e frazione protettiva vascolare di ritorno al fegato (HDL).",
+        icon: "🧬",
+        seAlti: "Colesterolo LDL / Trigliceridi alti: infiltrazione e ossidazione sub-endoteliale, placche carotidee/coronariche, xantomi cutanei. Trigliceridi >1000: pancreatite acuta.",
+        seBassi: "HDL depresso (<40 mg/dL): perdita dello spazzino naturale del colesterolo vascolare, aumento del rischio cardiovascolare."
+      },
+      {
+        t: "Fattori Lipidici Genetici e Vascolari (ApoB, ApoA1, Lipoproteina(a) [Lp(a)])",
+        d: "Conteggio reale delle particelle aterogene circolanti e fattore trombofilico genetico indipendente.",
+        icon: "🔬",
+        seAlti: "ApoB e Lp(a) elevate: rischio genetico elevatissimo di infarto precoce, stenosi aortica calcifica e trombofilia arteriosa.",
+        seBassi: "Privo di significato patologico negativo, conferisce protezione cardiovascolare d'eccellenza."
+      },
+      {
+        t: "Assetto Endocrino Tiroideo e Metabolismo Basale (TSH, FT3, FT4, TRAb)",
+        d: "Regolazione ormonale del dispendio calorico, sintesi proteica e frequenza basale.",
+        icon: "🦋",
+        seAlti: "TSH alto + FT4 basso: Ipotiroidismo (Hashimoto), bradicardia, aumento ponderale, stipsi, mixedema. FT3/FT4 alti + TRAb: Ipertiroidismo (Graves), tireotossicosi, aritmie.",
+        seBassi: "TSH azzerato: iperattivazione tiroidea; FT3/FT4 bassi: rallentamento severo del metabolismo energetico."
+      },
+      {
+        t: "Ormoni dello Stress & Surrene (Cortisolo, ACTH, DHEA-S, Aldosterone)",
+        d: "Risposta allo stress acuto/cronico, equilibrio elettrolitico e catabolismo tissutale.",
+        icon: "⚖️",
+        seAlti: "Cortisolo alto: Sindrome di Cushing, obesità addominale, ipertensione, diabete secondario. Aldosterone alto: Sindrome di Conn.",
+        seBassi: "Cortisolo basso + ACTH alto: Crisi Addisoniana (insufficienza surrenalica), ipotensione refrattaria, iponatriemia e shock."
+      }
     ],
-    allarmi: "Sonnolenza post-prandiale, attacchi di fame chimica/dolci, aumento del girovita, difficoltà a perdere peso.",
-    cause: "Dieta troppo ricca di zuccheri raffinati, mancanza di massa muscolare, stress cronico (cortisolo).",
-    consigli: "Allenamenti di forza, iniziare i pasti dalle fibre, praticare il digiuno intermittente (se consigliato).",
-    interconnessione: "Sapevi che un'alterazione nei Parametri Metabolici (es. troppo zucchero nel sangue) è la causa principale dell'aumento dello Stato Infiammatorio, che a sua volta affatica la Funzionalità d'Organo (i reni)?"
+    allarmi: "Sonnolenza insostenibile post-prandiale, attacchi di fame incontrollata per zuccheri, depositi giallastri sulle palpebre (xantelasmi), aumento del grasso viscerale addominale.",
+    cause: "Dieta ricca di zuccheri semplici e grassi idrogenati, sedentarietà prolungata, predisposizione poligenica, stress cronico elevato con ipercortisolemia.",
+    consigli: "Attività anaerobica contro resistenza per riattivare i recettori GLUT4, alimentazione a basso carico glicemico ricca di fibre idrosolubili, controllo annuale di ApoB ed HbA1c.",
+    interconnessione: "Se il glucosio e il colesterolo LDL rimangono alti, lesionano l'endotelio richiamando i globuli bianchi: questo scatena l'infiammazione silente (Stato Infiammatorio) che a catena logora i capillari renali ed epatici (Funzionalità d'Organo)."
   },
   {
     id: 2,
-    title: "La Funzionalità d’Organo ed Emocromo",
-    valore: "La certezza che i sistemi di purificazione e ossigenazione interni stiano reggendo il carico biologico.",
-    obiettivo: "La certezza che i sistemi di purificazione e ossigenazione interni stiano reggendo il carico biologico.",
+    title: "La Funzionalità d’Organo (Renale, Epatica, Pancreatica) ed Emocromo",
+    valore: "La certezza che i filtri biologici e il trasporto di ossigeno reggano il carico metabolico.",
+    obiettivo: "Valutazione dell'eliminazione delle tossine azotate, della funzione epato-biliare, della sintesi proteica e dell'emopoiesi midollare.",
     urgenza: "🟡 Urgenza Media (Mostra come i filtri stanno reggendo lo stress sul momento).",
     urgenzaTag: "Urgenza Media",
-    urgenzaDesc: "Mostra come i filtri stanno reggendo lo stress sul momento.",
+    urgenzaDesc: "Riflette l'usura e l'efficienza reale dei filtri depurativi e del midollo osseo.",
     urgenzaBadgeColor: "bg-amber-500/10 border-amber-500/30 text-amber-400",
     punti: [
-      { t: "Efficienza di Filtrazione Renale", d: "Creatinina, azotemia e filtrato glomerulare (eGFR).", icon: "💧" },
-      { t: "Funzione Epatica e Detossificazione", d: "Transaminasi (ALT/AST) e bilirubina.", icon: "🧪" },
-      { t: "Profilo Emopoietico (Emocromo)", d: "Conteggio dei globuli rossi, emoglobina e piastrine.", icon: "🩸" },
-      { t: "Bilancio Elettrolitico", d: "Livelli di sodio, potassio e calcio nel sangue.", icon: "💎" }
+      {
+        t: "Filtrazione Glomerulare & Elettroliti (Creatinina, Azotemia, eGFR, Na+, K+, Ca++)",
+        d: "Capacità depurativa dei nefroni renali e conduzione ionica cellulare.",
+        icon: "💧",
+        seAlti: "Creatinina ed Azotemia alte (eGFR <15): uremia terminale, tossicità sistemica. Potassio K+ alto: arresto cardiaco in diastole, onde T aguzze all'ECG.",
+        seBassi: "eGFR basso: insufficienza renale cronica. Potassio K+ basso: aritmie ventricolari mortali (torsione di punta). Calcio basso: tetania muscolare."
+      },
+      {
+        t: "Necrosi Epatocellulare & Colestasi (ALT, AST, Gamma-GT, Fosfatasi Alcalina, Bilirubina)",
+        d: "Integrità degli epatociti, deflusso della bile e detossificazione biologica.",
+        icon: "🧪",
+        seAlti: "ALT/AST >20x limiti: epatite acuta fulminante virale o tossica. GGT + ALP + Bilirubina diretta alta: ittero colestatico ostruttivo (calcoli o tumore pancreatico).",
+        seBassi: "Colinesterasi (CHE) depressa: insufficienza sintetica epatica severa, cirrosi avanzata."
+      },
+      {
+        t: "Pancreas Esocrino ed Enzimi Digestivi (Lipasi, Amilasi Pancreatica)",
+        d: "Rilascio sistemico di enzimi litici in caso di autodigestione tissutale pancreatica.",
+        icon: "🔥",
+        seAlti: "Lipasi >3 volte il limite: pancreatite acuta necrotizzante emorragica, emergenza medica addominale.",
+        seBassi: "Insufficienza pancreatica esocrina cronica con malassorbimento lipidico e steatorrea."
+      },
+      {
+        t: "Serie Rossa & Trasporto di O2 (Globuli Rossi RBC, Emoglobina Hb, Ematocrito Ht, MCV, RDW)",
+        d: "Ossigenazione periferica dei tessuti e morfologia volumetrica dei globuli rossi.",
+        icon: "🩸",
+        seAlti: "RBC/Hb/Ht alti: policitemia vera, iperviscosità ematica con cefalea, rischio elevato di trombosi venosa e ischemia.",
+        seBassi: "Hb <8 g/dL: anemia grave con astenia profonda, dispnea da sforzo, ischemia miocardica da discrepanza, tachicardia da compenso."
+      },
+      {
+        t: "Metabolismo Marziale e Riserve di Ferro (Sideremia, Ferritina, Transferrina, %Tsat)",
+        d: "Disponibilità di ferro libero, capacità legante sierica e saturazione dei depositi midollari ed epatici.",
+        icon: "🔩",
+        seAlti: "Ferritina >1000 ng/mL + Tsat >50%: emocromatosi con accumulo tossico di ferro nel fegato, cuore e pancreas.",
+        seBassi: "Ferritina depauperata + Tsat <15%: carenza marziale assoluta (anemia sideropenica) prima ancora del calo di emoglobina."
+      },
+      {
+        t: "Serie Piastrinica (Piastrine PLT, MPV, PDW)",
+        d: "Tampone primario emostatico e turnover midollare delle piastrine.",
+        icon: "🩹",
+        seAlti: "PLT >450.000/μL: trombocitosi con rischio tromboembolico acuto o disordine mieloproliferativo cronico.",
+        seBassi: "PLT <50.000/μL: trombocitopenia severa con rischio di sanguinamenti spontanei cerebrali, emorragie digestive e porpora."
+      }
     ],
-    allarmi: "Pallore del viso/mucose, unghie e capelli fragili, urine scure o con molta schiuma, digestione estremamente lenta.",
-    cause: "Abuso di farmaci da banco, consumo frequente di alcol, carenza di ferro, B12 o acido folico.",
-    consigli: "Cicli di idratazione profonda, riduzione di cibi tossici per il fegato, introduzione di alimenti ricchi di ferro bio-disponibile.",
-    interconnessione: "Sapevi che se i filtri d'organo (fegato e reni) rallentano, le tossine si accumulano nel sangue, destabilizzando immediatamente i tuoi Parametri Vitali e aumentando lo Stato Infiammatorio?"
+    allarmi: "Urine scure color coca-cola o schiumose, ittero sclerale (occhi gialli), feci acoliche (chiare), pallore cereo, affaticamento anche a piccoli passi, gonfiore (edema) alle caviglie e gambe.",
+    cause: "Farmaci epatotossici (paracetamolo ad alte dosi), abuso di alcolici, epatiti virali B/C, glomerulonefriti, calcoli delle vie biliari, diete ipoproteiche o sanguinamenti gastrointestinali occulti.",
+    consigli: "Ecografia addome completo, monitoraggio clearance renale, integrazione di ferro bisglicinato o folati se carenti, sospensione immediata di farmaci nefrotossici (FANS).",
+    interconnessione: "Se i reni e il fegato non riescono a filtrare le scorie biologiche, i prodotti azotati e gli elettroliti sballati intossicano direttamente il cuore e il sistema nervoso, provocando aritmie e crisi ipertensive (Parametri Vitali)."
   },
   {
     id: 3,
-    title: "Lo Stato Infiammatorio e Immunitario",
-    valore: "La mappa delle proprie difese biologiche e dell'infiammazione silente.",
-    obiettivo: "La mappa delle proprie difese biologiche e dell'infiammazione silente.",
-    urgenza: "🟡 Urgenza Medio-Alta (Indica una minaccia attiva che va spenta prima che faccia danni).",
+    title: "Lo Stato Infiammatorio, Immunitario & Onco-Biologia",
+    valore: "La mappa delle difese biologiche, dell'infiammazione silente e dei marcatori di proliferazione cellulare.",
+    obiettivo: "Riconoscimento precoce di processi flogistici occulti, deficit immunitari, malattie autoimmuni e screening oncologico.",
+    urgenza: "🟡 Urgenza Medio-Alta (Indica una minaccia attiva che va spenta prima che faccia danni permanenti).",
     urgenzaTag: "Urgenza Medio-Alta",
-    urgenzaDesc: "Indica una minaccia attiva che va spenta prima che faccia danni.",
+    urgenzaDesc: "Rileva infezioni batteriche fulminanti, autoimmunità sistemica o proliferazioni clonali cellulari.",
     urgenzaBadgeColor: "bg-yellow-500/10 border-yellow-500/30 text-yellow-400",
     punti: [
-      { t: "Immunocompetenza", d: "Formula leucocitaria completa (linfociti, neutrofili, ecc.).", icon: "🛡️" },
-      { t: "Infiammazione Sistemica di Basso Grado", d: "Analisi della Proteina C-Reattiva ad alta sensibilità (hs-PCR).", icon: "🔥" },
-      { t: "Reattività Allergica e Autoimmune", d: "Presenza di anticorpi anomali o livelli di eosinofili.", icon: "🦠" }
+      {
+        t: "Formula Leucocitaria Completa (WBC, Neutrofili, Linfociti, Monociti, Eosinofili, Basofili)",
+        d: "Esercito immunitario cellulare contro batteri, virus, parassiti e microrganismi.",
+        icon: "🛡️",
+        seAlti: "WBC >100.000 o forme immature: leucemia mieloide/linfatica. Neutrofilia: infezione batterica purulenta. Eosinofilia: allergie severe o parassitosi.",
+        seBassi: "Leucopenia e Neutropenia (<1000/μL): grave immunocompromissione con rischio di sepsi batteriche opportunistiche fatali."
+      },
+      {
+        t: "Flogosi Sistemica & Sepsi Batterica (hs-PCR, VES, Procalcitonina PCT)",
+        d: "Proteine di fase acuta e indicatore ultra-specifico di batteriemia sistemica.",
+        icon: "🔥",
+        seAlti: "Procalcitonina >2 ng/mL + hs-PCR altissima: Sepsi batterica generalizzata ad altissimo rischio di shock settico. VES alta: infiammazione cronica attiva.",
+        seBassi: "Livelli ottimali escludono flogosi sistemica attiva e infezioni batteriche invasive in corso."
+      },
+      {
+        t: "Screening Autoimmunità (ANA, ENA, Anti-dsDNA, Fattore Reumatico, Anti-CCP, C3/C4)",
+        d: "Autoanticorpi diretti contro il proprio nucleo, articolazioni, DNA e consumo del complemento.",
+        icon: "⚔️",
+        seAlti: "ANA + Anti-dsDNA positivi con C3/C4 bassi: Lupus Eritematoso Sistemico attivo. Anti-CCP e FR alti: Artrite Reumatoide erosiva.",
+        seBassi: "Assenza di reattività autoimmune e corretta tolleranza del sistema immunitario verso i tessuti self."
+      },
+      {
+        t: "Immunoglobuline e Atopia (IgA, IgG, IgM, IgE Totali PRIST)",
+        d: "Anticorpi umorali plasmatici e predisposizione alle reazioni allergiche immediate.",
+        icon: "🦠",
+        seAlti: "IgE molto alte: stato atopico severo, asma bronchiale, rischio anafilassi. Picco monoclonale di IgG/IgA: gammopatia monoclonale o mieloma multiplo.",
+        seBassi: "Ipogammaglobulinemia congenita o secondaria, con infezioni respiratorie ricorrenti recidivanti."
+      },
+      {
+        t: "Onco-Biologia & Marcatori Tumorali Sanguigni (PSA, CEA, CA 19-9, CA 15-3, CA 125, AFP)",
+        d: "Glicoproteine e antigeni tumorali utilizzati per monitoraggio e supporto diagnostico d'organo.",
+        icon: "🎯",
+        seAlti: "PSA libero/totale <15%: sospetto adenocarcinoma prostatico. CA 19-9: vie biliari/pancreas. CA 125: ovaio. AFP: epatocarcinoma o tumori germinali.",
+        seBassi: "Valori nei limiti attesi per la popolazione sana di riferimento (non escludono neoplasie precoci)."
+      }
     ],
-    allarmi: "Ammalarsi spesso (più di 3-4 volte l'anno), dolori articolari o muscolari vaganti, problemi cutanei (sfoghi/dermatiti), stanchezza cronica.",
-    cause: "Infiammazione intestinale (disbiosi), infezioni virali passate e mai smaltite, sonno di scarsa qualità.",
-    consigli: "Cibi antinfiammatori (Omega-3), cura del microbiota intestinale, esposizione solare controllata (Vitamina D).",
-    interconnessione: "Sapevi che un'alterazione cronica non rilevata attacca silenziosamente i tessuti interni, provocando nel tempo un declino precoce della Funzionalità d'Organo e compromettendo i Parametri Metabolici?"
+    allarmi: "Febbre persistente con brividi scuotenti, linfoadenopatia (linfonodi ingrossati non dolenti), dolori articolari mattutini con rigidità prolungata, perdita di peso rapida inspiegabile, sudorazioni notturne profuse.",
+    cause: "Focolai infettivi non drenati, disbiosi intestinale con traslocazione batterica, malattie reumatologiche croniche, patologie ematologiche mieloproliferative, neoplasie occulte.",
+    consigli: "Consulto reumatologico o infettivologico d'urgenza, emocolture in picco febbrile, ecografia delle stazioni linfonodali ed elettroforesi sieroproteica capillare.",
+    interconnessione: "Un'infiammazione silente (hs-PCR) mantenuta alta nel tempo accelera l'aterosclerosi nei vasi (Parametri Metabolici), logora la barriera glomerulare renale (Funzionalità d'Organo) e predispone a crisi vascolari improvvise (Parametri Vitali)."
   }
 ];
 
@@ -125,7 +259,7 @@ export interface CrossParameterProblem {
 export const CROSS_PARAMETER_PROBLEMS: CrossParameterProblem[] = [
   {
     id: "glicemia_colesterolo_ictus",
-    titolo: "Aterosclerosi Acelerata & Rischio Ictus Ischemico",
+    titolo: "Aterosclerosi Accelerata & Rischio Ictus Ischemico",
     sottotitolo: "Incrocio Critico: Glicemia Elevata × Colesterolo LDL Alto × Parete Endoteliale",
     urgenza: "🔴 Pericolo Vascolare Critico",
     rischioColore: "border-red-500/40 bg-red-500/5",
@@ -234,6 +368,234 @@ export const CROSS_PARAMETER_PROBLEMS: CrossParameterProblem[] = [
     ],
     conseguenzaClinica: "Progressione verso la fibrosi epatica, insulino-resistenza sistemica refrattaria e sindrome da affaticamento cronico.",
     indicazioniMediche: "Ecografia epatica superiore, dieta chetogenica o a basso carico glicemico, ripristino del microbiota e protocollo probiotico mirato."
+  },
+  {
+    id: "cid_coagulazione_disseminata",
+    titolo: "Coagulazione Intravascolare Disseminata (CID) & Crisi Trombo-Emorragica",
+    sottotitolo: "Incrocio Critico: PT/INR Prolungato + aPTT Lungo + Piastrine Basse + Fibrinogeno Basso + D-Dimero Altissimo",
+    urgenza: "🔴 Emergenza Rianimatoria Massima",
+    rischioColore: "border-red-500/50 bg-red-500/10",
+    parametriCoinvolti: [
+      { nome: "PT / INR e aPTT", categoria: "Parametri Vitali", icon: "🩸" },
+      { nome: "Piastrine (PLT)", categoria: "Funzionalità d'Organo", icon: "🩹" },
+      { nome: "Fibrinogeno Plasmarico", categoria: "Parametri Vitali", icon: "🧬" },
+      { nome: "D-Dimero di Degradazione", categoria: "Parametri Vitali", icon: "⚡" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Iperattivazione e Formazione Microtrombi",
+        descrizione: "Un fattore scatenante (sepsi, politrauma o neoplasia) rilascia fattore tessutale in circolo, avviando una cascata coagulativa incontrollata con milioni di micro-trombi nei capillari periferici.",
+        badge: "Microangiopatia Trombotica",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Consumo Massivo dei Fattori (Coagulopatia da Consumo)",
+        descrizione: "Tutte le scorte disponibili di piastrine e fibrinogeno vengono rapidamente esaurite. Il fegato non riesce a reintegrarle a tempo di record.",
+        badge: "Deplezione Piastrinica",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Sindrome Emorragica Paradosso & D-Dimero a Picco",
+        descrizione: "La contemporanea iperfibrinolisi secondaria produce frammenti D-Dimero altissimi, mentre il paziente manifesta emorragie diffuse incontrollate cutanee, mucose e viscerali.",
+        badge: "Shock Emorragico",
+        badgeColor: "bg-rose-500/30 text-rose-300 border-rose-500/40"
+      }
+    ],
+    conseguenzaClinica: "Insufficienza multiorgano (MOF), shock ipovolemico emorragico ed ischemia tissutale diffusa con altissima mortalità se non trattata tempestivamente in terapia intensiva.",
+    indicazioniMediche: "Ospedalizzazione immediata in rianimazione: trasfusione urgente di plasma fresco congelato, concentrati piastrinici, crioprecipitati e rimozione della causa primaria scatenante."
+  },
+  {
+    id: "rabdomiolisi_danno_renale",
+    titolo: "Rabdomiolisi Acuta & Sovraccarico Mioglobinurico Renale",
+    sottotitolo: "Incrocio: CK Totale > 10.000 U/L + Mioglobina Alta + Creatinina Alta + Iperpotassiemia (K+)",
+    urgenza: "🔴 Emergenza Tossico-Renale",
+    rischioColore: "border-red-500/40 bg-red-500/5",
+    parametriCoinvolti: [
+      { nome: "Creatinchinasi Totale (CK)", categoria: "Parametri Vitali", icon: "⚡" },
+      { nome: "Mioglobina Sierica/Urinaria", categoria: "Parametri Vitali", icon: "🥩" },
+      { nome: "Creatinina ed Azotemia", categoria: "Funzionalità d'Organo", icon: "💧" },
+      { nome: "Potassio Sierico (K+)", categoria: "Parametri Vitali", icon: "💓" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Lisi Massiva delle Fibre Muscolari",
+        descrizione: "A causa di traumi da schiacciamento, sforzi fisici estremi o tossicità farmacologica (es. statine), le membrane delle cellule muscolari si rompono riversando nel sangue enzimi CK, mioglobina e potassio.",
+        badge: "Rottura Muscolare",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Ostruzione dei Tubuli Renali (Mioglobinuria)",
+        descrizione: "La mioglobina precipita nel lume dei tubuli renali acidi formando cilindri che occludono fisicamente i filtri dei nefroni ed esercitano tossicità citotossica diretta sulle cellule tubulari.",
+        badge: "Necrosi Tubulare Acuta",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Insufficienza Renale Acuta & Iperpotassiemia Letale",
+        descrizione: "Il filtrato si azzera (oligo-anuria). La mancata escrezione renale di potassio (K+) provoca picchi iperkaliemici acuti con rischio immediato di arresto cardiaco in asistolia o fibrillazione ventricolare.",
+        badge: "Arresto Elettrico Cardiaco",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Insufficienza renale acuta oligo-anurica con necrosi tubulare e rischio imminente di morte cardiaca improvvisa per aritmie da iperpotassiemia.",
+    indicazioniMediche: "Idratazione endovenosa forzata immediata con soluzione fisiologica e bicarbonato per alcalinizzare le urine; monitoraggio continuo ECG; eventuale emodialisi d'urgenza."
+  },
+  {
+    id: "sepsi_infezione_sistemica",
+    titolo: "Sepsi Batterica Sistemica & Tempesta Citochinica Infettiva",
+    sottotitolo: "Incrocio: Procalcitonina (PCT) > 2 ng/mL + hs-PCR Altissima + Leucocitosi Neutrofila Severa",
+    urgenza: "🔴 Pericolo Infettivo Sistemico",
+    rischioColore: "border-red-500/40 bg-red-500/5",
+    parametriCoinvolti: [
+      { nome: "Procalcitonina (PCT)", categoria: "Stato Infiammatorio", icon: "🔥" },
+      { nome: "Proteina C-Reattiva (hs-PCR)", categoria: "Stato Infiammatorio", icon: "🧪" },
+      { nome: "Formula Neutrofila (WBC)", categoria: "Stato Infiammatorio", icon: "🛡️" },
+      { nome: "Pressione & Lattati", categoria: "Parametri Vitali", icon: "🩺" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Invasione Batterica e Risposta Disregolata",
+        descrizione: "I batteri superano le barriere epiteliali ed entrano nel torrente circolatorio. I monociti e i macrofagi rilasciano massicce quantità di TNF-alfa, IL-1 e IL-6.",
+        badge: "Batteriemia Invasiva",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Sindrome da Risposta Infiammatoria Sistemica (SIRS)",
+        descrizione: "La PCR e la Procalcitonina schizzano a livelli vertiginosi. L'endotelio di tutti i vasi si vasodilata provocando permeabilità capillare generalizzata e ipotensione.",
+        badge: "Vasodilatazione Sistemica",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Shock Settico & Crollo della Perfusione Tessutale",
+        descrizione: "La pressione arteriosa crolla al di sotto della soglia di autoregolazione cerebrale e renale; i livelli di lattato aumentano per ipossia anaerobica cellulare (Shock Settico).",
+        badge: "Shock Settico",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Shock settico distributivo refrattario, ipoperfusione tissutale sistemica, acidosi lattica e collasso multiorgano.",
+    indicazioniMediche: "Inizio immediato entro la prima ora di terapia antibiotica empirica ad ampio spettro per via endovenosa, riempimento volemico con cristalloidi e supporto con amine vasopressorie (noradrenalina)."
+  },
+  {
+    id: "anemia_sideropenica_multiorgano",
+    titolo: "Anemia Sideropenica Severa & Ipossia Tissutale Multiorgano",
+    sottotitolo: "Incrocio: Emoglobina Bassa + Sideremia Bassa + Ferritina Depauperata + Transferrina Alta + MCV Basso",
+    urgenza: "🟠 Sofferenza Ipossica Cronica",
+    rischioColore: "border-orange-500/40 bg-orange-500/5",
+    parametriCoinvolti: [
+      { nome: "Emoglobina (Hb) & MCV", categoria: "Funzionalità d'Organo", icon: "🩸" },
+      { nome: "Ferritina Sierica", categoria: "Funzionalità d'Organo", icon: "🔩" },
+      { nome: "Sideremia & Transferrina", categoria: "Funzionalità d'Organo", icon: "🔬" },
+      { nome: "Frequenza Cardiaca (BPM)", categoria: "Parametri Vitali", icon: "💓" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Esaurimento delle Riserve (Ferritina Bassa)",
+        descrizione: "Le perdite ematiche croniche (cicli abbondanti, lesioni occulte intestinali) svuotano i depositi di ferritina nel fegato e nel midollo osseo, mentre il ferro circolante comincia a calare.",
+        badge: "Carenza Latente",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Eritropoiesi Carenziale (Microcitosi)",
+        descrizione: "Il midollo produce globuli rossi sempre più piccoli (MCV basso) e poco colorati (ipocromici). L'emoglobina totale scende sotto la soglia di sicurezza fisiologica.",
+        badge: "Microcitosi & Ipocromia",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Compenso Emodinamico & Ipertrofia Cardiaca",
+        descrizione: "Per mantenere ossigenati gli organi nobili (cervello e reni), il cuore accelera il battito aumentando la gittata. A lungo andare si sviluppa cardiomegalia e insufficienza cardiaca ad alta gittata.",
+        badge: "Sovraccarico Cardiaco",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Ipossia cerebrale cronica (cefalea, astenia invalidante, vertigini), ridotta immunità cellulare e cardiomiopatia dilatativa da compenso anemico.",
+    indicazioniMediche: "Ricerca immediata della sede di perdita ematica (sangue occulto nelle feci, esofagogastroduodenoscopia, colonscopia, ecografia pelvica), terapia marziale orale o endovenosa protetta."
+  },
+  {
+    id: "tiroide_tempesta_tireotossica",
+    titolo: "Crisi Tireotossica Autoimmune & Sovraccarico Cardiovascolare",
+    sottotitolo: "Incrocio: TSH Azzerato + FT3/FT4 Elevati + Anticorpi TRAb Positivi + Tachiaritmia",
+    urgenza: "🟠 Urgenza Endocrino-Cardiaca",
+    rischioColore: "border-orange-500/40 bg-orange-500/5",
+    parametriCoinvolti: [
+      { nome: "TSH ed Ormoni Liberi (FT3/FT4)", categoria: "Parametri Metabolici", icon: "🦋" },
+      { nome: "Anticorpi Anti-Recettore TSH (TRAb)", categoria: "Stato Infiammatorio", icon: "⚔️" },
+      { nome: "Frequenza Cardiaca & Ritmo", categoria: "Parametri Vitali", icon: "💓" },
+      { nome: "Pressione Sistolica Differenziale", categoria: "Parametri Vitali", icon: "🩺" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Stimolazione Autoimmune Incessante",
+        descrizione: "Gli autoanticorpi TRAb si legano stabilmente ai recettori del TSH sulla tiroide simulandone l'azione e forzando la ghiandola a secernere ormoni FT3 ed FT4 senza sosta.",
+        badge: "Stimolazione Recettoriale",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Iperattivazione Simpatica & Tireotossicosi",
+        descrizione: "Gli ormoni tiroidei aumentano esponenzialmente la sensibilità dei recettori beta-adrenergici del cuore alle catecolamine: insorgono tachicardia a riposo (>110 bpm), tremori e dimagrimento rapido.",
+        badge: "Tireotossicosi Clinica",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Fibrillazione Atriale & Tempesta Tiroidea",
+        descrizione: "L'atrio cardiaco sovraccaricato va incontro a fibrillazione atriale con alto rischio cardioembolico cerebrale; in casi estremi si innesca la letale tempesta tiroidea con ipertermia maligna.",
+        badge: "Fibrillazione Atriale",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Fibrillazione atriale parossistica o permanente ad alta risposta ventricolare, scompenso cardiaco ad alta portata e tireotossicosi acuta con ipertermia e psicosi.",
+    indicazioniMediche: "Blocco della conversione periferica e della sintesi con tireostatici (Metimazolo/PTU), beta-bloccanti cardioselettivi (Propranololo/Atenololo) e monitoraggio ecocardiografico."
+  },
+  {
+    id: "sindrome_metabolica_tripla",
+    titolo: "Sindrome Metabolica Tripla & Aterotrombosi Coronarica Silente",
+    sottotitolo: "Incrocio: Trigliceridi > 150 mg/dL + Colesterolo HDL < 40 + Glicemia a Digiuno > 100 + Pressione Alta",
+    urgenza: "🟠 Rischio Cardiovascolare Triplicato",
+    rischioColore: "border-orange-500/40 bg-orange-500/5",
+    parametriCoinvolti: [
+      { nome: "Trigliceridi e Colesterolo HDL", categoria: "Parametri Metabolici", icon: "🧬" },
+      { nome: "Glicemia a Digiuno ed HOMA-IR", categoria: "Parametri Metabolici", icon: "🍬" },
+      { nome: "Pressione Arteriosa", categoria: "Parametri Vitali", icon: "🩺" },
+      { nome: "Grasso Viscerale", categoria: "Parametri Metabolici", icon: "⚖️" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Insulino-Resistenza Epatica & Muscolare",
+        descrizione: "L'eccesso calorico e la carenza di attività fisica saturano i recettori insulinici. Il fegato reagisce sintetizzando quantità esagerate di lipoproteine ricche di trigliceridi (VLDL).",
+        badge: "Insulino-Resistenza",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Triade Lipidica Aterogena & Rigidità Arteriosa",
+        descrizione: "I trigliceridi alti riducono il colesterolo buono HDL e trasformano il colesterolo LDL in particelle piccole e dense altamente permeabili e ossidabili nella tunica intima dei vasi sanguigni.",
+        badge: "Dislipidemia Mista",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Trombofilia Endoteliale & Ischemia Silente",
+        descrizione: "L'iperglicemia e l'ipertensione concomitanti inibiscono la sintesi di ossido nitrico (NO) e aumentano il PAI-1, rendendo il sangue denso e predisposto a occlusioni coronariche improvvise.",
+        badge: "Cardiopatia Ischemica",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Aumento di 3-5 volte del rischio relativo di infarto miocardico acuto, coronaropatia multivasale e diabete di tipo 2 conclamato.",
+    indicazioniMediche: "Modifica radicale dello stile di vita (dieta mediterranea ipocalorica, camminata veloce 150 min/settimana), statine a bersaglio LDL < 70 mg/dL e sensibilizzanti all'insulina (metformina)."
   }
 ];
 
@@ -241,7 +603,7 @@ export const DOMINO_EFFECT_STEPS = [
   {
     step: 1,
     titolo: "La Scintilla Iniziale (Parametri Metabolici)",
-    descrizione: "Se mangi troppi zuccheri o accumuli grasso viscerale, le tue cellule vanno in stress energetico.",
+    descrizione: "Se mangi troppi zuccheri raffinati, sviluppi dislipidemia aterogena o accumuli grasso viscerale, le tue cellule vanno in stress energetico e sovraccarico mitocondriale.",
     icon: "🍬",
     color: "from-emerald-500 to-teal-500",
     border: "border-emerald-500/30",
@@ -250,7 +612,7 @@ export const DOMINO_EFFECT_STEPS = [
   {
     step: 2,
     titolo: "L'Incendio Silenzioso (Stato Infiammatorio)",
-    descrizione: "Questo stress metabolico attiva i globuli bianchi e alza la Proteina C-Reattiva, creando un'infiammazione cronica nascosta.",
+    descrizione: "Questo stress metabolico lesiona l'endotelio vascolare, recluta macrofagi e alza la Proteina C-Reattiva (hs-PCR) e i leucociti, accendendo un'infiammazione cronica sistemica nascosta.",
     icon: "🔥",
     color: "from-yellow-500 to-amber-500",
     border: "border-yellow-500/30",
@@ -259,7 +621,7 @@ export const DOMINO_EFFECT_STEPS = [
   {
     step: 3,
     titolo: "Il Logoramento dei Filtri (Funzionalità d'Organo)",
-    descrizione: "L'infiammazione costante bombarda i reni e il fegato, riducendo la loro capacità di filtrare le tossine dal sangue.",
+    descrizione: "L'infiammazione costante e i microtrombi bombardano i glomeruli renali e gli epatociti. La creatinina sale, le transaminasi si innalzano e i reni perdono la capacità di purificare il sangue.",
     icon: "🧪",
     color: "from-amber-500 to-orange-500",
     border: "border-amber-500/30",
@@ -268,7 +630,7 @@ export const DOMINO_EFFECT_STEPS = [
   {
     step: 4,
     titolo: "Il Crollo di Emergenza (Parametri Vitali)",
-    descrizione: "Con il sangue pieno di scorie biologiche e vasi sanguigni irrigiditi dall'infiammazione, il cuore è costretto a battere più forte e la pressione arteriosa schizza fuori controllo.",
+    descrizione: "Con il sangue intasato di scorie azotate, elettroliti alterati (K+ ed Na+) e pareti arteriose irrigidite, il cuore va in sovraccarico emodinamico: la pressione arteriosa schizza e insorgono aritmie o ischemie.",
     icon: "💓",
     color: "from-red-500 to-rose-600",
     border: "border-red-500/30",

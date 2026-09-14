@@ -19,7 +19,7 @@ import { useTranslation } from '../../lib/TranslationContext';
 import { injectHybridEntropy } from '../../lib/pqc/qrng';
 import { zeroizeBuffer } from '../../lib/pqc/zeroTraceMemory';
 
-export default function QuantumKeyGen() {
+export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolean) => void }) {
   const { t } = useTranslation();
   const [isGenerating, setIsGenerating] = useState(false);
   const [entropySource, setEntropySource] = useState<'hybrid_nist' | 'quantum_vacuum' | 'ibm_superconducting_qpu'>('hybrid_nist');

@@ -21,7 +21,7 @@ export default function DominoModal({ isOpen, onClose, onGeneratePdf }: DominoMo
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-600 via-amber-500 to-red-600 animate-pulse" />
 
         {/* Modal Header */}
-        <div className="p-6 md:p-8 pb-4 border-b border-white/10 flex items-start justify-between gap-4 bg-gradient-to-b from-red-950/20 to-transparent">
+        <div className="p-4 md:p-6 pb-4 border-b border-white/10 flex items-start justify-between gap-4 bg-gradient-to-b from-red-950/20 to-transparent">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
               <ShieldAlert className="w-7 h-7" />
@@ -50,7 +50,7 @@ export default function DominoModal({ isOpen, onClose, onGeneratePdf }: DominoMo
         </div>
 
         {/* Modal Body: The 4 Domino Steps */}
-        <div className="p-6 md:p-8 overflow-y-auto space-y-4">
+        <div className="p-4 md:p-6 overflow-y-auto space-y-4">
           <div className="space-y-3">
             {DOMINO_EFFECT_STEPS.map((step, idx) => (
               <React.Fragment key={step.step}>

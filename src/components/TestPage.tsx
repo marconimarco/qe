@@ -121,7 +121,7 @@ export const triggerCsvDownload = (filename: string, content: string) => {
 };
 
 // Componente CodeBlock con pulsante per copiare il codice con 1 clic
-function CodeBlockWithCopy({ code, language, title }: { code: string; language: string; title: string }) {
+export function CodeBlockWithCopy({ code, language, title }: { code: string; language: string; title: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -834,10 +834,13 @@ export default function TestPage({ onBack, onOpenIbm, setSharedQasm }: { onBack:
       } else if (msgLower.includes('rigido') || msgLower.includes('hard')) {
         chosenStyle = 'blocco_rigido';
       }
-      setSelectedVincolo(chosenStyle);
+      setSelectedVincolo(chosenStyle as any);
       setVincoloStile(chosenStyle);
       nextPhase = '5_done';
-          setShowEndModal(true);
+      setShowEndModal(true);
+    } else if (activePhase === '4c_close' || userMessage.includes('Avvia la simulazione') || userMessage.includes('tutto perfetto')) {
+      nextPhase = '5_done';
+      setShowEndModal(true);
     }
 
     try {
@@ -985,6 +988,8 @@ export default function TestPage({ onBack, onOpenIbm, setSharedQasm }: { onBack:
     };
     
     const jsonString = JSON.stringify(jsonObj, null, 2);
+    setFinalJson(jsonString);
+    setShowEndModal(true);
     
     // Pass the generated JSON string and Python code to the universal UI renderer
     const uiText = renderizzaInterfacciaUniversaleBlindata(jsonString, pythonSnippet);
@@ -1201,13 +1206,23 @@ ${pythonSnippet}
             <span className="font-semibold">{copiedInterview ? "Intervista Copiata!" : "Copia Intervista"}</span>
           </button>
 
-          {targetAlgoritmo !== 'IDLE' && (
-            <button
-              onClick={handleResetInterview}
-              className="px-3 py-1.5 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-md transition-all font-mono text-xs flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Nuova Intervista
-            </button>
+          {(targetAlgoritmo !== 'IDLE' || currentPhase === '5_done') && (
+            <>
+              <button
+                onClick={() => setShowEndModal(true)}
+                className="px-3 py-1.5 border border-amber-500/60 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 font-bold shadow-[0_0_12px_rgba(245,158,11,0.25)] cursor-pointer"
+                title="Visualizza il pop-up con i risultati dell'intervista"
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>Pop-up Risultati</span>
+              </button>
+              <button
+                onClick={handleResetInterview}
+                className="px-3 py-1.5 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Nuova Intervista
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1771,16 +1786,25 @@ ${pythonSnippet}
 
             {/* Phase 5: Completed */}
             {currentPhase === '5_done' && (
-              <div className="flex items-center justify-between p-2 bg-emerald-950/30 border border-emerald-500/30 rounded-lg">
-                <span className="text-xs font-mono text-emerald-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Intervista completata. Simulatore Sfera di Bloch e Telemetria attivi.
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-lg gap-2 shadow-lg">
+                <span className="text-xs font-mono text-emerald-300 flex items-center gap-1.5 font-semibold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Intervista completata. Simulatore Sfera di Bloch e Telemetria attivi.
                 </span>
-                <button
-                  onClick={handleResetInterview}
-                  className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-mono text-white rounded border border-white/20 transition-all"
-                >
-                  Ricomincia
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowEndModal(true)}
+                    className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs font-mono rounded transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.25)] cursor-pointer"
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Pop-up Risultati</span>
+                  </button>
+                  <button
+                    onClick={handleResetInterview}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-mono text-white rounded border border-white/20 transition-all cursor-pointer"
+                  >
+                    Ricomincia
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1901,6 +1925,37 @@ ${pythonSnippet}
 
         </div>
       </div>
+
+      {/* Pop-up Modale Risultati Intervista Strategica */}
+      <EndInterviewModal
+        isOpen={showEndModal}
+        onClose={() => setShowEndModal(false)}
+        qasmCode={finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva')}
+        pythonCode={finalPython || generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva')}
+        jsonCode={finalJson || JSON.stringify({
+          settore: assetSector || selectedSector || 'Finanza e Mercati',
+          scenario: selectedScenario?.name || 'Ottimizzazione',
+          strategia: selectedStrategy || 'Aggressiva',
+          entanglement: selectedVincolo === 'nessun_vincolo' ? 'none' : (selectedVincolo === 'blocco_rigido' ? 'cx' : 'cp'),
+          theta_radianti: parseFloat(radTheta.toFixed(4)),
+          phi_radianti: (phi * Math.PI) / 180,
+          predisposizione_grafico: true
+        }, null, 2)}
+        theta={theta}
+        phi={phi}
+        targetAlgoritmo={targetAlgoritmo !== 'IDLE' ? targetAlgoritmo : 'Qiskit_QAOA'}
+        sector={assetSector || selectedSector || 'Finanza e Mercati'}
+        onSendToIBM={() => {
+          setShowEndModal(false);
+          const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva');
+          if (setSharedQasm) {
+            setSharedQasm(qCode);
+          }
+          if (onOpenIbm) {
+            onOpenIbm();
+          }
+        }}
+      />
     </div>
   );
 }

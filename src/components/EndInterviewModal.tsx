@@ -1,8 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ExternalLink, Activity, Network, Cpu, Play } from 'lucide-react';
-import CrossCode from './CrossCode';
-import { IstogrammaQuantisticoUniversale } from './TestPage';
+import { CodeBlockWithCopy, IstogrammaQuantisticoUniversale } from './TestPage';
 
 interface EndInterviewModalProps {
   isOpen: boolean;
@@ -176,23 +175,26 @@ export default function EndInterviewModal({
             <div className="flex flex-col gap-4">
               <h3 className="font-mono text-sm font-bold text-cyan-300 border-b border-white/10 pb-2">Codici Generati</h3>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-2">
-                  <div className="text-[10px] font-mono text-slate-400 uppercase">Configurazione JSON</div>
-                  <div className="h-48 overflow-auto border border-white/10 rounded-lg bg-[#1e1e1e]">
-                     <CrossCode content={`\`\`\`json\n${jsonCode}\n\`\`\``} />
-                  </div>
+                <div className="flex flex-col gap-2 min-h-[200px]">
+                  <CodeBlockWithCopy
+                    code={jsonCode || "{\n  \"status\": \"idle\"\n}"}
+                    language="json"
+                    title="📋 Manifest JSON"
+                  />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="text-[10px] font-mono text-slate-400 uppercase">Qiskit Python (HPC)</div>
-                  <div className="h-48 overflow-auto border border-white/10 rounded-lg bg-[#1e1e1e]">
-                     <CrossCode content={`\`\`\`python\n${pythonCode}\n\`\`\``} />
-                  </div>
+                <div className="flex flex-col gap-2 min-h-[200px]">
+                  <CodeBlockWithCopy
+                    code={pythonCode || "# Codice Python in attesa"}
+                    language="python"
+                    title="🐍 Qiskit Python (HPC)"
+                  />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="text-[10px] font-mono text-slate-400 uppercase">OpenQASM (Quantum)</div>
-                  <div className="h-48 overflow-auto border border-white/10 rounded-lg bg-[#1e1e1e]">
-                     <CrossCode content={`\`\`\`qasm\n${qasmCode}\n\`\`\``} />
-                  </div>
+                <div className="flex flex-col gap-2 min-h-[200px]">
+                  <CodeBlockWithCopy
+                    code={qasmCode || "// Circuito OpenQASM in attesa"}
+                    language="qasm"
+                    title="⚛️ OpenQASM (Quantum)"
+                  />
                 </div>
               </div>
             </div>

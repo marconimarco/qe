@@ -20,7 +20,7 @@ import {
 import axios from 'axios';
 import { useTranslation } from '../../lib/TranslationContext';
 
-export default function QuantumLocker() {
+export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolean) => void }) {
   const { t } = useTranslation();
   const [activeMode, setActiveMode] = useState<'encrypt' | 'decrypt'>('encrypt');
   

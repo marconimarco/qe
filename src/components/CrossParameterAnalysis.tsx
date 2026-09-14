@@ -15,7 +15,7 @@ export default function CrossParameterAnalysis({ onGeneratePdf, onOpenDominoModa
   };
 
   return (
-    <div className="w-full bg-[#0d0f12] border border-white/10 rounded-2xl p-4 md:p-5 mt-6 shadow-2xl relative overflow-hidden">
+    <div className="w-full bg-[#0d0f12] border border-white/10 rounded-2xl p-3 mt-4 shadow-2xl relative overflow-hidden">
       {/* Background subtle styling */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -32,7 +32,7 @@ export default function CrossParameterAnalysis({ onGeneratePdf, onOpenDominoModa
               Matrice Incroci Critici
             </span>
           </div>
-          <h3 className="text-base md:text-lg font-medium text-white tracking-wide">
+          <h3 className="text-sm md:text-base font-medium text-white tracking-wide">
             Problematiche Dovute agli Incroci dei Parametri
           </h3>
           <p className="text-slate-400 text-[11px] md:text-xs font-light mt-1 max-w-2xl leading-relaxed">
@@ -77,7 +77,7 @@ export default function CrossParameterAnalysis({ onGeneratePdf, onOpenDominoModa
               {/* Card Header clickable */}
               <div
                 onClick={() => toggleExpand(problem.id)}
-                className="p-3 md:p-4 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none"
+                className="p-3 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none"
               >
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -91,7 +91,7 @@ export default function CrossParameterAnalysis({ onGeneratePdf, onOpenDominoModa
                     )}
                   </div>
 
-                  <h4 className="text-base md:text-lg font-medium text-white tracking-wide flex items-center gap-2">
+                  <h4 className="text-sm md:text-base font-medium text-white tracking-wide flex items-center gap-2">
                     {problem.titolo}
                   </h4>
 

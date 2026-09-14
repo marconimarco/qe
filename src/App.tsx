@@ -141,7 +141,12 @@ function AppContent({
     }
   };
 
-  const handleBackFromDashboard = () => {
+  const handleBackFromDashboard = (forceHome?: boolean) => {
+    if (!forceHome && selectedSectorId && ['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(selectedSectorId)) {
+      setReturnToSubMenu('pqc_group');
+    } else {
+      setReturnToSubMenu(null);
+    }
     setSelectedSectorId(null);
   };
 

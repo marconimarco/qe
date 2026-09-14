@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { ArrowLeft, Activity, Heart, Camera, Watch, AlertTriangle, Phone, TrendingUp, TrendingDown, Minus, Info, X, Zap, FileText, Download, CheckCircle, Sparkles } from 'lucide-react';
 import scanVitali from "../assets/images/scan_vitali_clean_1789332794984.jpg";
 import scanMetabolici from "../assets/images/scan_metabolici_clean_1789332805433.jpg";
@@ -744,19 +744,7 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                               </div>
 
                               {/* Metrics */}
-                              <div className="flex gap-2 pt-1">
-                                {cat.metrics.map((m, i) => (
-                                  <div key={i} className="flex-1 bg-white/[0.02] border border-white/5 rounded-lg p-2">
-                                    <div className="text-[8px] font-mono text-slate-500 uppercase truncate mb-0.5">{m.label}</div>
-                                    <div className="text-sm font-medium text-white leading-none">{m.value}</div>
-                                  </div>
-                                ))}
-                              </div>
-
-                              <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono pt-1">
-                                <span>Clicca per esplodere</span>
-                                <span className="text-[10px] text-white/40 group-hover:text-white transition-colors">→</span>
-                              </div>
+                              <div />
                             </div>
                           </div>
                         );
@@ -808,7 +796,7 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                         </div>
 
                         {/* Valore e Obiettivo */}
-                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                        <div className="bg-white/[0.02] border border-white/5 rounded-lg p-3">
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
                             <h4 className="text-[9px] font-mono uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
@@ -818,17 +806,33 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                               Valore: <span className="text-white font-normal">{details.valore}</span>
                             </span>
                           </div>
-                          <p className="text-sm font-light text-white mb-4 leading-relaxed">{details.obiettivo}</p>
+                          <p className="text-xs font-light text-white mb-3 leading-relaxed">{details.obiettivo}</p>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {details.punti.map((p, i) => (
-                              <div key={i} className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col gap-1">
-                                <div className="text-xs font-medium text-white flex items-center gap-1.5">
-                                  <span className="text-sm">{p.icon}</span>
+                              <div key={i} className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col gap-1.5 hover:border-white/10 transition-colors">
+                                <div className="text-[11px] font-medium text-white flex items-center gap-1.5">
+                                  <span className="text-xs">{p.icon}</span>
                                   <span className="text-cyan-400 text-[10px] font-mono">0{i+1}.</span>
-                                  {p.t}
+                                  <span>{p.t}</span>
                                 </div>
-                                <div className="text-[11px] text-slate-400 leading-relaxed font-light pl-5">{p.d}</div>
+                                <div className="text-[10px] text-slate-300 leading-relaxed font-light pl-5">{p.d}</div>
+                                {(p.seAlti || p.seBassi) && (
+                                  <div className="mt-1 pt-2 border-t border-white/5 flex flex-col gap-1 text-[9.5px] pl-5">
+                                    {p.seAlti && (
+                                      <div className="text-rose-300/90 leading-tight">
+                                        <span className="text-rose-400 font-bold uppercase font-mono tracking-wider mr-1">▲ Se Alti:</span>
+                                        {p.seAlti}
+                                      </div>
+                                    )}
+                                    {p.seBassi && (
+                                      <div className="text-cyan-300/90 leading-tight">
+                                        <span className="text-cyan-400 font-bold uppercase font-mono tracking-wider mr-1">▼ Se Bassi:</span>
+                                        {p.seBassi}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -837,30 +841,30 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                         {/* 3 Box: Allarmi, Cause, Consigli */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {/* Campanelli d'allarme */}
-                          <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 flex flex-col gap-2">
-                            <div className="flex items-center gap-1.5 text-red-400 font-bold text-[10px] uppercase tracking-widest mb-0.5">
+                          <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
                               <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
                               Campanelli d'allarme
                             </div>
-                            <p className="text-[11px] text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
+                            <p className="text-[10px] text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
                           </div>
                           
                           {/* Cause Frequenti */}
-                          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex flex-col gap-2">
-                            <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase tracking-widest mb-0.5">
+                          <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
                               <AlertTriangle className="w-3.5 h-3.5" />
                               Cause Frequenti di Alterazione
                             </div>
-                            <p className="text-[11px] text-amber-200/80 leading-relaxed font-light">{details.cause}</p>
+                            <p className="text-[10px] text-amber-200/80 leading-relaxed font-light">{details.cause}</p>
                           </div>
                           
                           {/* Consigli Pratici */}
-                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 flex flex-col gap-2">
-                            <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase tracking-widest mb-0.5">
+                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
                               <div className="w-1.5 h-1.5 rounded-sm bg-emerald-500"></div>
                               Consigli Pratici per l'Utente
                             </div>
-                            <p className="text-[11px] text-emerald-200/80 leading-relaxed font-light">{details.consigli}</p>
+                            <p className="text-[10px] text-emerald-200/80 leading-relaxed font-light">{details.consigli}</p>
                           </div>
                         </div>
 

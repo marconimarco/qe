@@ -266,7 +266,7 @@ import {
 
 interface Props {
   sector: Sector;
-  onBack: () => void;
+  onBack: (forceHome?: boolean) => void;
   onSectorChange?: (id: SectorId) => void;
   onOpenHelp?: () => void;
 }
@@ -616,14 +616,26 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
   
   return (
     <div className="min-h-screen p-3 sm:p-6 max-w-screen-2xl mx-auto pb-32">
+      
       <nav className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 sm:mb-8 gap-3 sm:gap-0">
-        <button 
-          onClick={resetSelection}
-          className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1"
-        >
-          <ArrowLeft className="w-4 h-4 sm:w-5 h-5" />
-          <span className="font-mono text-[10px] sm:text-sm tracking-widest uppercase">{t('back')}</span>
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={resetSelection}
+            className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1"
+          >
+            <ArrowLeft className="w-4 h-4 sm:w-5 h-5" />
+            <span className="font-mono text-[10px] sm:text-sm tracking-widest uppercase">{t('back')}</span>
+          </button>
+          {['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(sector.id) && (
+            <button 
+              onClick={() => onBack(true)}
+              className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors py-1 px-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20"
+            >
+              <ArrowLeft className="w-3 h-3" />
+              <span className="font-mono text-[9px] sm:text-xs tracking-widest uppercase font-bold">Back to Home Page</span>
+            </button>
+          )}
+        </div>
         <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 bg-black/20 sm:bg-transparent p-2 sm:p-0 rounded-lg border border-white/5 sm:border-none">
           <button 
             id="dashboard-help-btn"
@@ -921,7 +933,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <QuantumLocker />
+                <QuantumLocker onBack={onBack} />
               </motion.div>
             ) : sector.id === 'pqc_keygen' ? (
               <motion.div
@@ -930,7 +942,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <QuantumKeyGen />
+                <QuantumKeyGen onBack={onBack} />
               </motion.div>
             ) : sector.id === 'pqc_chat' ? (
               <motion.div
@@ -939,7 +951,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <QuantumChat />
+                <QuantumChat onBack={onBack} />
               </motion.div>
             ) : sector.id === 'large' ? (
               <motion.div
