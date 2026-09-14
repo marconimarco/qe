@@ -51,9 +51,10 @@ interface Props {
   onOpenIbm?: () => void;
   onOpenHelp?: () => void;
   onOpenTest?: () => void;
+  onOpenBlank?: () => void;
 }
 
-export default function SectorSelector({ onSelect, initialSubMenu = null, onSubMenuToggle, onOpenIbm, onOpenHelp, onOpenTest }: Props) {
+export default function SectorSelector({ onSelect, initialSubMenu = null, onSubMenuToggle, onOpenIbm, onOpenHelp, onOpenTest, onOpenBlank }: Props) {
   const { t, language } = useTranslation();
   const [activeSubMenu, setActiveSubMenu] = useState<SectorId | null>(initialSubMenu);
 
@@ -297,6 +298,43 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                     </div>
                   );
                 })}
+              </motion.div>
+
+              {/* Inner Orbit for Blank Page Icon */}
+              <motion.div
+                className="absolute inset-0 flex items-center justify-center pointer-events-none z-25"
+                animate={{ rotate: -360 }}
+                transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
+              >
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <motion.button
+                    onClick={() => onOpenBlank?.()}
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                      left: '50%',
+                      top: '26%',
+                      translateX: '-50%',
+                      translateY: '-50%'
+                    }}
+                    transition={{ duration: 0.8, type: "spring" }}
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="absolute flex flex-col items-center group z-30 pointer-events-auto"
+                  >
+                    <motion.div
+                      className="flex flex-col items-center select-none text-center"
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
+                    >
+                      <div className="w-[6vmin] h-[6vmin] max-w-[32px] max-h-[32px] md:w-10 md:h-10 rounded-full border border-white/50 bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:bg-white/40 hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] flex items-center justify-center transition-all backdrop-blur-sm relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full animate-pulse shadow-[0_0_8px_rgba(255,255,255,1)]" />
+                      </div>
+                    </motion.div>
+                  </motion.button>
+                </div>
               </motion.div>
 
               {/* Central Fixed Sun (Primary Portal - TEST Simulation) */}

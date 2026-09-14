@@ -37,6 +37,24 @@
   }
 }
 
+/* Effetto Lampeggiante / Glow per Pulsante Effetto Domino */
+@keyframes pulseGlowRedAmber {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4), 0 0 20px rgba(245, 158, 11, 0.2);
+    border-color: rgba(239, 68, 68, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(239, 68, 68, 0.9), 0 0 40px rgba(245, 158, 11, 0.6);
+    border-color: rgba(251, 146, 60, 1);
+    transform: scale(1.025);
+  }
+}
+
+.animate-domino-pulse {
+  animation: pulseGlowRedAmber 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

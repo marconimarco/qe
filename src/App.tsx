@@ -20,6 +20,8 @@ import { motion } from 'motion/react';
 import aiStudioPrompt from './promptText.txt?raw';
 import { Check, Copy } from 'lucide-react';
 
+import MedicalScreening from './components/MedicalScreening';
+
 export default function App() {
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(() => {
     try {
@@ -102,6 +104,7 @@ function AppContent({
   const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
   const [isIbmInterfaceOpen, setIsIbmInterfaceOpen] = useState(false);
   const [isTestPageOpen, setIsTestPageOpen] = useState(false);
+  const [isBlankPageOpen, setIsBlankPageOpen] = useState(false);
   const [returnToSubMenu, setReturnToSubMenu] = useState<SectorId | null>(null);
   const [sharedQasm, setSharedQasm] = useState<string>('');
   
@@ -301,7 +304,9 @@ function AppContent({
 
       {/* Main container area */}
       <main className="relative z-10 flex-1 flex flex-col">
-        {isTestPageOpen ? (
+        {isBlankPageOpen ? (
+          <MedicalScreening onBack={() => setIsBlankPageOpen(false)} />
+        ) : isTestPageOpen ? (
           <TestPage onBack={() => setIsTestPageOpen(false)} />
         ) : isIbmInterfaceOpen ? (
           <IBMQuantumInterface 
@@ -325,6 +330,7 @@ function AppContent({
             onOpenIbm={() => setIsIbmInterfaceOpen(true)}
             onOpenHelp={() => setIsHelpModalOpen(true)}
             onOpenTest={() => setIsTestPageOpen(true)}
+            onOpenBlank={() => setIsBlankPageOpen(true)}
           />
         )}
       </main>
