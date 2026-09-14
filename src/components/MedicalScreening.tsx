@@ -703,7 +703,7 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                       <span className="text-[11px] text-slate-400">Clicca su un modulo per espanderlo a schermo intero</span>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6 pt-1 px-1">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-4 pt-1 px-1">
                       {[result.vitali, result.metabolici, result.organo, result.infiammatorio].map((cat, idx) => {
                         const details = CATEGORY_DETAILS_ENRICHED[idx];
                         return (
@@ -713,131 +713,49 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                               setActiveCategory(idx);
                               setExpandedCategory(idx);
                             }} 
-                            className={`bg-[#121212] border rounded-2xl p-6 flex flex-col justify-between gap-5 relative overflow-y-auto overflow-x-hidden group transition-all duration-300 cursor-pointer w-full h-[350px] shrink-0 ${
+                            className={`bg-[#121212] border rounded-xl p-3 flex flex-col justify-between gap-3 relative overflow-hidden group transition-all duration-300 cursor-pointer w-full min-h-[100px] shrink-0 ${
                               activeCategory === idx 
-                                ? 'border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.08)] bg-white/[0.03]' 
+                                ? 'border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.05)] bg-white/[0.03]'
                                 : 'border-white/5 hover:border-white/20 hover:bg-white/[0.01]'
                             }`}
                           >
-                            <div className="absolute top-0 left-0 w-1.5 h-full transition-all group-hover:w-2" style={{ backgroundColor: cat.chartColor }} />
+                            <div className="absolute top-0 left-0 w-1 h-full transition-all group-hover:w-1.5" style={{ backgroundColor: cat.chartColor }} />
                             
-                            <div className="pl-2 flex flex-col gap-4">
+                            <div className="pl-2 flex flex-col gap-2">
                               {/* Header */}
-                              <div className="flex justify-between items-start gap-4">
+                              <div className="flex justify-between items-start gap-2">
                                 <div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">MODULO #{idx + 1}</span>
-                                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.chartColor }} />
-                                    <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${details.urgenzaBadgeColor}`}>
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">MOD #{idx + 1}</span>
+                                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: cat.chartColor }} />
+                                    <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border ${details.urgenzaBadgeColor}`}>
                                       {details.urgenzaTag}
                                     </span>
                                   </div>
-                                  <h3 className="text-xl font-light text-white group-hover:text-cyan-300 transition-colors">{cat.title}</h3>
-                                  <p className="text-[11px] font-mono uppercase tracking-widest text-slate-400">{cat.subtitle}</p>
+                                  <h3 className="text-sm font-medium text-white group-hover:text-cyan-300 transition-colors line-clamp-1">{cat.title}</h3>
                                 </div>
-                                <div className={`px-3 py-1.5 rounded-full border text-[11px] font-bold tracking-widest uppercase flex-shrink-0 ${
-                                  cat.status === 'Idoneo' 
-                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                                <div className={`px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-widest uppercase flex-shrink-0 ${
+                                  cat.status === 'Idoneo'
+                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                                     : 'bg-red-500/10 border-red-500/30 text-red-400'
                                 }`}>
                                   {cat.status}
                                 </div>
                               </div>
 
-                              {/* Description Box */}
-                              <div className="bg-white/5 rounded-xl p-3.5 border border-white/5">
-                                <div className="text-xs font-semibold text-white mb-1">{cat.statusText}</div>
-                                <div className="text-xs text-slate-400 leading-relaxed font-light">{cat.description}</div>
-                              </div>
-
-                              {/* Valore / Beneficio */}
-                              <div className="bg-black/30 rounded-xl p-3 border border-white/5 space-y-1">
-                                <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-400">Valore per la salute:</div>
-                                <div className="text-xs text-slate-300 font-light leading-relaxed">{details.valore}</div>
-                              </div>
-                            </div>
-
-                            {/* Metrics & Chart row */}
-                            <div className="pl-2 w-full flex flex-col gap-3 pt-2 border-t border-white/5">
-                              <div className="flex gap-3">
+                              {/* Metrics */}
+                              <div className="flex gap-2 pt-1">
                                 {cat.metrics.map((m, i) => (
-                                  <div key={i} className="flex-1 bg-white/[0.02] border border-white/5 rounded-xl p-3">
-                                    <div className="text-[9px] font-mono text-slate-500 uppercase truncate mb-1">{m.label}</div>
-                                    <div className="text-base font-medium text-white leading-none">{m.value}</div>
+                                  <div key={i} className="flex-1 bg-white/[0.02] border border-white/5 rounded-lg p-2">
+                                    <div className="text-[8px] font-mono text-slate-500 uppercase truncate mb-0.5">{m.label}</div>
+                                    <div className="text-sm font-medium text-white leading-none">{m.value}</div>
                                   </div>
                                 ))}
                               </div>
 
-                              <div className="h-[95px] w-full bg-white/[0.02] border border-white/5 rounded-xl p-2.5 relative">
-                                <div className="absolute top-2 left-3 z-10 text-[9px] font-mono text-slate-500 uppercase tracking-widest">{cat.chartLabel}</div>
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <LineChart data={cat.chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
-                                    <Tooltip 
-                                      content={({ active, payload }) => {
-                                        if (active && payload && payload.length) {
-                                          return (
-                                            <div className="bg-black/90 border border-white/10 px-2.5 py-1.5 rounded-lg text-xs backdrop-blur-md">
-                                              <span className="text-white font-mono">{payload[0].value}</span>
-                                            </div>
-                                          );
-                                        }
-                                        return null;
-                                      }}
-                                      cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeDasharray: '4 4' }}
-                                    />
-                                    <Line 
-                                      type="monotone" 
-                                      dataKey={cat.chartKey} 
-                                      stroke={cat.chartColor} 
-                                      strokeWidth={2.5} 
-                                      dot={false}
-                                      activeDot={{ r: 4, fill: '#000', stroke: cat.chartColor, strokeWidth: 2 }}
-                                    />
-                                  </LineChart>
-                                </ResponsiveContainer>
-                              </div>
-
-                              {/* Box Interconnessione con Pulsante Lampeggiante (Effetto Domino) */}
-                              <div className="bg-gradient-to-r from-red-950/25 via-amber-950/20 to-transparent border border-red-500/30 rounded-xl p-3.5 flex flex-col gap-2.5">
-                                <div className="flex items-start gap-2">
-                                  <span className="text-amber-400 text-sm shrink-0">💡</span>
-                                  <p className="text-[11px] text-slate-200 leading-relaxed font-light">
-                                    {details.interconnessione}
-                                  </p>
-                                </div>
-                                <div className="pt-1 flex justify-start">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShowDominoModal(true);
-                                    }}
-                                    className="animate-domino-pulse px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600/40 via-amber-600/30 to-red-600/40 border border-red-500/70 text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 hover:brightness-125 transition-all cursor-pointer shadow-lg"
-                                  >
-                                    <Zap className="w-3 h-3 text-amber-300" />
-                                    <span>Scopri la reazione a catena nel corpo</span>
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Pulsante Call To Action per PDF */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadPdf();
-                                }}
-                                className="w-full mt-1 p-3 rounded-xl bg-white/[0.03] hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/40 text-slate-200 hover:text-cyan-300 text-[11px] font-medium tracking-wide flex items-center justify-between gap-2 transition-all cursor-pointer group/btn"
-                              >
-                                <span className="text-left font-light leading-snug">
-                                  Rilevi uno di questi segnali? <strong className="font-semibold text-white group-hover/btn:text-cyan-300 underline decoration-cyan-400/50 underline-offset-2">Genera il tuo Report PDF personalizzato</strong> da mostrare al medico.
-                                </span>
-                                <FileText className="w-4 h-4 text-cyan-400 shrink-0 group-hover/btn:scale-110 transition-transform" />
-                              </button>
-
-                              <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1">
-                                <span>Clicca per visualizzare analisi clinica completa</span>
-                                <span className="text-xs text-white/40 group-hover:text-white transition-colors">→</span>
+                              <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono pt-1">
+                                <span>Clicca per esplodere</span>
+                                <span className="text-[10px] text-white/40 group-hover:text-white transition-colors">→</span>
                               </div>
                             </div>
                           </div>
@@ -851,181 +769,167 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                     const cat = [result.vitali, result.metabolici, result.organo, result.infiammatorio][expandedCategory];
                     const details = CATEGORY_DETAILS_ENRICHED[expandedCategory];
                     return (
-                      <div className="bg-[#121212] border border-white/20 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] bg-white/[0.02] flex flex-col gap-6 w-full animate-in fade-in zoom-in-95 duration-300">
-                        <div className="absolute top-0 left-0 w-2.5 h-full" style={{ backgroundColor: cat.chartColor }} />
+                      <div className="bg-[#121212] border border-white/20 rounded-2xl p-5 relative overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.6)] bg-white/[0.02] flex flex-col gap-4 w-full animate-in fade-in zoom-in-95 duration-300">
+                        <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: cat.chartColor }} />
                         
                         {/* Bottone Chiudi */}
-                        <div className="flex justify-between items-center border-b border-white/10 pb-6">
+                        <div className="flex justify-between items-center border-b border-white/10 pb-3">
                           <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block">
-                                Dettaglio Approfondito &bull; Modulo #{expandedCategory + 1}
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest block">
+                                Dettaglio &bull; Modulo #{expandedCategory + 1}
                               </span>
-                              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${details.urgenzaBadgeColor}`}>
+                              <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border ${details.urgenzaBadgeColor}`}>
                                 {details.urgenzaTag}
                               </span>
                             </div>
-                            <h3 className="text-3xl font-light text-white">{cat.title}</h3>
-                            <p className="text-xs font-mono uppercase tracking-widest text-slate-400 mt-1">{cat.subtitle}</p>
+                            <h3 className="text-xl font-medium text-white">{cat.title}</h3>
+                            <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mt-0.5">{cat.subtitle}</p>
                           </div>
                           <button 
                             onClick={() => setExpandedCategory(null)}
-                            className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-2 text-xs font-mono uppercase tracking-wider cursor-pointer"
+                            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider cursor-pointer shrink-0"
                           >
-                            <X className="w-4 h-4" />
-                            <span>Chiudi Dettaglio</span>
+                            <X className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Chiudi</span>
                           </button>
                         </div>
 
                         {/* Status Row */}
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-4 border-b border-white/5">
-                          <div className={`px-4 py-2 rounded-full border text-xs font-bold tracking-widest uppercase shrink-0 w-fit ${
-                            cat.status === 'Idoneo' 
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-3 border-b border-white/5">
+                          <div className={`px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-widest uppercase shrink-0 w-fit ${
+                            cat.status === 'Idoneo'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                               : 'bg-red-500/10 border-red-500/30 text-red-400'
                           }`}>
                             {cat.status}: {cat.statusText}
                           </div>
-                          <div className="text-sm text-slate-300 leading-relaxed font-light">{cat.description}</div>
+                          <div className="text-xs text-slate-300 leading-relaxed font-light">{cat.description}</div>
                         </div>
 
                         {/* Valore e Obiettivo */}
-                        <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-                            <h4 className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+                            <h4 className="text-[9px] font-mono uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
                               Cosa ottiene l'utente al suo interno
                             </h4>
-                            <span className="text-xs text-slate-400 font-mono">
+                            <span className="text-[10px] text-slate-400 font-mono">
                               Valore: <span className="text-white font-normal">{details.valore}</span>
                             </span>
                           </div>
-                          <p className="text-base sm:text-lg font-light text-white mb-6 leading-relaxed">{details.obiettivo}</p>
+                          <p className="text-sm font-light text-white mb-4 leading-relaxed">{details.obiettivo}</p>
                           
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {details.punti.map((p, i) => (
-                              <div key={i} className="bg-black/40 p-4 rounded-xl border border-white/5 flex flex-col gap-1.5">
-                                <div className="text-sm font-medium text-white flex items-center gap-2">
-                                  <span className="text-base">{p.icon}</span>
-                                  <span className="text-cyan-400 text-xs font-mono">0{i+1}.</span>
+                              <div key={i} className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col gap-1">
+                                <div className="text-xs font-medium text-white flex items-center gap-1.5">
+                                  <span className="text-sm">{p.icon}</span>
+                                  <span className="text-cyan-400 text-[10px] font-mono">0{i+1}.</span>
                                   {p.t}
                                 </div>
-                                <div className="text-xs text-slate-400 leading-relaxed font-light pl-6">{p.d}</div>
+                                <div className="text-[11px] text-slate-400 leading-relaxed font-light pl-5">{p.d}</div>
                               </div>
                             ))}
                           </div>
                         </div>
 
                         {/* 3 Box: Allarmi, Cause, Consigli */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {/* Campanelli d'allarme */}
-                          <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 flex flex-col gap-3">
-                            <div className="flex items-center gap-2 text-red-400 font-bold text-xs uppercase tracking-widest mb-1">
-                              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></div>
+                          <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5 text-red-400 font-bold text-[10px] uppercase tracking-widest mb-0.5">
+                              <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
                               Campanelli d'allarme
                             </div>
-                            <p className="text-xs text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
+                            <p className="text-[11px] text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
                           </div>
                           
                           {/* Cause Frequenti */}
-                          <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-6 flex flex-col gap-3">
-                            <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-widest mb-1">
-                              <AlertTriangle className="w-4 h-4" />
+                          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase tracking-widest mb-0.5">
+                              <AlertTriangle className="w-3.5 h-3.5" />
                               Cause Frequenti di Alterazione
                             </div>
-                            <p className="text-xs text-amber-200/80 leading-relaxed font-light">{details.cause}</p>
+                            <p className="text-[11px] text-amber-200/80 leading-relaxed font-light">{details.cause}</p>
                           </div>
                           
                           {/* Consigli Pratici */}
-                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 flex flex-col gap-3">
-                            <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-widest mb-1">
-                              <div className="w-2 h-2 rounded-sm bg-emerald-500"></div>
+                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase tracking-widest mb-0.5">
+                              <div className="w-1.5 h-1.5 rounded-sm bg-emerald-500"></div>
                               Consigli Pratici per l'Utente
                             </div>
-                            <p className="text-xs text-emerald-200/80 leading-relaxed font-light">{details.consigli}</p>
+                            <p className="text-[11px] text-emerald-200/80 leading-relaxed font-light">{details.consigli}</p>
                           </div>
                         </div>
 
                         {/* Box Interconnessione con Bottone Pulsante Lampeggiante (Effetto Domino) */}
-                        <div className="bg-gradient-to-r from-red-950/30 via-amber-950/20 to-black/60 border border-red-500/40 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                          <div className="space-y-2 max-w-2xl">
-                            <div className="flex items-center gap-2">
-                              <span className="text-amber-400 text-lg">💡</span>
-                              <h5 className="text-sm font-semibold text-white tracking-wide">
-                                Interconnessione con gli altri Sistemi Organici
-                              </h5>
-                            </div>
-                            <p className="text-xs text-slate-300 leading-relaxed font-light">
+                        <div className="bg-gradient-to-r from-red-950/30 via-amber-950/20 to-black/60 border border-red-500/40 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                          <div className="flex items-start gap-2">
+                            <span className="text-amber-400 text-sm shrink-0">💡</span>
+                            <p className="text-xs text-slate-200 leading-relaxed font-light max-w-xl">
                               {details.interconnessione}
                             </p>
                           </div>
-
                           <button
                             type="button"
                             onClick={() => setShowDominoModal(true)}
-                            className="animate-domino-pulse px-5 py-3 rounded-2xl bg-gradient-to-r from-red-600/40 via-amber-600/40 to-red-600/40 border border-red-500/80 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2.5 hover:brightness-125 transition-all cursor-pointer shrink-0 shadow-xl"
+                            className="animate-domino-pulse px-4 py-2 rounded-lg bg-gradient-to-r from-red-600/40 via-amber-600/30 to-red-600/40 border border-red-500/70 text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 hover:brightness-125 transition-all cursor-pointer shrink-0 shadow-lg"
                           >
-                            <Zap className="w-4 h-4 text-amber-300" />
-                            <span>Scopri la reazione a catena nel corpo</span>
+                            <Zap className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Effetto Domino</span>
                           </button>
                         </div>
 
-                        {/* Metriche e Grafico espanso */}
-                        <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
-                          <h4 className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Biometria e Andamento Parametrico</h4>
-                          <div className="flex flex-wrap gap-4">
-                            {cat.metrics.map((m, i) => (
-                              <div key={i} className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 min-w-[160px]">
-                                <div className="text-[9px] font-mono text-slate-500 uppercase truncate mb-1">{m.label}</div>
-                                <div className="text-lg font-medium text-white">{m.value}</div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="h-[140px] w-full bg-black/40 border border-white/5 rounded-xl p-3 relative">
-                            <div className="absolute top-2 left-3 z-10 text-[9px] font-mono text-slate-500 uppercase tracking-widest">{cat.chartLabel}</div>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={cat.chartData} margin={{ top: 20, right: 20, left: 10, bottom: 0 }}>
-                                <Tooltip 
-                                  content={({ active, payload }) => {
-                                    if (active && payload && payload.length) {
-                                      return (
-                                        <div className="bg-black/90 border border-white/10 px-3 py-2 rounded-lg text-xs backdrop-blur-md">
-                                          <span className="text-white font-mono">{payload[0].value}</span>
-                                        </div>
-                                      );
-                                    }
-                                    return null;
-                                  }}
-                                  cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeDasharray: '4 4' }}
-                                />
-                                <Line 
-                                  type="monotone" 
-                                  dataKey={cat.chartKey} 
-                                  stroke={cat.chartColor} 
-                                  strokeWidth={3} 
-                                  dot={{ r: 3, fill: '#000', stroke: cat.chartColor, strokeWidth: 2 }}
-                                  activeDot={{ r: 6, fill: cat.chartColor, stroke: '#fff', strokeWidth: 2 }}
-                                />
-                              </LineChart>
-                            </ResponsiveContainer>
-                          </div>
+                        {/* Sezione Grafico Espanso */}
+                        <div className="h-[200px] w-full bg-white/[0.01] border border-white/5 rounded-xl p-4 relative mt-2">
+                          <div className="absolute top-3 left-4 z-10 text-[10px] font-mono text-slate-500 uppercase tracking-widest">{cat.chartLabel} (Andamento Storico)</div>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={cat.chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                              <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
+                              <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
+                              <Tooltip 
+                                content={({ active, payload }) => {
+                                  if (active && payload && payload.length) {
+                                    return (
+                                      <div className="bg-black/90 border border-white/10 px-3 py-2 rounded-lg text-xs backdrop-blur-md shadow-xl flex flex-col gap-1">
+                                        <span className="text-white/60 font-mono text-[9px] uppercase">{payload[0].payload.time}</span>
+                                        <span className="text-white font-mono font-bold" style={{ color: cat.chartColor }}>{payload[0].value} {cat.chartLabel.split(' ')[0]}</span>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }}
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey={cat.chartKey} 
+                                stroke={cat.chartColor} 
+                                strokeWidth={3} 
+                                dot={{ fill: '#000', stroke: cat.chartColor, strokeWidth: 2, r: 3 }}
+                                activeDot={{ r: 6, fill: '#000', stroke: cat.chartColor, strokeWidth: 2 }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
                         </div>
 
                         {/* Call to action finale per PDF all'interno del dettaglio */}
-                        <div className="p-6 rounded-2xl bg-gradient-to-r from-cyan-950/20 via-black/40 to-cyan-950/20 border border-cyan-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/20 via-black/40 to-cyan-950/20 border border-cyan-500/30 flex flex-col md:flex-row items-center justify-between gap-4 mt-2">
                           <div className="space-y-1 text-center md:text-left">
-                            <h5 className="text-sm font-semibold text-white">Rilevi uno o più segnali anomali in questo modulo?</h5>
-                            <p className="text-xs text-slate-300 font-light">
+                            <h5 className="text-xs font-semibold text-white">Rilevi uno o più segnali anomali in questo modulo?</h5>
+                            <p className="text-[10px] text-slate-300 font-light">
                               Esporta subito il documento clinico completo con le correlazioni tra parametri da condividere con il tuo medico.
                             </p>
                           </div>
                           <button
                             type="button"
                             onClick={handleDownloadPdf}
-                            className="px-6 py-3 rounded-full bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shrink-0 shadow-lg shadow-cyan-500/20"
+                            className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-lg shadow-cyan-500/20"
                           >
-                            <FileText className="w-4 h-4" />
-                            <span>Genera il tuo Report PDF</span>
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Report PDF</span>
                           </button>
                         </div>
 
