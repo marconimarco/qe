@@ -60,11 +60,31 @@ export const CATEGORY_DETAILS_ENRICHED: CategoryData[] = [
         icon: "⚡",
         seAlti: "Scompenso cardiaco congestizio, edema polmonare acuto, insufficienza ventricolare sinistra/destra.",
         seBassi: "Esclude con altissima specificità lo scompenso cardiaco in presenza di dispnea."
+      },
+      {
+        t: "[Test Funzionali e Fisiologici] Elettrofisiologia Cardiaca",
+        d: "ECG a riposo/sotto sforzo ed Holter Cardiaco 24/48h.",
+        icon: "⚡"
+      },
+      {
+        t: "[Test Funzionali e Fisiologici] Monitoraggio Pressorio Continuo",
+        d: "Holter Pressorio.",
+        icon: "📉"
+      },
+      {
+        t: "[Diagnostica per Immagini] Dopplersonografia Carotidea ed Ecocardiografia",
+        d: "EcoDoppler intima-media/placche e Frazione d'eiezione.",
+        icon: "🔊"
+      },
+      {
+        t: "[Esame Obiettivo / Valutazione Clinica] Semeiotica Cardiorespiratoria",
+        d: "Auscultazione con stetofonendoscopio per soffi/rumori.",
+        icon: "👂"
       }
     ],
-    allarmi: "Dolore toracico oppressivo retrosternale irradiato al braccio o mandibola, affanno a riposo, improvvisa perdita di coscienza, emorragie cutanee a petecchie, arti cianotici freddi.",
+    allarmi: "Dolore toracico oppressivo retrosternale irradiato al braccio o mandibola, affanno a riposo, improvvisa perdita di coscienza, emorragie cutanee a petecchie, arti cianotici freddi. Anomalie del tratto ST all'ECG, sbalzi pressori notturni (non-dipper), stenosi vascolare da Doppler, riscontro di soffi cardiaci.",
     cause: "Disidratazione massiva, rottura di placca aterosclerotica, aritmie ventricolari, shock ipovolemico o settico, sovradosaggio di anticoagulanti orali.",
-    consigli: "Accesso immediato a pronto soccorso o monitoraggio continuo con elettrocardiogramma, ossigenoterapia e profilassi tromboembolica controllata dal cardiologo.",
+    consigli: "Accesso immediato a pronto soccorso o monitoraggio continuo con elettrocardiogramma, ossigenoterapia e profilassi tromboembolica controllata dal cardiologo. Monitoraggio pressorio domiciliare, tecniche di biofeedback per la variabilità cardiaca (HRV).",
     interconnessione: "Un'alterazione improvvisa dei parametri vitali è spesso la fase finale di un Effetto Domino partito da un'infiammazione silente trascurata o da un blocco acuto dei filtri d'organo (rene e fegato)."
   },
   {
@@ -111,11 +131,21 @@ export const CATEGORY_DETAILS_ENRICHED: CategoryData[] = [
         icon: "⚖️",
         seAlti: "Cortisolo alto: Sindrome di Cushing, obesità addominale, ipertensione, diabete secondario. Aldosterone alto: Sindrome di Conn.",
         seBassi: "Cortisolo basso + ACTH alto: Crisi Addisoniana (insufficienza surrenalica), ipotensione refrattaria, iponatriemia e shock."
+      },
+      {
+        t: "[Diagnostica per Immagini] Ecografia Addominale Superiore",
+        d: "Valutazione fegato iperecogeno.",
+        icon: "🔊"
+      },
+      {
+        t: "[Esame Obiettivo / Valutazione Clinica Diretta] Antropometria Manuale e Strumentale",
+        d: "Misurazione pliche, circonferenze, calcolo BMI e stima volumetrica del grasso viscerale addominale profondo.",
+        icon: "📐"
       }
     ],
-    allarmi: "Sonnolenza insostenibile post-prandiale, attacchi di fame incontrollata per zuccheri, depositi giallastri sulle palpebre (xantelasmi), aumento del grasso viscerale addominale.",
+    allarmi: "Sonnolenza insostenibile post-prandiale, attacchi di fame incontrollata per zuccheri, depositi giallastri sulle palpebre (xantelasmi), aumento del grasso viscerale addominale. Accumulo critico di grasso viscerale, fegato iperecogeno (steatosico) alla sonda ecografica, alterazione del rapporto vita-fianchi (WHR).",
     cause: "Dieta ricca di zuccheri semplici e grassi idrogenati, sedentarietà prolungata, predisposizione poligenica, stress cronico elevato con ipercortisolemia.",
-    consigli: "Attività anaerobica contro resistenza per riattivare i recettori GLUT4, alimentazione a basso carico glicemico ricca di fibre idrosolubili, controllo annuale di ApoB ed HbA1c.",
+    consigli: "Attività anaerobica contro resistenza per riattivare i recettori GLUT4, alimentazione a basso carico glicemico ricca di fibre idrosolubili, controllo annuale di ApoB ed HbA1c. Esercizio contro resistenze per incrementare il tessuto muscolare (principale consumatore di glucosio).",
     interconnessione: "Se il glucosio e il colesterolo LDL rimangono alti, lesionano l'endotelio richiamando i globuli bianchi: questo scatena l'infiammazione silente (Stato Infiammatorio) che a catena logora i capillari renali ed epatici (Funzionalità d'Organo)."
   },
   {
@@ -169,11 +199,31 @@ export const CATEGORY_DETAILS_ENRICHED: CategoryData[] = [
         icon: "🩹",
         seAlti: "PLT >450.000/μL: trombocitosi con rischio tromboembolico acuto o disordine mieloproliferativo cronico.",
         seBassi: "PLT <50.000/μL: trombocitopenia severa con rischio di sanguinamenti spontanei cerebrali, emorragie digestive e porpora."
+      },
+      {
+        t: "[Fluidi Corporei ed Escrezioni] Esame Chimico-Fisico delle Urine",
+        d: "Proteinuria, microalbuminuria, peso specifico e sedimento.",
+        icon: "🧪"
+      },
+      {
+        t: "[Diagnostica per Immagini] Ecografia Renale ed Epatica",
+        d: "Morfologia parenchimale, calcolosi, cisti o dilatazioni.",
+        icon: "🔊"
+      },
+      {
+        t: "[Diagnostica Endoscopica] Gastroscopia (EGDS) e Colonscopia",
+        d: "Ispezione visiva diretta della mucosa per escludere lesioni o erosioni provocate dall'accumulo sistemico di tossine uremiche.",
+        icon: "🔍"
+      },
+      {
+        t: "[Esame Obiettivo / Valutazione Clinica] Palpazione e Percussione Addominale",
+        d: "Valutazione manuale della consistenza, bordi d'organo e dolorabilità fegato/milza.",
+        icon: "✋"
       }
     ],
-    allarmi: "Urine scure color coca-cola o schiumose, ittero sclerale (occhi gialli), feci acoliche (chiare), pallore cereo, affaticamento anche a piccoli passi, gonfiore (edema) alle caviglie e gambe.",
+    allarmi: "Urine scure color coca-cola o schiumose, ittero sclerale (occhi gialli), feci acoliche (chiare), pallore cereo, affaticamento anche a piccoli passi, gonfiore (edema) alle caviglie e gambe. Presenza di proteine o emazie nelle urine, alterazione morfologica del parenchima renale/epatico all'ecografia, riscontro visivo di gastro-duodenite o lesioni mucosali in endoscopia, epatomegalia alla palpazione.",
     cause: "Farmaci epatotossici (paracetamolo ad alte dosi), abuso di alcolici, epatiti virali B/C, glomerulonefriti, calcoli delle vie biliari, diete ipoproteiche o sanguinamenti gastrointestinali occulti.",
-    consigli: "Ecografia addome completo, monitoraggio clearance renale, integrazione di ferro bisglicinato o folati se carenti, sospensione immediata di farmaci nefrotossici (FANS).",
+    consigli: "Ecografia addome completo, monitoraggio clearance renale, integrazione di ferro bisglicinato o folati se carenti, sospensione immediata di farmaci nefrotossici (FANS). Cicli di idratazione profonda, restrizione di molecole e farmaci epatotossici o nefrotossici da banco.",
     interconnessione: "Se i reni e il fegato non riescono a filtrare le scorie biologiche, i prodotti azotati e gli elettroliti sballati intossicano direttamente il cuore e il sistema nervoso, provocando aritmie e crisi ipertensive (Parametri Vitali)."
   },
   {
@@ -220,11 +270,31 @@ export const CATEGORY_DETAILS_ENRICHED: CategoryData[] = [
         icon: "🎯",
         seAlti: "PSA libero/totale <15%: sospetto adenocarcinoma prostatico. CA 19-9: vie biliari/pancreas. CA 125: ovaio. AFP: epatocarcinoma o tumori germinali.",
         seBassi: "Valori nei limiti attesi per la popolazione sana di riferimento (non escludono neoplasie precoci)."
+      },
+      {
+        t: "[Fluidi Corporei ed Escrezioni] Screening Gastrico ed Intestinale",
+        d: "Calprotectina fecale per infiammazione di barriera, sangue occulto.",
+        icon: "💩"
+      },
+      {
+        t: "[Diagnostica per Immagini] Ecografia Linfonodale",
+        d: "Morfologia delle stazioni linfatiche superficiali.",
+        icon: "🔊"
+      },
+      {
+        t: "[Diagnostica per Immagini] Radiologia Digitale del Torace",
+        d: "RX Torace per addensamenti infiammatori/parenchimali.",
+        icon: "🩻"
+      },
+      {
+        t: "[Esame Obiettivo / Valutazione Clinica] Esame dei Riflessi e Neurologia di Base",
+        d: "Reattività pupillare, stabilità motoria e risposte agli stimoli per escludere neuro-infiammazione.",
+        icon: "👁️"
       }
     ],
-    allarmi: "Febbre persistente con brividi scuotenti, linfoadenopatia (linfonodi ingrossati non dolenti), dolori articolari mattutini con rigidità prolungata, perdita di peso rapida inspiegabile, sudorazioni notturne profuse.",
+    allarmi: "Febbre persistente con brividi scuotenti, linfoadenopatia (linfonodi ingrossati non dolenti), dolori articolari mattutini con rigidità prolungata, perdita di peso rapida inspiegabile, sudorazioni notturne profuse. Linfonodi reattivi con perdita dell'ilo o tumefatti alla sonda, picchi di calprotectina fecale (disbiosi grave/MICI), opacità/addensamenti all'RX torace, asimmetria dei riflessi o risposte rallentate.",
     cause: "Focolai infettivi non drenati, disbiosi intestinale con traslocazione batterica, malattie reumatologiche croniche, patologie ematologiche mieloproliferative, neoplasie occulte.",
-    consigli: "Consulto reumatologico o infettivologico d'urgenza, emocolture in picco febbrile, ecografia delle stazioni linfonodali ed elettroforesi sieroproteica capillare.",
+    consigli: "Consulto reumatologico o infettivologico d'urgenza, emocolture in picco febbrile, ecografia delle stazioni linfonodali ed elettroforesi sieroproteica capillare. Integrazione mirata per il microbiota intestinale, protocolli nutrizionali anti-infiammatori (Omega-3).",
     interconnessione: "Un'infiammazione silente (hs-PCR) mantenuta alta nel tempo accelera l'aterosclerosi nei vasi (Parametri Metabolici), logora la barriera glomerulare renale (Funzionalità d'Organo) e predispone a crisi vascolari improvvise (Parametri Vitali)."
   }
 ];
@@ -595,8 +665,8 @@ export const CROSS_PARAMETER_PROBLEMS: CrossParameterProblem[] = [
 export const DOMINO_EFFECT_STEPS = [
   {
     step: 1,
-    titolo: "La Scintilla Iniziale (Parametri Metabolici)",
-    descrizione: "Se mangi troppi zuccheri raffinati, sviluppi dislipidemia aterogena o accumuli grasso viscerale, le tue cellule vanno in stress energetico e sovraccarico mitocondriale.",
+    titolo: "1. Scintilla Metabolica",
+    descrizione: "L'eccesso di zuccheri o l'accumulo di grasso viscerale (valutato tramite antropometria ed ecografia) manda le cellule in stress energetico.",
     icon: "🍬",
     color: "from-emerald-500 to-teal-500",
     border: "border-emerald-500/30",
@@ -604,8 +674,8 @@ export const DOMINO_EFFECT_STEPS = [
   },
   {
     step: 2,
-    titolo: "L'Incendio Silenzioso (Stato Infiammatorio)",
-    descrizione: "Questo stress metabolico lesiona l'endotelio vascolare, recluta macrofagi e alza la Proteina C-Reattiva (hs-PCR) e i leucociti, accendendo un'infiammazione cronica sistemica nascosta.",
+    titolo: "2. Incendio Infiammatorio",
+    descrizione: "Lo stress metabolico attiva i globuli bianchi, innalza la Proteina C-Reattiva e la calprotectina fecale, creando un'infiammazione cronica nascosta.",
     icon: "🔥",
     color: "from-yellow-500 to-amber-500",
     border: "border-yellow-500/30",
@@ -613,8 +683,8 @@ export const DOMINO_EFFECT_STEPS = [
   },
   {
     step: 3,
-    titolo: "Il Logoramento dei Filtri (Funzionalità d'Organo)",
-    descrizione: "L'infiammazione costante e i microtrombi bombardano i glomeruli renali e gli epatociti. La creatinina sale, le transaminasi si innalzano e i reni perdono la capacità di purificare il sangue.",
+    titolo: "3. Logoramento Filtri",
+    descrizione: "L'infiammazione e le tossine bombardano fegato e reni, alterando l'esame delle urine e la struttura parenchimale visibile in ecografia e gastroscopia.",
     icon: "🧪",
     color: "from-amber-500 to-orange-500",
     border: "border-amber-500/30",
@@ -622,8 +692,8 @@ export const DOMINO_EFFECT_STEPS = [
   },
   {
     step: 4,
-    titolo: "Il Crollo di Emergenza (Parametri Vitali)",
-    descrizione: "Con il sangue intasato di scorie azotate, elettroliti alterati (K+ ed Na+) e pareti arteriose irrigidite, il cuore va in sovraccarico emodinamico: la pressione arteriosa schizza e insorgono aritmie o ischemie.",
+    titolo: "4. Crollo di Emergenza",
+    descrizione: "Con i filtri d'organo sovraccarichi e i vasi irrigiditi (placche al Doppler), il cuore va in sofferenza elettrica (anomalie all'ECG) e la pressione all'Holter schizza fuori controllo.",
     icon: "💓",
     color: "from-red-500 to-rose-600",
     border: "border-red-500/30",

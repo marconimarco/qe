@@ -1,4 +1,6 @@
-import jsPDF from 'jspdf';
+const fs = require('fs');
+
+const pdfCode = `import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FirestoreScreening, DualLanguageFinding, EXAMPLE_DOMINO_EFFECT } from './medicalArchitecture';
 
@@ -45,10 +47,10 @@ export function generateMedicalReportPdf(params: PdfGeneratorParams): string {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184); // slate-400
-    doc.text(`Data Scansione: \${params.resultDate || new Date().toLocaleDateString()}`, 14, 20);
+    doc.text(\`Data Scansione: \${params.resultDate || new Date().toLocaleDateString()}\`, 14, 20);
     
     doc.setFont('helvetica', 'italic');
-    doc.text(`Pagina \${pageNumber}`, pageWidth - 25, 15);
+    doc.text(\`Pagina \${pageNumber}\`, pageWidth - 25, 15);
   };
 
   const drawFooter = () => {
@@ -78,15 +80,15 @@ export function generateMedicalReportPdf(params: PdfGeneratorParams): string {
   doc.roundedRect(14, currentY, pageWidth - 28, 25, 3, 3, 'FD');
   
   doc.setFontSize(10);
-  doc.text(`Paziente (Data di Nascita): \${params.dob || "Dato non inserito"}`, 20, currentY + 8);
+  doc.text(\`Paziente (Data di Nascita): \${params.dob || "Dato non inserito"}\`, 20, currentY + 8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Genere: \${params.gender === 'M' ? 'Maschile' : params.gender === 'F' ? 'Femminile' : 'Non specificato'}`, 20, currentY + 14);
+  doc.text(\`Genere: \${params.gender === 'M' ? 'Maschile' : params.gender === 'F' ? 'Femminile' : 'Non specificato'}\`, 20, currentY + 14);
   
   // Entropia
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
   const entropia = params.screeningData?.quantumResults?.vonNeumannEntropyPct || (100 - (params.score || 85));
-  doc.text(`Entropia Quantistica Globale (Instabilità): \${entropia}%`, 20, currentY + 20);
+  doc.text(\`Entropia Quantistica Globale (Instabilità): \${entropia}%\`, 20, currentY + 20);
   
   currentY += 35;
 
@@ -239,7 +241,11 @@ export function generateMedicalReportPdf(params: PdfGeneratorParams): string {
   drawFooter();
 
   // Trigger Download
-  const filename = `Quantum_Report_\${params.resultDate?.replace(/[^a-zA-Z0-9]/g, '_') || 'Med'}.pdf`;
+  const filename = \`Quantum_Report_\${params.resultDate?.replace(/[^a-zA-Z0-9]/g, '_') || 'Med'}.pdf\`;
   doc.save(filename);
   return filename;
 }
+`;
+
+fs.writeFileSync('src/lib/generateMedicalReportPdf.ts', pdfCode);
+console.log("Updated PDF logic");

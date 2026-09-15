@@ -127,6 +127,16 @@ def elabora_pagina_health(payload_json: str) -> str:
         theta = 2.0 * np.arccos(np.sqrt(1.0 - (peso_safe * 0.9999)))
         qc.ry(theta, i)
 
+    # --- NUOVI VINCOLI RZZ (Sovrapposizioni da Esami Strumentali/Clinici) ---
+    # Vincolo Emodinamico-Strutturale: Placca Doppler interferisce con ECG/Aritmia
+    qc.rzz(np.pi / 2 * {peso}, 3, 7)
+    
+    # Vincolo Filtri (Urine x Ecografia): Proteinuria Urine interferisce con Ecografia Renale Alterata
+    qc.rzz(np.pi / 2 * {peso}, 4, 5)
+
+    # Vincolo Metabolico-Immunitario Locale: Grasso Viscerale interferisce con Calprotectina Fecale
+    qc.rzz(np.pi / 2 * {peso}, 0, 2)
+
     feature_map = ZZFeatureMap(feature_dimension=num_qubits, reps=1, entanglement='linear')
     feature_circuit = feature_map.assign_parameters(valori_qubit * np.pi)
     qc.compose(feature_circuit, inplace=True)

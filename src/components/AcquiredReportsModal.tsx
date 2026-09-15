@@ -6,6 +6,7 @@ export interface AcquiredReport {
   name: string;
   date: string;
   type: 'pdf' | 'photo' | 'csv' | 'manual';
+  originalFilename?: string;
   size: string;
   parametersCount: number;
   extractedBiomarkers: string[];
@@ -184,9 +185,16 @@ export default function AcquiredReportsModal({
                       </div>
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-sm font-semibold text-white tracking-wide">
-                            {report.name}
-                          </h4>
+                          <div className="flex flex-col gap-0.5">
+                            <h4 className="text-sm font-semibold text-white tracking-wide">
+                              {report.name}
+                            </h4>
+                            {report.originalFilename && (
+                              <span className="text-[9px] text-slate-400 font-mono opacity-80" title="Nome file originale">
+                                File: {report.originalFilename}
+                              </span>
+                            )}
+                          </div>
                           <span className={`text-[9.5px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${badge.color}`}>
                             {badge.label}
                           </span>
@@ -218,10 +226,10 @@ export default function AcquiredReportsModal({
                             onClose();
                           }}
                           className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-                          title="Usa per il calcolo quantistico"
+                          title="Inietta i biomarcatori di questo referto nel calcolo del circuito Quantum principale."
                         >
                           <Cpu className="w-3.5 h-3.5" />
-                          <span>Simula Qiskit</span>
+                          <span>Applica al Modello</span>
                         </button>
                       )}
 

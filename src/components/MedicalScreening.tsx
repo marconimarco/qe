@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { ArrowLeft, Activity, Heart, Camera, Watch, AlertTriangle, Phone, TrendingUp, TrendingDown, Minus, Info, X, Zap, FileText, Download, CheckCircle, Sparkles, FolderOpen, Database, Cpu, BookOpen } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Activity, Heart, Camera, Watch, AlertTriangle, Phone, TrendingUp, TrendingDown, Minus, Info, X, Zap, FileText, Download, CheckCircle, Sparkles, FolderOpen, Database, Cpu, BookOpen } from 'lucide-react';
 import scanVitali from "../assets/images/scan_vitali_clean_1789332794984.jpg";
 import scanMetabolici from "../assets/images/scan_metabolici_clean_1789332805433.jpg";
 import scanOrgano from "../assets/images/scan_organo_clean_1789332814869.jpg";
@@ -259,27 +259,37 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
     localStorage.setItem('quantum_medical_acquired_files', JSON.stringify(updated));
   };
 
-  const handleUploadNewReport = (file: File) => {
+  const handleUploadNewReport = (file: File, forceMethod?: 'photo' | 'mix' | 'smartwatch') => {
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isCsv = file.name.toLowerCase().endsWith('.csv') || file.type.includes('csv');
+    
+    let methodToSet = forceMethod;
+    if (!methodToSet) {
+      methodToSet = isCsv ? 'smartwatch' : 'photo';
+    }
+
+    const docTypeLabel = methodToSet === 'mix' ? 'Referto Risonanza/TAC' : (isCsv ? 'Sync Dispositivo' : (isPdf ? 'Referto Analisi' : 'Foto Referto'));
+    
     const newRep: AcquiredReport = {
       id: `rep-${Date.now()}`,
-      name: file.name,
+      name: `${docTypeLabel} - ${new Date().toLocaleDateString('it-IT', { month: 'short', year: 'numeric' })}`,
+      originalFilename: file.name,
       date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       type: isPdf ? 'pdf' : isCsv ? 'csv' : 'photo',
       size: file.size > 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`,
-      parametersCount: isCsv ? 15 : 22,
-      extractedBiomarkers: isCsv ? ['BPM Riposo', 'Pressione Media', 'SpO2', 'HRV', 'Attività'] : ['Glicemia', 'Emocromo Completo', 'Creatinina', 'Colesterolo Totale', 'hs-PCR'],
+      parametersCount: isCsv ? 15 : (methodToSet === 'mix' ? 35 : 22),
+      extractedBiomarkers: isCsv ? ['BPM Riposo', 'Pressione Media', 'SpO2', 'HRV', 'Attività'] : 
+                           (methodToSet === 'mix' ? ['Volumetria Organo', 'Tessuto Osseo', 'Lesioni Focali', 'Infiammazione Tessutale'] : ['Glicemia', 'Emocromo Completo', 'Creatinina', 'Colesterolo Totale', 'hs-PCR']),
       status: 'Sincronizzato Qiskit',
-      quantumTheta: 'θ = 0.35 rad',
-      quantumState: '|0⟩: 88.0% | |1⟩: 12.0%',
-      anomaliesDetected: 1,
+      quantumTheta: methodToSet === 'mix' ? 'θ = 0.65 rad' : 'θ = 0.35 rad',
+      quantumState: methodToSet === 'mix' ? '|0⟩: 68.0% | |1⟩: 32.0%' : '|0⟩: 88.0% | |1⟩: 12.0%',
+      anomaliesDetected: methodToSet === 'mix' ? 2 : 1,
       summary: `Documento "${file.name}" acquisito e integrato nel modello di simulazione quantistica.`
     };
     const updated = [newRep, ...acquiredReports];
     setAcquiredReports(updated);
     localStorage.setItem('quantum_medical_acquired_files', JSON.stringify(updated));
-    setInputMethod(isCsv ? 'smartwatch' : 'photo');
+    setInputMethod(methodToSet);
     setIsDataReady(true);
   };
 
@@ -340,9 +350,9 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, method?: 'photo' | 'mix') => {
     if (e.target.files && e.target.files.length > 0) {
-      handleUploadNewReport(e.target.files[0]);
+      handleUploadNewReport(e.target.files[0], method);
     }
   };
 
@@ -673,11 +683,19 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                   <button onClick={() => setInputMethod('smartwatch')} className={`px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 ${inputMethod === 'smartwatch' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
                     <Watch className="w-3 h-3" /> Smartwatch Sync
                   </button>
+                  
                   <div className="relative">
                     <button className={`px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 ${inputMethod === 'photo' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
-                      <Camera className="w-3 h-3" /> Scansione Referti
+                      <Camera className="w-3 h-3" /> Scansione Esami Sangue
                     </button>
-                    <input type="file" accept="image/*,application/pdf" capture="environment" onChange={handlePhotoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Scatta Foto o Carica PDF" />
+                    <input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => { setInputMethod('photo'); handlePhotoUpload(e, 'photo'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Carica Esami del Sangue" />
+                  </div>
+
+                  <div className="relative">
+                    <button className={`px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 ${inputMethod === 'mix' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
+                      <Camera className="w-3 h-3" /> Scansione Referti Mix
+                    </button>
+                    <input type="file" accept="image/*,application/pdf" multiple onChange={(e) => { setInputMethod('mix'); handlePhotoUpload(e, 'mix'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Carica Risonanze, TAC, Raggi (Foto o PDF)" />
                   </div>
 
                   <button
@@ -734,11 +752,25 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                     <div className="flex flex-col gap-1 animate-in fade-in">
                       <div className="flex items-center gap-3 text-purple-400 text-sm font-mono">
                         <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)] shrink-0" />
-                        Referto acquisito correttamente
+                        Esami del sangue acquisiti
                       </div>
                       <div className="text-[10px] text-slate-500 flex gap-2 pl-5">
-                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">Motore OCR attivo</span>
-                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">Validazione Enciclopedia Ematica</span>
+                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">OCR Ematologico attivo</span>
+                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">Validazione Enciclopedia</span>
+                      </div>
+                    </div>
+                  )}
+                  {inputMethod === 'mix' && (
+                    <div className="flex flex-col gap-1 animate-in fade-in">
+                      <div className="flex items-center gap-3 text-amber-400 text-sm font-mono">
+                        <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)] shrink-0" />
+                        Referti strutturali misti acquisiti (TAC, Risonanze, Raggi)
+                      </div>
+                      <div className="text-[10px] text-slate-500 flex gap-2 pl-5 flex-wrap">
+                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">Visione AI Attiva</span>
+                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">OCR Semantico Referto</span>
+                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">Comparazione Testo-Immagine</span>
+                        <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10">Estrazione Pesi Strutturali</span>
                       </div>
                     </div>
                   )}
@@ -944,212 +976,192 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                 </div>
               </div>
 
-              {/* LATO DESTRO: I 4 MODULI TUTTI SULLA STESSA RIGA (LARGHEZZA RADDOPPIATA) */}
+                            {/* LATO DESTRO: I 4 MODULI AD ACCORDION */}
               <div className="flex-1 w-full min-w-0 flex flex-col gap-4">
-                
-                {expandedCategory === null ? (
-                  <>
-                    <div className="flex items-center justify-between text-xs text-slate-500 font-mono uppercase tracking-widest px-1">
-                      <span>Moduli Clinici di Valutazione (Vista a Griglia)</span>
-                      <span className="text-[11px] text-slate-400">Clicca su un modulo per espanderlo a schermo intero</span>
-                    </div>
+                <div className="flex items-center justify-between text-xs text-slate-500 font-mono uppercase tracking-widest px-1">
+                  <span>Moduli Clinici di Valutazione</span>
+                  <span className="text-[11px] text-slate-400">Clicca su un modulo per espanderlo</span>
+                </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-4 pt-1 px-1">
-                      {[result.vitali, result.metabolici, result.organo, result.infiammatorio].map((cat, idx) => {
-                        const details = CATEGORY_DETAILS_ENRICHED[idx];
-                        return (
-                          <div 
-                            key={idx} 
-                            onClick={() => {
+                <div className="flex flex-col gap-3 pb-4 pt-1 px-1">
+                  {[result.vitali, result.metabolici, result.organo, result.infiammatorio].map((cat, idx) => {
+                    const details = CATEGORY_DETAILS_ENRICHED[idx];
+                    const isExpanded = expandedCategory === idx;
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`bg-[#121212] border rounded-2xl relative overflow-hidden transition-all duration-300 w-full shrink-0 ${
+                          isExpanded 
+                            ? 'border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.05)] bg-white/[0.03]'
+                            : 'border-white/5 hover:border-white/20 hover:bg-white/[0.01] cursor-pointer'
+                        }`}
+                      >
+                        <div className="absolute top-0 left-0 w-1.5 h-full transition-all" style={{ backgroundColor: cat.chartColor }} />
+                        
+                        {/* Header Cliccabile */}
+                        <div 
+                          className="p-4 pl-5 flex items-center justify-between"
+                          onClick={() => {
+                            if (!isExpanded) {
                               setActiveCategory(idx);
                               setExpandedCategory(idx);
-                            }} 
-                            className={`bg-[#121212] border rounded-xl p-3 flex flex-col justify-between gap-3 relative overflow-hidden group transition-all duration-300 cursor-pointer w-full min-h-[100px] shrink-0 ${
-                              activeCategory === idx 
-                                ? 'border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.05)] bg-white/[0.03]'
-                                : 'border-white/5 hover:border-white/20 hover:bg-white/[0.01]'
-                            }`}
-                          >
-                            <div className="absolute top-0 left-0 w-1 h-full transition-all group-hover:w-1.5" style={{ backgroundColor: cat.chartColor }} />
-                            
-                            <div className="pl-2 flex flex-col gap-2">
-                              {/* Header */}
-                              <div className="flex justify-between items-start gap-2">
-                                <div>
-                                  <div className="flex items-center gap-1.5 mb-0.5">
-                                    <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">MOD #{idx + 1}</span>
-                                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: cat.chartColor }} />
-                                    <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border ${details.urgenzaBadgeColor}`}>
-                                      {details.urgenzaTag}
-                                    </span>
-                                  </div>
-                                  <h3 className="text-sm font-medium text-white group-hover:text-cyan-300 transition-colors line-clamp-1">{cat.title}</h3>
-                                </div>
-                                <div className={`px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-widest uppercase flex-shrink-0 ${
-                                  cat.status === 'Idoneo'
-                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                    : 'bg-red-500/10 border-red-500/30 text-red-400'
-                                }`}>
-                                  {cat.status}
-                                </div>
-                              </div>
-
-                              {/* Metrics */}
-                              <div />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  /* MODULO ESPANSO A COPRIRE TUTTO LO SPAZIO DEI 4 MODULI */
-                  (() => {
-                    const cat = [result.vitali, result.metabolici, result.organo, result.infiammatorio][expandedCategory];
-                    const details = CATEGORY_DETAILS_ENRICHED[expandedCategory];
-                    return (
-                      <div className="bg-[#121212] border border-white/20 rounded-2xl p-5 relative overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.6)] bg-white/[0.02] flex flex-col gap-4 w-full animate-in fade-in zoom-in-95 duration-300">
-                        <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: cat.chartColor }} />
-                        
-                        {/* Bottone Chiudi */}
-                        <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                          <div>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest block">
-                                Dettaglio &bull; Modulo #{expandedCategory + 1}
-                              </span>
+                            } else {
+                              setExpandedCategory(null);
+                              setActiveCategory(null);
+                            }
+                          }}
+                        >
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">MOD #{idx + 1}</span>
+                              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: cat.chartColor }} />
                               <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border ${details.urgenzaBadgeColor}`}>
                                 {details.urgenzaTag}
                               </span>
                             </div>
-                            <h3 className="text-xl font-medium text-white">{cat.title}</h3>
-                            <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mt-0.5">{cat.subtitle}</p>
-                          </div>
-                          <button 
-                            onClick={() => setExpandedCategory(null)}
-                            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider cursor-pointer shrink-0"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Chiudi</span>
-                          </button>
-                        </div>
-
-                        {/* Status Row */}
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-3 border-b border-white/5">
-                          <div className={`px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-widest uppercase shrink-0 w-fit ${
-                            cat.status === 'Idoneo'
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                              : 'bg-red-500/10 border-red-500/30 text-red-400'
-                          }`}>
-                            {cat.status}: {cat.statusText}
-                          </div>
-                          <div className="text-xs text-slate-300 leading-relaxed font-light">{cat.description}</div>
-                        </div>
-
-                        {/* 3 Box: Allarmi, Cause, Consigli */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          {/* Campanelli d'allarme */}
-                          <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 flex flex-col gap-1.5">
-                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
-                              <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
-                              Campanelli d'allarme
-                            </div>
-                            <p className="text-[10px] text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
+                            <h3 className={`font-medium transition-colors ${isExpanded ? 'text-lg text-white' : 'text-sm text-slate-200'}`}>
+                              {cat.title}
+                            </h3>
+                            {isExpanded && (
+                              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{cat.subtitle}</p>
+                            )}
                           </div>
                           
-                          {/* Cause Frequenti */}
-                          <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex flex-col gap-1.5">
-                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                              Cause Frequenti di Alterazione
+                          <div className="flex items-center gap-3">
+                            <div className={`px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-widest uppercase flex-shrink-0 ${
+                              cat.status === 'Idoneo'
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                : 'bg-red-500/10 border-red-500/30 text-red-400'
+                            }`}>
+                              {cat.status}
                             </div>
-                            <p className="text-[10px] text-amber-200/80 leading-relaxed font-light">{details.cause}</p>
-                          </div>
-                          
-                          {/* Consigli Pratici */}
-                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex flex-col gap-1.5">
-                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
-                              <div className="w-1.5 h-1.5 rounded-sm bg-emerald-500"></div>
-                              Consigli Pratici per l'Utente
-                            </div>
-                            <p className="text-[10px] text-emerald-200/80 leading-relaxed font-light">{details.consigli}</p>
+                            <button className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+                              {isExpanded ? <X className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                            </button>
                           </div>
                         </div>
 
-                        {/* Box Interconnessione con Bottone Pulsante Lampeggiante (Effetto Domino) */}
-                        <div className="bg-gradient-to-r from-red-950/30 via-amber-950/20 to-black/60 border border-red-500/40 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                          <div className="flex items-start gap-2">
-                            <span className="text-amber-400 text-sm shrink-0">💡</span>
-                            <p className="text-xs text-slate-200 leading-relaxed font-light max-w-xl">
-                              {details.interconnessione}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowDominoModal(true)}
-                            className="animate-domino-pulse px-4 py-2 rounded-lg bg-gradient-to-r from-red-600/40 via-amber-600/30 to-red-600/40 border border-red-500/70 text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 hover:brightness-125 transition-all cursor-pointer shrink-0 shadow-lg"
-                          >
-                            <Zap className="w-3.5 h-3.5 text-amber-300" />
-                            <span>Effetto Domino</span>
-                          </button>
-                        </div>
+                        {/* Contenuto Espanso */}
+                        {isExpanded && (
+                          <div className="px-5 pb-5 pt-2 border-t border-white/5 animate-in slide-in-from-top-2 duration-300 cursor-default" onClick={(e) => e.stopPropagation()}>
+                            {/* Status Row */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-3 border-b border-white/5 mb-4">
+                              <div className={`px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-widest uppercase shrink-0 w-fit ${
+                                cat.status === 'Idoneo'
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+                              }`}>
+                                {cat.status}: {cat.statusText}
+                              </div>
+                              <div className="text-xs text-slate-300 leading-relaxed font-light">{cat.description}</div>
+                            </div>
 
-                        {/* Sezione Grafico Espanso */}
-                        <div className="h-[200px] w-full bg-white/[0.01] border border-white/5 rounded-xl p-4 relative mt-2">
-                          <div className="absolute top-3 left-4 z-10 text-[10px] font-mono text-slate-500 uppercase tracking-widest">{cat.chartLabel} (Andamento Storico)</div>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={cat.chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                              <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
-                              <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
-                              <Tooltip 
-                                content={({ active, payload }) => {
-                                  if (active && payload && payload.length) {
-                                    return (
-                                      <div className="bg-black/90 border border-white/10 px-3 py-2 rounded-lg text-xs backdrop-blur-md shadow-xl flex flex-col gap-1">
-                                        <span className="text-white/60 font-mono text-[9px] uppercase">{payload[0].payload.time}</span>
-                                        <span className="text-white font-mono font-bold" style={{ color: cat.chartColor }}>{payload[0].value} {cat.chartLabel.split(' ')[0]}</span>
-                                      </div>
-                                    );
-                                  }
-                                  return null;
+                            {/* 3 Box: Allarmi, Cause, Consigli */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                              <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 flex flex-col gap-1.5">
+                                <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
+                                  <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
+                                  Campanelli d'allarme
+                                </div>
+                                <p className="text-[10px] text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
+                              </div>
+                              <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex flex-col gap-1.5">
+                                <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                  Cause Frequenti di Alterazione
+                                </div>
+                                <p className="text-[10px] text-amber-200/80 leading-relaxed font-light">{details.cause}</p>
+                              </div>
+                              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex flex-col gap-1.5">
+                                <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
+                                  <div className="w-1.5 h-1.5 rounded-sm bg-emerald-500"></div>
+                                  Consigli Pratici per l'Utente
+                                </div>
+                                <p className="text-[10px] text-emerald-200/80 leading-relaxed font-light">{details.consigli}</p>
+                              </div>
+                            </div>
+
+                            {/* Box Interconnessione */}
+                            <div className="bg-gradient-to-r from-red-950/30 via-amber-950/20 to-black/60 border border-red-500/40 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+                              <div className="flex items-start gap-2">
+                                <span className="text-amber-400 text-sm shrink-0">💡</span>
+                                <p className="text-xs text-slate-200 leading-relaxed font-light max-w-xl">
+                                  {details.interconnessione}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowDominoModal(true);
                                 }}
-                              />
-                              <Line 
-                                type="monotone" 
-                                dataKey={cat.chartKey} 
-                                stroke={cat.chartColor} 
-                                strokeWidth={3} 
-                                dot={{ fill: '#000', stroke: cat.chartColor, strokeWidth: 2, r: 3 }}
-                                activeDot={{ r: 6, fill: '#000', stroke: cat.chartColor, strokeWidth: 2 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
+                                className="animate-pulse px-4 py-2 rounded-lg bg-gradient-to-r from-red-600/40 via-amber-600/30 to-red-600/40 border border-red-500/70 text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 hover:brightness-125 transition-all cursor-pointer shrink-0 shadow-lg"
+                              >
+                                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                                <span>Scopri la reazione a catena nel corpo</span>
+                              </button>
+                            </div>
 
-                        {/* Call to action finale per PDF all'interno del dettaglio */}
-                        <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/20 via-black/40 to-cyan-950/20 border border-cyan-500/30 flex flex-col md:flex-row items-center justify-between gap-4 mt-2">
-                          <div className="space-y-1 text-center md:text-left">
-                            <h5 className="text-xs font-semibold text-white">Rilevi uno o più segnali anomali in questo modulo?</h5>
-                            <p className="text-[10px] text-slate-300 font-light">
-                              Esporta subito il documento clinico completo con le correlazioni tra parametri da condividere con il tuo medico.
-                            </p>
+                            {/* Grafico */}
+                            <div className="h-[200px] w-full bg-white/[0.01] border border-white/5 rounded-xl p-4 relative mb-2">
+                              <div className="absolute top-3 left-4 z-10 text-[10px] font-mono text-slate-500 uppercase tracking-widest">{cat.chartLabel} (Andamento Storico)</div>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={cat.chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                  <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
+                                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
+                                  <Tooltip 
+                                    content={({ active, payload }) => {
+                                      if (active && payload && payload.length) {
+                                        return (
+                                          <div className="bg-black/90 border border-white/10 px-3 py-2 rounded-lg text-xs backdrop-blur-md shadow-xl flex flex-col gap-1">
+                                            <span className="text-white/60 font-mono text-[9px] uppercase">{payload[0].payload.time}</span>
+                                            <span className="text-white font-mono font-bold" style={{ color: cat.chartColor }}>{payload[0].value} {cat.chartLabel.split(' ')[0]}</span>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    }}
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey={cat.chartKey} 
+                                    stroke={cat.chartColor} 
+                                    strokeWidth={3} 
+                                    dot={{ fill: '#000', stroke: cat.chartColor, strokeWidth: 2, r: 3 }}
+                                    activeDot={{ r: 6, fill: '#000', stroke: cat.chartColor, strokeWidth: 2 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+
+                            {/* CTA PDF */}
+                            <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/20 via-black/40 to-cyan-950/20 border border-cyan-500/30 flex flex-col md:flex-row items-center justify-between gap-4 mt-2">
+                              <div className="space-y-1 text-center md:text-left">
+                                <h5 className="text-xs font-semibold text-white">Rilevi uno di questi segnali?</h5>
+                                <p className="text-[10px] text-slate-300 font-light">
+                                  Genera il tuo Report PDF personalizzato da mostrare al medico.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadPdf();
+                                }}
+                                className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-lg shadow-cyan-500/20"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Report PDF</span>
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={handleDownloadPdf}
-                            className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-lg shadow-cyan-500/20"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>Report PDF</span>
-                          </button>
-                        </div>
-
+                        )}
                       </div>
                     );
-                  })()
-                )}
-
+                  })}
+                </div>
               </div>
             </div>
 
