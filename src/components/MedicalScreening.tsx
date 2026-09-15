@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { ArrowLeft, Activity, Heart, Camera, Watch, AlertTriangle, Phone, TrendingUp, TrendingDown, Minus, Info, X, Zap, FileText, Download, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Activity, Heart, Camera, Watch, AlertTriangle, Phone, TrendingUp, TrendingDown, Minus, Info, X, Zap, FileText, Download, CheckCircle, Sparkles, FolderOpen, Database, Cpu, BookOpen } from 'lucide-react';
 import scanVitali from "../assets/images/scan_vitali_clean_1789332794984.jpg";
 import scanMetabolici from "../assets/images/scan_metabolici_clean_1789332805433.jpg";
 import scanOrgano from "../assets/images/scan_organo_clean_1789332814869.jpg";
 import scanInfiammatorio from "../assets/images/scan_infiammatorio_clean_1789332823629.jpg";
 import DominoModal from './DominoModal';
 import CrossParameterAnalysis from './CrossParameterAnalysis';
+import AcquiredReportsModal, { AcquiredReport } from './AcquiredReportsModal';
+import QuantumHealth13QubitModal from './QuantumHealth13QubitModal';
+import DocumentationModal from './DocumentationModal';
+import { HealthPageReport } from '../lib/quantumHealthEngine';
 import { CATEGORY_DETAILS_ENRICHED } from '../data/medicalCategoriesData';
 import { generateMedicalReportPdf } from '../lib/generateMedicalReportPdf';
 
@@ -47,6 +51,51 @@ interface ScreeningResult {
   infiammatorio: EvaluationCategory;
 }
 
+const DEFAULT_ACQUIRED_REPORTS: AcquiredReport[] = [
+  {
+    id: 'rep-1',
+    name: 'Esami_Ematochimici_Completi_2026.pdf',
+    date: '12 Set 2026, 08:30',
+    type: 'pdf',
+    size: '1.4 MB',
+    parametersCount: 28,
+    extractedBiomarkers: ['Glicemia (104 mg/dL)', 'HbA1c (5.8%)', 'LDL (142 mg/dL)', 'Trigliceridi (165 mg/dL)', 'hs-PCR (2.8 mg/L)', 'Creatinina (0.95 mg/dL)'],
+    status: 'Sincronizzato Qiskit',
+    quantumTheta: 'θ = 0.52 rad',
+    quantumState: '|0⟩: 81.2% | |1⟩: 18.8%',
+    anomaliesDetected: 3,
+    summary: 'Lieve dislipidemia con trigliceridi mossi e insulino-resistenza borderline. Funzionalità renale ed epatica nella norma.'
+  },
+  {
+    id: 'rep-2',
+    name: 'Holter_ECG_Smartwatch_Telemetry.csv',
+    date: '10 Set 2026, 19:45',
+    type: 'csv',
+    size: '420 KB',
+    parametersCount: 14,
+    extractedBiomarkers: ['FC Media (64 BPM)', 'SpO2 (98%)', 'Variabilità HRV (48 ms)', 'Pressione Sistolica (122 mmHg)', 'Pressione Diastolica (78 mmHg)'],
+    status: 'Sincronizzato Qiskit',
+    quantumTheta: 'θ = 0.28 rad',
+    quantumState: '|0⟩: 92.4% | |1⟩: 7.6%',
+    anomaliesDetected: 0,
+    summary: 'Ritmo sinusale stabile con buona riserva di variabilità cardiaca a riposo. Nessun episodio di desaturazione notturna.'
+  },
+  {
+    id: 'rep-3',
+    name: 'Foto_Referto_Epatociti_Enzimi.jpg',
+    date: '28 Ago 2026, 11:15',
+    type: 'photo',
+    size: '2.8 MB',
+    parametersCount: 9,
+    extractedBiomarkers: ['ALT/GPT (24 U/L)', 'AST/GOT (22 U/L)', 'Gamma-GT (18 U/L)', 'Bilirubina Totale (0.8 mg/dL)', 'Fosfatasi Alcalina (62 U/L)'],
+    status: 'Sincronizzato Qiskit',
+    quantumTheta: 'θ = 0.19 rad',
+    quantumState: '|0⟩: 96.1% | |1⟩: 3.9%',
+    anomaliesDetected: 0,
+    summary: 'Enzimi epatici e profilo di colestasi perfettamente nei range fisiologici. Nessuna citolisi attiva.'
+  }
+];
+
 interface MedicalScreeningProps {
   onBack: () => void;
 }
@@ -60,6 +109,19 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
+  const [showAcquiredReportsModal, setShowAcquiredReportsModal] = useState(false);
+  const [acquiredReports, setAcquiredReports] = useState<AcquiredReport[]>(() => {
+    const saved = localStorage.getItem('quantum_medical_acquired_files');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        // fallback
+      }
+    }
+    return DEFAULT_ACQUIRED_REPORTS;
+  });
   const [history, setHistory] = useState<ScreeningResult[]>(() => {
     const saved = localStorage.getItem('quantum_medical_history');
     if (saved) {
@@ -70,12 +132,156 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
   const [gender, setGender] = useState<'M' | 'F'>(() => (localStorage.getItem('quantum_medical_gender') as 'M' | 'F') || 'M');
   const [hasRegistered, setHasRegistered] = useState(() => !!localStorage.getItem('quantum_medical_dob'));
   const [showDominoModal, setShowDominoModal] = useState(false);
+  const [show13QubitModal, setShow13QubitModal] = useState(false);
+  const [showDocumentationModal, setShowDocumentationModal] = useState(false);
   const [pdfDownloadedNotice, setPdfDownloadedNotice] = useState<string | null>(null);
+
+  const handleApplyQuantumReport = (quantumReport: HealthPageReport) => {
+    const lvl1 = quantumReport.configurazione_pagina_health.livello_1_top_bar;
+    const lvl23 = quantumReport.configurazione_pagina_health.livello_2_3_biomarcatori_rilevati;
+    const lvl4 = quantumReport.configurazione_pagina_health.livello_4_matrice_incroci_critici;
+    const score = Math.round(lvl1.clinical_wellness_score_percent);
+
+    const newRes: ScreeningResult = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      score: score,
+      headRisk: score < 50 ? 'high' : score < 75 ? 'medium' : 'low',
+      heartRisk: lvl4.scanner_olografico_stress_sistemi['Vitali_Emostasi'] > 35 ? 'high' : 'low',
+      abdomenRisk: lvl4.scanner_olografico_stress_sistemi['Metabolismo_Longevita'] > 35 ? 'high' : 'low',
+      vitali: {
+        title: "Parametri Vitali & Emostasi d'Emergenza",
+        subtitle: `Stress Sistema: ${lvl4.scanner_olografico_stress_sistemi['Vitali_Emostasi'] || 0}%`,
+        status: lvl4.scanner_olografico_stress_sistemi['Vitali_Emostasi'] < 40 ? 'Idoneo' : 'Non Idoneo',
+        statusText: lvl4.scanner_olografico_stress_sistemi['Vitali_Emostasi'] < 40 ? 'Stabilità Emodinamica' : 'Allerta Emodinamica',
+        description: `Stress parziale del sistema: ${lvl4.scanner_olografico_stress_sistemi['Vitali_Emostasi']}%. Valutazione su Pressione Sistolica (Qubit 3), Emoglobina (Qubit 6) e Piastrine (Qubit 7).`,
+        metrics: [
+          { label: "Stress Vitali", value: `${lvl4.scanner_olografico_stress_sistemi['Vitali_Emostasi'] || 0}%` },
+          { label: "Resilienza", value: `${lvl23.resilienza_omeostatica_percent}%` }
+        ],
+        chartData: [
+          { time: '6d fa', value: Math.min(100, Math.round(score * 0.95)) },
+          { time: '5d fa', value: Math.min(100, Math.round(score * 0.97)) },
+          { time: '4d fa', value: Math.min(100, Math.round(score * 0.96)) },
+          { time: '3d fa', value: Math.min(100, Math.round(score * 0.98)) },
+          { time: '2d fa', value: Math.min(100, Math.round(score * 0.99)) },
+          { time: '1d fa', value: Math.min(100, Math.round(score * 0.995)) },
+          { time: 'Oggi', value: score }
+        ],
+        chartColor: "#06b6d4",
+        chartKey: "value",
+        chartLabel: "Wellness Trend"
+      },
+      metabolici: {
+        title: "Parametri Metabolici, Glucidici & Longevità",
+        subtitle: `Stress Sistema: ${lvl4.scanner_olografico_stress_sistemi['Metabolismo_Longevita'] || 0}%`,
+        status: lvl4.scanner_olografico_stress_sistemi['Metabolismo_Longevita'] < 40 ? 'Idoneo' : 'Non Idoneo',
+        statusText: lvl4.scanner_olografico_stress_sistemi['Metabolismo_Longevita'] < 40 ? 'Assetto Omeostatico' : 'Rischio Dismetabolico',
+        description: `Analisi congiunta Qubit 0 (Glicemia/HbA1c), Qubit 1 (LDL/Trigliceridi) e Qubit 10 (TSH). Età Biologica stimata: ${lvl23.eta_biologica_effettiva} anni.`,
+        metrics: [
+          { label: "Età Biologica", value: `${lvl23.eta_biologica_effettiva} anni` },
+          { label: "Stress Metabolico", value: `${lvl4.scanner_olografico_stress_sistemi['Metabolismo_Longevita'] || 0}%` }
+        ],
+        chartData: [
+          { time: '6d fa', value: 7200 },
+          { time: '5d fa', value: 8100 },
+          { time: '4d fa', value: 7900 },
+          { time: '3d fa', value: 8400 },
+          { time: '2d fa', value: 8900 },
+          { time: '1d fa', value: 8200 },
+          { time: 'Oggi', value: 8550 }
+        ],
+        chartColor: "#10b981",
+        chartKey: "value",
+        chartLabel: "Attività e Omeostasi"
+      },
+      organo: {
+        title: "Funzionalità d'Organo (Rene, Fegato) ed Emocromo",
+        subtitle: `Stress Sistema: ${lvl4.scanner_olografico_stress_sistemi['Filtri_Organo_Renale_Epatico'] || 0}%`,
+        status: lvl4.scanner_olografico_stress_sistemi['Filtri_Organo_Renale_Epatico'] < 40 ? 'Idoneo' : 'Non Idoneo',
+        statusText: lvl4.scanner_olografico_stress_sistemi['Filtri_Organo_Renale_Epatico'] < 40 ? 'Filtri Funzionanti' : 'Sovraccarico Nefroni/Epatociti',
+        description: `Clearance renale Qubit 4 (Creatinina/eGFR) e citolisi epatica Qubit 5 (Transaminasi). Entropia di fase: ${lvl4.indice_instabilita_transizione_fase_percent}%.`,
+        metrics: [
+          { label: "Stress Filtri", value: `${lvl4.scanner_olografico_stress_sistemi['Filtri_Organo_Renale_Epatico'] || 0}%` },
+          { label: "Entropia Von Neumann", value: `${lvl4.indice_instabilita_transizione_fase_percent}%` }
+        ],
+        chartData: [
+          { time: '6d fa', value: 1.0 },
+          { time: '5d fa', value: 1.02 },
+          { time: '4d fa', value: 1.01 },
+          { time: '3d fa', value: 1.05 },
+          { time: '2d fa', value: 1.03 },
+          { time: '1d fa', value: 1.04 },
+          { time: 'Oggi', value: 1.02 }
+        ],
+        chartColor: "#f59e0b",
+        chartKey: "value",
+        chartLabel: "Clearance d'Organo"
+      },
+      infiammatorio: {
+        title: "Stato Infiammatorio, Immunitario & Onco-Biologia",
+        subtitle: `Stress Sistema: ${lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] || 0}%`,
+        status: lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] < 40 ? 'Idoneo' : 'Non Idoneo',
+        statusText: lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] < 40 ? 'Flogosi Controllata' : 'Flogosi Endoteliale Attiva',
+        description: `Valutazione combinata Qubit 2 (hs-PCR/VES), Qubit 8 (Neutrofili), Qubit 9 (Procalcitonina) e Qubit 11 (Cortisolo). Errore circadiano: ${lvl23.errore_cronobiologico_circadiano}.`,
+        metrics: [
+          { label: "Stress Flogosi", value: `${lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] || 0}%` },
+          { label: "Pattern Rari", value: `${lvl4.deviazione_fenotipica_pattern_rari}%` }
+        ],
+        chartData: [
+          { time: '6d fa', value: 1.8 },
+          { time: '5d fa', value: 2.1 },
+          { time: '4d fa', value: 1.9 },
+          { time: '3d fa', value: 2.4 },
+          { time: '2d fa', value: 2.0 },
+          { time: '1d fa', value: 1.7 },
+          { time: 'Oggi', value: 1.5 }
+        ],
+        chartColor: "#ef4444",
+        chartKey: "value",
+        chartLabel: "Indice Flogistico"
+      }
+    };
+
+    setResult(newRes);
+    saveToHistory(newRes);
+    setShow13QubitModal(false);
+  };
 
   // Form states
   const [dob, setDob] = useState(() => localStorage.getItem('quantum_medical_dob') || '');
   const [bpm, setBpm] = useState('');
   const [pressure, setPressure] = useState('');
+
+  const handleDeleteReport = (id: string) => {
+    const updated = acquiredReports.filter(r => r.id !== id);
+    setAcquiredReports(updated);
+    localStorage.setItem('quantum_medical_acquired_files', JSON.stringify(updated));
+  };
+
+  const handleUploadNewReport = (file: File) => {
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isCsv = file.name.toLowerCase().endsWith('.csv') || file.type.includes('csv');
+    const newRep: AcquiredReport = {
+      id: `rep-${Date.now()}`,
+      name: file.name,
+      date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      type: isPdf ? 'pdf' : isCsv ? 'csv' : 'photo',
+      size: file.size > 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`,
+      parametersCount: isCsv ? 15 : 22,
+      extractedBiomarkers: isCsv ? ['BPM Riposo', 'Pressione Media', 'SpO2', 'HRV', 'Attività'] : ['Glicemia', 'Emocromo Completo', 'Creatinina', 'Colesterolo Totale', 'hs-PCR'],
+      status: 'Sincronizzato Qiskit',
+      quantumTheta: 'θ = 0.35 rad',
+      quantumState: '|0⟩: 88.0% | |1⟩: 12.0%',
+      anomaliesDetected: 1,
+      summary: `Documento "${file.name}" acquisito e integrato nel modello di simulazione quantistica.`
+    };
+    const updated = [newRep, ...acquiredReports];
+    setAcquiredReports(updated);
+    localStorage.setItem('quantum_medical_acquired_files', JSON.stringify(updated));
+    setInputMethod(isCsv ? 'smartwatch' : 'photo');
+    setIsDataReady(true);
+  };
 
   const handleDownloadPdf = () => {
     if (!result) return;
@@ -130,15 +336,13 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      // simulate parsing CSV
-      setIsDataReady(true);
+      handleUploadNewReport(e.target.files[0]);
     }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setInputMethod('photo');
-      setIsDataReady(true);
+      handleUploadNewReport(e.target.files[0]);
     }
   };
 
@@ -342,6 +546,40 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
           <Activity className="w-5 h-5 text-cyan-400" />
           <h1 className="text-sm sm:text-lg font-bold uppercase tracking-[0.2em] text-white">Quantum Medical Screening</h1>
         </div>
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setShow13QubitModal(true)}
+            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+            title="Esegui il calcolo 13 Qubit Qiskit 1.x in tempo reale"
+          >
+            <Cpu className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden lg:inline">Simulatore 13 Qubit (Qiskit 1.x)</span>
+            <span className="inline lg:hidden">13 Qubit</span>
+          </button>
+
+          <button
+            onClick={() => setShowDocumentationModal(true)}
+            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+            title="Apri la guida completa e il codice Qiskit con pulsante di copia e download"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Guida & Codice</span>
+            <span className="inline sm:hidden">Guida</span>
+          </button>
+
+          <button
+            onClick={() => setShowAcquiredReportsModal(true)}
+            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.1)]"
+            title="Visualizza tutti i referti o dati acquisiti"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden md:inline">Referti acquisiti</span>
+            <span className="inline md:hidden">Referti</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/30 text-cyan-200 text-[10px] font-bold">
+              {acquiredReports.length}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Critical Alert Banner */}
@@ -441,6 +679,19 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                     </button>
                     <input type="file" accept="image/*,application/pdf" capture="environment" onChange={handlePhotoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Scatta Foto o Carica PDF" />
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAcquiredReportsModal(true)}
+                    className="px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 shadow-sm cursor-pointer"
+                    title="Visualizza l'elenco di tutti i file e referti acquisiti"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Referti o dati acquisiti</span>
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-bold">
+                      {acquiredReports.length}
+                    </span>
+                  </button>
                 </div>
 
                 <div className="min-h-[80px] flex items-center bg-black/20 rounded-xl p-4 border border-white/5">
@@ -795,49 +1046,6 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
                           <div className="text-xs text-slate-300 leading-relaxed font-light">{cat.description}</div>
                         </div>
 
-                        {/* Valore e Obiettivo */}
-                        <div className="bg-white/[0.02] border border-white/5 rounded-lg p-3">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
-                            <h4 className="text-[9px] font-mono uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                              Cosa ottiene l'utente al suo interno
-                            </h4>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              Valore: <span className="text-white font-normal">{details.valore}</span>
-                            </span>
-                          </div>
-                          <p className="text-xs font-light text-white mb-3 leading-relaxed">{details.obiettivo}</p>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {details.punti.map((p, i) => (
-                              <div key={i} className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col gap-1.5 hover:border-white/10 transition-colors">
-                                <div className="text-[11px] font-medium text-white flex items-center gap-1.5">
-                                  <span className="text-xs">{p.icon}</span>
-                                  <span className="text-cyan-400 text-[10px] font-mono">0{i+1}.</span>
-                                  <span>{p.t}</span>
-                                </div>
-                                <div className="text-[10px] text-slate-300 leading-relaxed font-light pl-5">{p.d}</div>
-                                {(p.seAlti || p.seBassi) && (
-                                  <div className="mt-1 pt-2 border-t border-white/5 flex flex-col gap-1 text-[9.5px] pl-5">
-                                    {p.seAlti && (
-                                      <div className="text-rose-300/90 leading-tight">
-                                        <span className="text-rose-400 font-bold uppercase font-mono tracking-wider mr-1">▲ Se Alti:</span>
-                                        {p.seAlti}
-                                      </div>
-                                    )}
-                                    {p.seBassi && (
-                                      <div className="text-cyan-300/90 leading-tight">
-                                        <span className="text-cyan-400 font-bold uppercase font-mono tracking-wider mr-1">▼ Se Bassi:</span>
-                                        {p.seBassi}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
                         {/* 3 Box: Allarmi, Cause, Consigli */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {/* Campanelli d'allarme */}
@@ -986,6 +1194,29 @@ export default function MedicalScreening({ onBack }: MedicalScreeningProps) {
           </div>
         )}
       </div>
+
+      {/* MODALE REFERTI O DATI ACQUISITI */}
+      <AcquiredReportsModal
+        isOpen={showAcquiredReportsModal}
+        onClose={() => setShowAcquiredReportsModal(false)}
+        reports={acquiredReports}
+        onDeleteReport={handleDeleteReport}
+        onUploadNew={handleUploadNewReport}
+        onSelectReportForScreening={() => runScreening()}
+      />
+
+      {/* MODALE SIMULATORE QUANTISTICO 13 QUBIT (QISKIT 1.X) */}
+      <QuantumHealth13QubitModal
+        isOpen={show13QubitModal}
+        onClose={() => setShow13QubitModal(false)}
+        onApplyToScreening={handleApplyQuantumReport}
+      />
+
+      {/* MODALE GUIDA TECNICA E CODICE QUANTISTICO */}
+      <DocumentationModal
+        isOpen={showDocumentationModal}
+        onClose={() => setShowDocumentationModal(false)}
+      />
     </div>
   );
 }

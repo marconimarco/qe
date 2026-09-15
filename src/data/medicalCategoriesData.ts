@@ -41,13 +41,6 @@ export const CATEGORY_DETAILS_ENRICHED: CategoryData[] = [
         seBassi: "Ipotensione acuta, collasso emodinamico, shock ipovolemico o distributivo, lipotimia."
       },
       {
-        t: "Efficienza Respiratoria & Saturazione SpO2",
-        d: "Saturazione dell'ossigeno periferico e scambi gassosi alveolari.",
-        icon: "🫁",
-        seAlti: "Iperventilazione psicogena con alcalosi respiratoria ipocapnica.",
-        seBassi: "Ipossia tessutale acuta, insufficienza respiratoria, broncospasmo, polmonite, cianosi periferica."
-      },
-      {
         t: "Cronotropismo & Biomarcatori di Danno Miocardico",
         d: "Frequenza cardiaca (BPM), variabilità HRV, Troponina I/T hs, CK-MB, Mioglobina.",
         icon: "💓",
