@@ -45,6 +45,24 @@ export default function App() {
     return getCurrentSession();
   });
 
+  // Keep currentUser state in sync in real time when permissions or storage changes
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      const freshSession = getCurrentSession();
+      if (freshSession) {
+        setCurrentUser(freshSession);
+      }
+    };
+
+    window.addEventListener('quantum_user_permissions_updated', handlePermissionsUpdated);
+    window.addEventListener('storage', handlePermissionsUpdated);
+
+    return () => {
+      window.removeEventListener('quantum_user_permissions_updated', handlePermissionsUpdated);
+      window.removeEventListener('storage', handlePermissionsUpdated);
+    };
+  }, []);
+
   if (!currentUser) {
     return (
       <TranslationProvider language={currentLanguage}>
@@ -140,6 +158,26 @@ function AppContent({
     const key = getStoredApiKey();
     setHasApiKey(!!key);
   }, [isApiKeyModalOpen]);
+
+  // Active view guard: if permissions are revoked, immediately eject and show access denied
+  useEffect(() => {
+    if (selectedSectorId && !isIconAllowedForUser(currentUser, selectedSectorId)) {
+      setSelectedSectorId(null);
+      handleAccessDenied(selectedSectorId, t(`s_${selectedSectorId}_name`));
+    }
+    if (isIbmInterfaceOpen && !isIconAllowedForUser(currentUser, 'send_to_ibm')) {
+      setIsIbmInterfaceOpen(false);
+      handleAccessDenied('send_to_ibm', t('s_send_to_ibm_name'));
+    }
+    if (isTestPageOpen && !isIconAllowedForUser(currentUser, 'agent_ai')) {
+      setIsTestPageOpen(false);
+      handleAccessDenied('agent_ai', 'Agent AI');
+    }
+    if (isBlankPageOpen && !isIconAllowedForUser(currentUser, 'medical_screening')) {
+      setIsBlankPageOpen(false);
+      handleAccessDenied('medical_screening', 'Medical Screening Analysis');
+    }
+  }, [currentUser, selectedSectorId, isIbmInterfaceOpen, isTestPageOpen, isBlankPageOpen]);
 
   const selectedSector = SECTORS.find(s => s.id === selectedSectorId);
 
@@ -351,7 +389,18 @@ function AppContent({
         {isBlankPageOpen ? (
           <MedicalScreening onBack={() => setIsBlankPageOpen(false)} />
         ) : isTestPageOpen ? (
-          <TestPage onBack={() => setIsTestPageOpen(false)} onOpenIbm={() => { setIsTestPageOpen(false); setIsIbmInterfaceOpen(true); }} setSharedQasm={setSharedQasm} />
+          <TestPage 
+            onBack={() => setIsTestPageOpen(false)} 
+            onOpenIbm={() => { 
+              if (!isIconAllowedForUser(currentUser, 'send_to_ibm')) {
+                handleAccessDenied('send_to_ibm', t('s_send_to_ibm_name'));
+                return;
+              }
+              setIsTestPageOpen(false); 
+              setIsIbmInterfaceOpen(true); 
+            }} 
+            setSharedQasm={setSharedQasm} 
+          />
         ) : isIbmInterfaceOpen ? (
           <IBMQuantumInterface 
             onBack={() => {
@@ -364,7 +413,13 @@ function AppContent({
             sector={selectedSector} 
             onBack={handleBackFromDashboard}
             onSectorChange={handleSelectSector}
-            onOpenHelp={() => setIsHelpModalOpen(true)}
+            onOpenHelp={() => {
+              if (!isIconAllowedForUser(currentUser, 'realq')) {
+                handleAccessDenied('realq', 'RealQ Quantum Support');
+                return;
+              }
+              setIsHelpModalOpen(true);
+            }}
           />
         ) : (
           <SectorSelector 

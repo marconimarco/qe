@@ -96,22 +96,14 @@ export default function SectorSelector({
   }, [initialSubMenu]);
 
   // Grouping logic
-  const quantumCodeGroupIds: SectorId[] = ['crosscode', 'translator'];
   const pqcGroupIds: SectorId[] = ['pqc_locker', 'pqc_keygen', 'pqc_chat'];
-  const subMenuIds: SectorId[] = [...quantumCodeGroupIds, ...pqcGroupIds];
-  
-  const excludedSectors = ['energy', 'manufacturing', 'telecom', 'logistics', 'insurance', 'finance'];
+  const excludedSectors = ['energy', 'manufacturing', 'telecom', 'logistics', 'insurance', 'finance', 'quantumbi', 'various', 'large', 'quantum_code'];
   const mainSectors = SECTORS.filter(s => 
-    !subMenuIds.includes(s.id) && 
-    !excludedSectors.includes(s.id) && 
-    s.id !== 'quantumbi' &&
-    s.id !== 'various' &&
-    s.id !== 'large' &&
-    s.id !== 'quantum_code'
+    !pqcGroupIds.includes(s.id) && 
+    !excludedSectors.includes(s.id)
   );
   
   const getSubSectors = () => {
-    if (activeSubMenu === 'quantum_code') return SECTORS.filter(s => quantumCodeGroupIds.includes(s.id));
     if (activeSubMenu === 'pqc_group') return SECTORS.filter(s => pqcGroupIds.includes(s.id));
     return [];
   };
@@ -119,11 +111,12 @@ export default function SectorSelector({
   const subSectors = getSubSectors();
 
   const handleSelect = (id: SectorId) => {
+    // STRICT PERMISSION CHECK: If user does not have permission, NEVER open anything
     if (!isIconAllowedForUser(currentUser, id)) {
       onAccessDenied?.(id, t(`s_${id}_name`));
       return;
     }
-    if (id === 'quantum_code' || id === 'pqc_group') {
+    if (id === 'pqc_group') {
       setActiveSubMenu(id);
       onSubMenuToggle?.(true);
     } else if (id === 'realq') {
@@ -288,17 +281,19 @@ export default function SectorSelector({
                         >
                           {!isAllowed && (
                             <div 
-                              className="absolute -top-1 -right-1 p-1 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] z-30 animate-pulse"
-                              title="Accesso riservato"
+                              className="absolute -top-1 -right-1 p-1 bg-red-600 border border-red-300 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.9)] z-30 animate-pulse"
+                              title="Accesso Negato dall'Amministratore"
                             >
                               <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
                             </div>
                           )}
                           <div className={`w-[12vmin] h-[12vmin] max-w-[55px] max-h-[55px] md:w-20 md:h-20 rounded-full border flex items-center justify-center mb-1 sm:mb-2 transition-all relative overflow-hidden ${
                             !isAllowed
-                              ? 'bg-red-950/20 border-red-500/40 opacity-70 group-hover:border-red-400'
+                              ? 'bg-red-950/40 border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.35)] opacity-80 group-hover:border-red-400 group-hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]'
                             : sector.id === 'translator' 
                               ? 'bg-quantum-secondary/20 border-quantum-secondary shadow-[0_0_20px_rgba(157,0,255,0.2)]' 
+                            : sector.id === 'crosscode'
+                              ? 'bg-indigo-950/40 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.35)] group-hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]'
                             : sector.id === 'send_to_ibm'
                               ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.5)] group-hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] group-hover:border-cyan-400'
                             : sector.id === 'pqc_group'
@@ -310,14 +305,14 @@ export default function SectorSelector({
                               : 'bg-black/80 border-white/10 group-hover:border-quantum-primary group-hover:shadow-[0_0_20px_rgba(0,242,255,0.15)]'
                           }`}>
                             <div className={`absolute inset-0 transition-colors ${
-                              !isAllowed ? 'bg-red-500/5' : sector.id === 'translator' ? 'bg-quantum-secondary/10' : sector.id === 'send_to_ibm' ? 'bg-cyan-500/10' : sector.id === 'pqc_group' ? 'bg-emerald-500/10' : sector.id === 'realq' ? 'bg-red-500/10' : sector.id === 'mitigation' ? 'bg-amber-500/10' : 'bg-quantum-primary/0 group-hover:bg-quantum-primary/10'
+                              !isAllowed ? 'bg-red-500/10' : sector.id === 'translator' ? 'bg-quantum-secondary/10' : sector.id === 'crosscode' ? 'bg-indigo-500/10' : sector.id === 'send_to_ibm' ? 'bg-cyan-500/10' : sector.id === 'pqc_group' ? 'bg-emerald-500/10' : sector.id === 'realq' ? 'bg-red-500/10' : sector.id === 'mitigation' ? 'bg-amber-500/10' : 'bg-quantum-primary/0 group-hover:bg-quantum-primary/10'
                             }`} />
                             <Icon className={`w-[5vmin] h-[5vmin] max-w-[24px] max-h-[24px] md:w-8 md:h-8 transition-transform group-hover:scale-110 ${
-                              !isAllowed ? 'text-red-400/80' : sector.id === 'translator' ? 'text-quantum-secondary' : sector.id === 'send_to_ibm' ? 'text-cyan-400 animate-pulse' : sector.id === 'pqc_group' ? 'text-emerald-400' : sector.id === 'realq' ? 'text-red-500' : sector.id === 'mitigation' ? 'text-amber-500' : 'text-quantum-primary'
+                              !isAllowed ? 'text-red-400' : sector.id === 'translator' ? 'text-quantum-secondary' : sector.id === 'crosscode' ? 'text-indigo-400' : sector.id === 'send_to_ibm' ? 'text-cyan-400 animate-pulse' : sector.id === 'pqc_group' ? 'text-emerald-400' : sector.id === 'realq' ? 'text-red-500' : sector.id === 'mitigation' ? 'text-amber-500' : 'text-quantum-primary'
                             }`} />
                           </div>
                           <span className={`text-[6px] min-[400px]:text-[8px] md:text-xs font-mono font-bold uppercase tracking-tighter sm:tracking-widest bg-black/60 px-1 py-0.5 md:py-1 rounded border border-white/5 backdrop-blur-sm transition-colors whitespace-nowrap overflow-hidden ${
-                            !isAllowed ? 'text-red-300 border-red-500/30' : sector.id === 'translator' ? 'text-quantum-secondary border-quantum-secondary/30' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
+                            !isAllowed ? 'text-red-300 border-red-500/40 bg-red-950/40' : sector.id === 'translator' ? 'text-quantum-secondary border-quantum-secondary/30' : sector.id === 'crosscode' ? 'text-indigo-300 border-indigo-500/30' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
                           }`}>
                             {t(`s_${sector.id}_name`)}
                           </span>

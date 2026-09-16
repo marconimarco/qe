@@ -197,7 +197,33 @@ export function getCurrentSession(): CurrentUserSession | null {
   try {
     const raw = localStorage.getItem(SESSION_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const session: CurrentUserSession = JSON.parse(raw);
+    
+    // Always synchronize session with freshest user record from USERS_STORAGE_KEY
+    const users = getStoredUsers();
+    const freshUser = users.find(u => 
+      u.id === session.id || 
+      (u.username && session.username && u.username.trim().toLowerCase() === session.username.trim().toLowerCase())
+    );
+    
+    if (freshUser) {
+      const updatedSession: CurrentUserSession = {
+        ...session,
+        id: freshUser.id,
+        username: freshUser.username,
+        name: freshUser.name,
+        email: freshUser.email,
+        role: freshUser.role,
+        status: freshUser.status,
+        hasAcceptedAgreements: freshUser.hasAcceptedAgreements ?? true,
+        allowedIcons: freshUser.allowedIcons !== undefined 
+          ? freshUser.allowedIcons 
+          : (freshUser.role === 'admin' ? ALL_APP_ICON_IDS : [])
+      };
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedSession));
+      return updatedSession;
+    }
+    return session;
   } catch {
     return null;
   }
@@ -372,10 +398,23 @@ export function createNewUser(
       role: data.role,
       status: data.status,
       hasAcceptedAgreements: true,
-      allowedIcons: data.allowedIcons ?? (data.role === 'admin' ? ALL_APP_ICON_IDS : ALL_APP_ICON_IDS)
+      allowedIcons: data.allowedIcons !== undefined
+        ? data.allowedIcons
+        : (data.role === 'admin' ? ALL_APP_ICON_IDS : [])
     };
     saveStoredUsers(users);
-    return { success: true, message: `Utente "${username}" già presente: credenziali aggiornate con successo!`, user: users[existingIndex] };
+
+    // If active session belongs to this user, update active session immediately
+    const session = getCurrentSession();
+    if (session && (session.id === users[existingIndex].id || session.username.trim().toLowerCase() === username.toLowerCase())) {
+      setCurrentSession(users[existingIndex]);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated', { detail: { username } }));
+    }
+
+    return { success: true, message: `Utente "${username}" già presente: credenziali e permessi aggiornati con successo!`, user: users[existingIndex] };
   }
 
   const newUser: AuthUser = {
@@ -388,11 +427,17 @@ export function createNewUser(
     status: data.status,
     createdAt: new Date().toISOString(),
     hasAcceptedAgreements: true,
-    allowedIcons: data.allowedIcons ?? (data.role === 'admin' ? ALL_APP_ICON_IDS : ALL_APP_ICON_IDS)
+    allowedIcons: data.allowedIcons !== undefined
+      ? data.allowedIcons
+      : (data.role === 'admin' ? ALL_APP_ICON_IDS : [])
   };
 
   users.push(newUser);
   saveStoredUsers(users);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated', { detail: { username } }));
+  }
 
   return { success: true, message: `Utente ${username} creato con successo.`, user: newUser };
 }
@@ -422,6 +467,7 @@ export function updateExistingUser(
     }
   }
 
+  const newRole = updates.role ?? users[index].role;
   users[index] = {
     ...users[index],
     ...updates,
@@ -429,15 +475,21 @@ export function updateExistingUser(
     name: updates.name ? updates.name.trim() : users[index].name,
     email: updates.email ? updates.email.trim() : users[index].email,
     password: updates.password && updates.password.trim().length >= 3 ? updates.password.trim() : users[index].password,
-    allowedIcons: updates.allowedIcons !== undefined ? updates.allowedIcons : (users[index].allowedIcons ?? ALL_APP_ICON_IDS)
+    allowedIcons: updates.allowedIcons !== undefined
+      ? updates.allowedIcons
+      : (users[index].allowedIcons !== undefined ? users[index].allowedIcons : (newRole === 'admin' ? ALL_APP_ICON_IDS : []))
   };
 
   saveStoredUsers(users);
 
   // If the updated user is the current logged-in user, refresh session
   const session = getCurrentSession();
-  if (session && session.id === userId) {
+  if (session && (session.id === userId || session.username.trim().toLowerCase() === users[index].username.trim().toLowerCase())) {
     setCurrentSession(users[index]);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated', { detail: { username: users[index].username } }));
   }
 
   return { success: true, message: 'Utente aggiornato con successo.' };
@@ -447,9 +499,41 @@ export function isIconAllowedForUser(user: CurrentUserSession | AuthUser | null,
   if (!user) return false;
   // Admins always have access to all icons
   if (user.role === 'admin') return true;
-  // If allowedIcons is not defined, default to allow all for backward compatibility
-  if (!user.allowedIcons) return true;
-  return user.allowedIcons.includes(iconId);
+
+  // Always consult stored users to get the live, updated permissions
+  try {
+    const storedUsers = getStoredUsers();
+    const freshUser = storedUsers.find(
+      u => u.id === user.id || (u.username && user.username && u.username.trim().toLowerCase() === user.username.trim().toLowerCase())
+    );
+    if (freshUser) {
+      if (freshUser.role === 'admin') return true;
+      if (freshUser.allowedIcons !== undefined) {
+        const allowed = freshUser.allowedIcons;
+        if (allowed.includes(iconId)) return true;
+        if (['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(iconId)) {
+          return allowed.includes('pqc_group');
+        }
+        if (iconId === 'quantum_code') {
+          return allowed.includes('translator') || allowed.includes('crosscode');
+        }
+        return false;
+      }
+    }
+  } catch {
+    // fallback to provided user object
+  }
+
+  // If allowedIcons is not defined on user, default to false (restrict by default)
+  if (!user.allowedIcons || !Array.isArray(user.allowedIcons)) return false;
+  if (user.allowedIcons.includes(iconId)) return true;
+  if (['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(iconId)) {
+    return user.allowedIcons.includes('pqc_group');
+  }
+  if (iconId === 'quantum_code') {
+    return user.allowedIcons.includes('translator') || user.allowedIcons.includes('crosscode');
+  }
+  return false;
 }
 
 export function updateUserIconPermissions(
@@ -470,10 +554,14 @@ export function updateUserIconPermissions(
   users[index].allowedIcons = allowedIcons;
   saveStoredUsers(users);
 
-  // If target is current user, update session
+  // If target is current user or session matches username, update session
   const session = getCurrentSession();
-  if (session && session.id === targetUserId) {
+  if (session && (session.id === targetUserId || (session.username && users[index].username && session.username.trim().toLowerCase() === users[index].username.trim().toLowerCase()))) {
     setCurrentSession(users[index]);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated', { detail: { username: users[index].username } }));
   }
 
   return { success: true, message: 'Permessi icone aggiornati con successo.' };

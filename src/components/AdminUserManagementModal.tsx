@@ -163,13 +163,13 @@ export default function AdminUserManagementModal({
     setEditEmail(user.email);
     setEditRole(user.role);
     setEditStatus(user.status);
-    setEditAllowedIcons(user.allowedIcons ?? ALL_APP_ICON_IDS);
+    setEditAllowedIcons(user.allowedIcons ?? (user.role === 'admin' ? ALL_APP_ICON_IDS : []));
   };
 
   // Open Icon Permissions Dedicated Modal
   const handleOpenIconPermissions = (user: AuthUser) => {
     setManagingIconsUser(user);
-    setUserSelectedIcons(user.allowedIcons ?? ALL_APP_ICON_IDS);
+    setUserSelectedIcons(user.allowedIcons ?? (user.role === 'admin' ? ALL_APP_ICON_IDS : []));
   };
 
   // Toggle icon in dedicated modal
