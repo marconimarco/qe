@@ -46,8 +46,6 @@ export const getDemoCsvBySector = (
           val = 1.00;
         } else if (isNone) {
           val = 0.00;
-        } else if (val > 0 && isHard) {
-          val = 1.00;
         }
         row.push(val.toFixed(2));
       }

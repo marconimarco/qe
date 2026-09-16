@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Users, UserPlus, UserCheck, UserX, Shield, Edit3, Trash2, Key, 
   Search, Check, AlertCircle, RefreshCw, Lock, Mail, User, ShieldAlert,
-  RotateCcw, Download, Sparkles
+  RotateCcw, Download, Sparkles, Sliders, CheckSquare, Square,
+  Cpu, Terminal, Languages, Code2, HelpCircle
 } from 'lucide-react';
 import { 
   AuthUser, 
@@ -13,8 +14,24 @@ import {
   createNewUser, 
   updateExistingUser, 
   deleteExistingUser,
-  resetUsersDatabase
+  resetUsersDatabase,
+  ALL_APP_ICONS,
+  ALL_APP_ICON_IDS,
+  updateUserIconPermissions,
+  AppIconPermission
 } from '../services/authService';
+
+const PERMISSION_ICON_MAP: Record<string, React.ElementType> = {
+  Cpu,
+  Terminal,
+  Languages,
+  Code2,
+  ShieldCheck: Shield,
+  Lock,
+  Sparkles,
+  HelpCircle,
+  Key
+};
 
 interface AdminUserManagementModalProps {
   isOpen: boolean;
@@ -36,6 +53,12 @@ export default function AdminUserManagementModal({
   // Modal forms
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
+
+  // Icon Permissions management state
+  const [managingIconsUser, setManagingIconsUser] = useState<AuthUser | null>(null);
+  const [userSelectedIcons, setUserSelectedIcons] = useState<string[]>([]);
+  const [newAllowedIcons, setNewAllowedIcons] = useState<string[]>(ALL_APP_ICON_IDS);
+  const [editAllowedIcons, setEditAllowedIcons] = useState<string[]>(ALL_APP_ICON_IDS);
 
   // Form states (Add user)
   const [newUsername, setNewUsername] = useState('');
@@ -84,7 +107,8 @@ export default function AdminUserManagementModal({
       name: newName,
       email: newEmail,
       role: newRole,
-      status: newStatus
+      status: newStatus,
+      allowedIcons: newRole === 'admin' ? ALL_APP_ICON_IDS : newAllowedIcons
     });
 
     if (res.success) {
@@ -97,6 +121,7 @@ export default function AdminUserManagementModal({
       setNewEmail('');
       setNewRole('user');
       setNewStatus('active');
+      setNewAllowedIcons(ALL_APP_ICON_IDS);
       loadUsers();
     } else {
       showToast('error', res.message);
@@ -112,6 +137,49 @@ export default function AdminUserManagementModal({
     setEditEmail(user.email);
     setEditRole(user.role);
     setEditStatus(user.status);
+    setEditAllowedIcons(user.allowedIcons ?? ALL_APP_ICON_IDS);
+  };
+
+  // Open Icon Permissions Dedicated Modal
+  const handleOpenIconPermissions = (user: AuthUser) => {
+    setManagingIconsUser(user);
+    setUserSelectedIcons(user.allowedIcons ?? ALL_APP_ICON_IDS);
+  };
+
+  // Toggle icon in dedicated modal
+  const handleToggleUserIcon = (iconId: string) => {
+    setUserSelectedIcons(prev =>
+      prev.includes(iconId) ? prev.filter(id => id !== iconId) : [...prev, iconId]
+    );
+  };
+
+  // Save Icon Permissions
+  const handleSaveIconPermissions = () => {
+    if (!managingIconsUser) return;
+    const res = updateUserIconPermissions(currentUser.role, managingIconsUser.id, userSelectedIcons);
+    if (res.success) {
+      showToast('success', res.message);
+      setManagingIconsUser(null);
+      loadUsers();
+      if (onSessionUpdated && managingIconsUser.id === currentUser.id) {
+        const refreshed = getStoredUsers().find(u => u.id === currentUser.id);
+        if (refreshed) {
+          onSessionUpdated({
+            id: refreshed.id,
+            username: refreshed.username,
+            name: refreshed.name,
+            email: refreshed.email,
+            role: refreshed.role,
+            status: refreshed.status,
+            createdAt: refreshed.createdAt,
+            lastLogin: refreshed.lastLogin,
+            allowedIcons: refreshed.allowedIcons
+          });
+        }
+      }
+    } else {
+      showToast('error', res.message);
+    }
   };
 
   // Handle Save Edit
@@ -124,7 +192,8 @@ export default function AdminUserManagementModal({
       name: editName,
       email: editEmail,
       role: editRole,
-      status: editStatus
+      status: editStatus,
+      allowedIcons: editRole === 'admin' ? ALL_APP_ICON_IDS : editAllowedIcons
     };
 
     if (editPassword.trim()) {
@@ -151,7 +220,8 @@ export default function AdminUserManagementModal({
             role: refreshed.role,
             status: refreshed.status,
             createdAt: refreshed.createdAt,
-            lastLogin: refreshed.lastLogin
+            lastLogin: refreshed.lastLogin,
+            allowedIcons: refreshed.allowedIcons
           });
         }
       }
@@ -413,7 +483,29 @@ export default function AdminUserManagementModal({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-center">
+                    <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
+                      {/* Allowed Icons Badge & Quick Manage */}
+                      <button
+                        onClick={() => handleOpenIconPermissions(user)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          user.role === 'admin'
+                            ? 'bg-quantum-primary/10 border-quantum-primary/30 text-quantum-primary'
+                            : (user.allowedIcons?.length ?? ALL_APP_ICON_IDS.length) === ALL_APP_ICON_IDS.length
+                            ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'
+                            : (user.allowedIcons?.length ?? 0) === 0
+                            ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                            : 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+                        }`}
+                        title="Gestisci permessi singole icone utente"
+                      >
+                        <Sliders className="w-3 h-3 shrink-0" />
+                        <span>
+                          {user.role === 'admin' 
+                            ? 'Tutte (Admin)' 
+                            : `${user.allowedIcons?.length ?? ALL_APP_ICON_IDS.length}/${ALL_APP_ICONS.length} Icone`}
+                        </span>
+                      </button>
+
                       {/* Status Badge & Toggle */}
                       <button
                         onClick={() => handleToggleStatus(user)}
@@ -427,6 +519,15 @@ export default function AdminUserManagementModal({
                       >
                         {user.status === 'active' ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
                         <span>{user.status === 'active' ? 'Attivo' : 'Sospeso'}</span>
+                      </button>
+
+                      {/* Icon Permissions Button */}
+                      <button
+                        onClick={() => handleOpenIconPermissions(user)}
+                        className="p-1.5 bg-white/5 hover:bg-cyan-400/20 text-gray-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 rounded-xl transition-all cursor-pointer"
+                        title="Gestione Accesso Singole Icone"
+                      >
+                        <Sliders className="w-3.5 h-3.5" />
                       </button>
 
                       {/* Edit Button */}
@@ -561,6 +662,55 @@ export default function AdminUserManagementModal({
                 </div>
               </div>
 
+              {/* Icon Permissions in Add User */}
+              {newRole === 'user' && (
+                <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] uppercase text-gray-400 font-bold flex items-center gap-1.5">
+                      <Sliders className="w-3 h-3 text-quantum-primary" />
+                      Accesso Icone ({newAllowedIcons.length}/{ALL_APP_ICONS.length})
+                    </label>
+                    <div className="flex items-center gap-1.5 text-[9px] font-mono">
+                      <button
+                        type="button"
+                        onClick={() => setNewAllowedIcons(ALL_APP_ICON_IDS)}
+                        className="text-quantum-primary hover:underline cursor-pointer"
+                      >
+                        Tutte
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => setNewAllowedIcons([])}
+                        className="text-red-400 hover:underline cursor-pointer"
+                      >
+                        Nessuna
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                    {ALL_APP_ICONS.map((icon) => (
+                      <label
+                        key={icon.id}
+                        className="flex items-center gap-2 p-1.5 rounded-lg bg-black/30 border border-white/5 text-[10px] cursor-pointer hover:bg-white/5"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={newAllowedIcons.includes(icon.id)}
+                          onChange={() => {
+                            setNewAllowedIcons(prev => 
+                              prev.includes(icon.id) ? prev.filter(i => i !== icon.id) : [...prev, icon.id]
+                            );
+                          }}
+                          className="rounded border-white/20 text-quantum-primary focus:ring-0"
+                        />
+                        <span className="truncate">{icon.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="pt-3 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -669,6 +819,55 @@ export default function AdminUserManagementModal({
                 </div>
               </div>
 
+              {/* Icon Permissions in Edit User */}
+              {editRole === 'user' && (
+                <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] uppercase text-gray-400 font-bold flex items-center gap-1.5">
+                      <Sliders className="w-3 h-3 text-cyan-400" />
+                      Accesso Icone ({editAllowedIcons.length}/{ALL_APP_ICONS.length})
+                    </label>
+                    <div className="flex items-center gap-1.5 text-[9px] font-mono">
+                      <button
+                        type="button"
+                        onClick={() => setEditAllowedIcons(ALL_APP_ICON_IDS)}
+                        className="text-cyan-300 hover:underline cursor-pointer"
+                      >
+                        Tutte
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditAllowedIcons([])}
+                        className="text-red-400 hover:underline cursor-pointer"
+                      >
+                        Nessuna
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                    {ALL_APP_ICONS.map((icon) => (
+                      <label
+                        key={icon.id}
+                        className="flex items-center gap-2 p-1.5 rounded-lg bg-black/30 border border-white/5 text-[10px] cursor-pointer hover:bg-white/5"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editAllowedIcons.includes(icon.id)}
+                          onChange={() => {
+                            setEditAllowedIcons(prev => 
+                              prev.includes(icon.id) ? prev.filter(i => i !== icon.id) : [...prev, icon.id]
+                            );
+                          }}
+                          className="rounded border-white/20 text-cyan-400 focus:ring-0"
+                        />
+                        <span className="truncate">{icon.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="pt-3 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -685,6 +884,190 @@ export default function AdminUserManagementModal({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-MODAL: Manage Icon Permissions for User */}
+      {managingIconsUser && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fadeIn select-none text-white">
+          <div 
+            className="relative w-full max-w-2xl max-h-[90vh] bg-[#0c1322] border border-cyan-500/40 rounded-3xl p-5 sm:p-7 shadow-[0_0_50px_rgba(6,182,212,0.2)] flex flex-col text-white overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-cyan-300">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display font-bold uppercase text-sm sm:text-base tracking-wider text-white">
+                      Permessi Icone Utente
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold">
+                      @{managingIconsUser.username}
+                    </span>
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-gray-400 font-mono">
+                    Abilita o revoca l'accesso alle singole icone e moduli per {managingIconsUser.name}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setManagingIconsUser(null)}
+                className="p-1.5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* If user is admin */}
+            {managingIconsUser.role === 'admin' ? (
+              <div className="p-4 rounded-2xl bg-quantum-primary/10 border border-quantum-primary/30 text-quantum-primary font-mono text-xs mb-4 flex items-center gap-3">
+                <Shield className="w-5 h-5 shrink-0" />
+                <div>
+                  <strong className="block text-white uppercase text-[11px]">Privilegi Amministratore (CSO)</strong>
+                  Gli account con ruolo Amministratore hanno accesso permanente e incondizionato a tutte le icone del sistema.
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Presets & Quick Action Toolbar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-2xl mb-4 font-mono text-[11px]">
+                  <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">Presets Rapidi:</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setUserSelectedIcons(ALL_APP_ICON_IDS)}
+                      className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white rounded-lg border border-white/10 text-[10px] transition-colors cursor-pointer"
+                    >
+                      Abilita Tutte
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUserSelectedIcons([])}
+                      className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-lg border border-red-500/20 text-[10px] transition-colors cursor-pointer"
+                    >
+                      Disabilita Tutte
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUserSelectedIcons(['agent_ai', 'translator', 'realq'])}
+                      className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/20 text-[10px] transition-colors cursor-pointer"
+                    >
+                      Solo Base
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUserSelectedIcons(['pqc_group', 'realq'])}
+                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded-lg border border-emerald-500/20 text-[10px] transition-colors cursor-pointer"
+                    >
+                      Solo PQC
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUserSelectedIcons(['agent_ai', 'send_to_ibm', 'translator', 'crosscode', 'mitigation'])}
+                      className="px-2.5 py-1 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary rounded-lg border border-quantum-primary/20 text-[10px] transition-colors cursor-pointer"
+                    >
+                      Full Quantum
+                    </button>
+                  </div>
+                </div>
+
+                {/* Icons Grid with Scroll */}
+                <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 max-h-[50vh] font-mono">
+                  {ALL_APP_ICONS.map((appIcon) => {
+                    const isChecked = userSelectedIcons.includes(appIcon.id);
+                    const IconComp = PERMISSION_ICON_MAP[appIcon.icon] || Cpu;
+
+                    return (
+                      <div
+                        key={appIcon.id}
+                        onClick={() => handleToggleUserIcon(appIcon.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                          isChecked
+                            ? 'bg-cyan-950/30 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.1)]'
+                            : 'bg-white/[0.01] border-white/5 opacity-60 hover:opacity-85 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2.5 rounded-xl border mt-0.5 ${
+                            isChecked
+                              ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-300'
+                              : 'bg-white/5 border-white/10 text-gray-500'
+                          }`}>
+                            <IconComp className="w-4 h-4" />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white text-xs">{appIcon.name}</span>
+                              <span className={`px-1.5 py-0.2 text-[9px] uppercase font-bold rounded ${
+                                appIcon.category === 'core'
+                                  ? 'bg-quantum-primary/20 text-quantum-primary'
+                                  : appIcon.category === 'quantum'
+                                  ? 'bg-cyan-500/20 text-cyan-300'
+                                  : appIcon.category === 'security'
+                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  : 'bg-amber-500/20 text-amber-300'
+                              }`}>
+                                {appIcon.category}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-gray-400 mt-1 font-sans leading-relaxed">
+                              {appIcon.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 mt-1">
+                          {isChecked ? (
+                            <CheckSquare className="w-5 h-5 text-cyan-400" />
+                          ) : (
+                            <Square className="w-5 h-5 text-gray-600" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* Footer */}
+            <div className="pt-4 border-t border-white/10 mt-4 flex items-center justify-between font-mono text-xs">
+              <div className="text-gray-400 text-[11px]">
+                {managingIconsUser.role === 'admin' ? (
+                  <span>Tutte le icone consentite</span>
+                ) : (
+                  <span>
+                    <strong className="text-cyan-300 font-bold">{userSelectedIcons.length}</strong> su {ALL_APP_ICONS.length} icone abilitate
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManagingIconsUser(null)}
+                  className="px-3.5 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors cursor-pointer"
+                >
+                  Chiudi
+                </button>
+                {managingIconsUser.role !== 'admin' && (
+                  <button
+                    type="button"
+                    onClick={handleSaveIconPermissions}
+                    className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-black font-bold uppercase rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.3)]"
+                  >
+                    Salva Permessi
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

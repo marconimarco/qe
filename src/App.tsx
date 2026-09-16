@@ -10,12 +10,13 @@ import HelpModal from './components/HelpModal';
 import LoginScreen from './components/LoginScreen';
 import AdminUserManagementModal from './components/AdminUserManagementModal';
 import FirstLoginAgreementModal from './components/FirstLoginAgreementModal';
+import AccessDeniedModal from './components/AccessDeniedModal';
 import TestPage from './components/TestPage';
 import { SectorId, SECTORS, LanguageCode } from './types';
 import { TranslationProvider, useTranslation } from './lib/TranslationContext';
 import { Cpu, Terminal, ArrowLeft, Layers, HelpCircle, Key, ShieldCheck, AlertCircle, User, LogOut, Users, Shield, Crown, AlertTriangle } from 'lucide-react';
 import { getStoredApiKey } from './services/apiKeyService';
-import { getCurrentSession, logoutUser, CurrentUserSession } from './services/authService';
+import { getCurrentSession, logoutUser, CurrentUserSession, isIconAllowedForUser } from './services/authService';
 import { motion } from 'motion/react';
 import aiStudioPrompt from './promptText.txt?raw';
 import { Check, Copy } from 'lucide-react';
@@ -124,6 +125,17 @@ function AppContent({
   // Admin User Management modal state
   const [isAdminUsersModalOpen, setIsAdminUsersModalOpen] = useState(false);
 
+  // Access Denied modal state
+  const [deniedModal, setDeniedModal] = useState<{ isOpen: boolean; iconId: string; iconName?: string } | null>(null);
+
+  const handleAccessDenied = (iconId: string, iconName?: string) => {
+    setDeniedModal({
+      isOpen: true,
+      iconId,
+      iconName
+    });
+  };
+
   useEffect(() => {
     const key = getStoredApiKey();
     setHasApiKey(!!key);
@@ -132,6 +144,10 @@ function AppContent({
   const selectedSector = SECTORS.find(s => s.id === selectedSectorId);
 
   const handleSelectSector = (id: SectorId) => {
+    if (!isIconAllowedForUser(currentUser, id)) {
+      handleAccessDenied(id, t(`s_${id}_name`));
+      return;
+    }
     if (id === 'quantum_code' || id === 'send_to_ibm') {
       setIsIbmInterfaceOpen(true);
     } else if (id === 'realq') {
@@ -202,13 +218,30 @@ function AppContent({
         />
       )}
 
+      {/* Access Denied Modal */}
+      {deniedModal && (
+        <AccessDeniedModal
+          isOpen={deniedModal.isOpen}
+          onClose={() => setDeniedModal(null)}
+          iconId={deniedModal.iconId}
+          iconName={deniedModal.iconName}
+          currentUser={currentUser}
+        />
+      )}
+
       {/* Top Banner if API Key is missing */}
       {!hasApiKey && (
         <div className="relative z-50 bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-center text-xs text-amber-200 flex items-center justify-center gap-2 font-mono">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
           <span>Google AI Studio API Key not found. Please enter your API Key to enable AI features.</span>
           <button
-            onClick={() => setIsApiKeyModalOpen(true)}
+            onClick={() => {
+              if (!isIconAllowedForUser(currentUser, 'api_key')) {
+                handleAccessDenied('api_key', 'Configura Google API Key');
+                return;
+              }
+              setIsApiKeyModalOpen(true);
+            }}
             className="px-2.5 py-0.5 bg-amber-400 text-black font-bold uppercase text-[10px] rounded hover:bg-amber-300 transition-colors ml-2 cursor-pointer"
           >
             Enter Key
@@ -256,7 +289,13 @@ function AppContent({
 
           {/* API Key configuration button */}
           <button
-            onClick={() => setIsApiKeyModalOpen(true)}
+            onClick={() => {
+              if (!isIconAllowedForUser(currentUser, 'api_key')) {
+                handleAccessDenied('api_key', 'Configura Google API Key');
+                return;
+              }
+              setIsApiKeyModalOpen(true);
+            }}
             className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-[10px] sm:text-xs font-mono transition-all cursor-pointer"
             title="Configura Google API Key"
           >
@@ -329,13 +368,39 @@ function AppContent({
           />
         ) : (
           <SectorSelector 
+            currentUser={currentUser}
             onSelect={handleSelectSector}
             initialSubMenu={returnToSubMenu}
             onSubMenuToggle={setIsSubMenuVisible}
-            onOpenIbm={() => setIsIbmInterfaceOpen(true)}
-            onOpenHelp={() => setIsHelpModalOpen(true)}
-            onOpenTest={() => setIsTestPageOpen(true)}
-            onOpenBlank={() => setIsBlankPageOpen(true)}
+            onOpenIbm={() => {
+              if (!isIconAllowedForUser(currentUser, 'send_to_ibm')) {
+                handleAccessDenied('send_to_ibm', t('s_send_to_ibm_name'));
+                return;
+              }
+              setIsIbmInterfaceOpen(true);
+            }}
+            onOpenHelp={() => {
+              if (!isIconAllowedForUser(currentUser, 'realq')) {
+                handleAccessDenied('realq', 'RealQ Quantum Support');
+                return;
+              }
+              setIsHelpModalOpen(true);
+            }}
+            onOpenTest={() => {
+              if (!isIconAllowedForUser(currentUser, 'agent_ai')) {
+                handleAccessDenied('agent_ai', 'Agent AI');
+                return;
+              }
+              setIsTestPageOpen(true);
+            }}
+            onOpenBlank={() => {
+              if (!isIconAllowedForUser(currentUser, 'medical_screening')) {
+                handleAccessDenied('medical_screening', 'Medical Screening Analysis');
+                return;
+              }
+              setIsBlankPageOpen(true);
+            }}
+            onAccessDenied={handleAccessDenied}
           />
         )}
       </main>

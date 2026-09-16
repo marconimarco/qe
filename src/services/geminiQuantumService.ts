@@ -148,7 +148,7 @@ D. QISKIT 1.x INVIOLABLE STANDARD: Never use the deprecated 'execute()' function
   try {
     const ai = getGeminiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: userCode,
       config: {
         systemInstruction,

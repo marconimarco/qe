@@ -19,7 +19,7 @@ export async function generateQuantumStrategy(
   } catch (e) {
     ai = null;
   }
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-3.6-flash";
   
   const contextText = userContext 
     ? (typeof userContext === 'string' ? `Context: ${userContext}` : `Specific assets: ${userContext.join(', ')}`)

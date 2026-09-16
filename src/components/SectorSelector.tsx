@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { SECTORS, SectorId, Sector } from '../types';
 import { useTranslation } from '../lib/TranslationContext';
+import { CurrentUserSession, isIconAllowedForUser } from '../services/authService';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Landmark,
@@ -45,6 +46,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 interface Props {
+  currentUser?: CurrentUserSession | null;
   onSelect: (id: SectorId) => void;
   initialSubMenu?: SectorId | null;
   onSubMenuToggle?: (isSub: boolean) => void;
@@ -52,9 +54,20 @@ interface Props {
   onOpenHelp?: () => void;
   onOpenTest?: () => void;
   onOpenBlank?: () => void;
+  onAccessDenied?: (iconId: string, iconName?: string) => void;
 }
 
-export default function SectorSelector({ onSelect, initialSubMenu = null, onSubMenuToggle, onOpenIbm, onOpenHelp, onOpenTest, onOpenBlank }: Props) {
+export default function SectorSelector({ 
+  currentUser,
+  onSelect, 
+  initialSubMenu = null, 
+  onSubMenuToggle, 
+  onOpenIbm, 
+  onOpenHelp, 
+  onOpenTest, 
+  onOpenBlank,
+  onAccessDenied
+}: Props) {
   const { t, language } = useTranslation();
   const [activeSubMenu, setActiveSubMenu] = useState<SectorId | null>(initialSubMenu);
 
@@ -106,6 +119,10 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
   const subSectors = getSubSectors();
 
   const handleSelect = (id: SectorId) => {
+    if (!isIconAllowedForUser(currentUser, id)) {
+      onAccessDenied?.(id, t(`s_${id}_name`));
+      return;
+    }
     if (id === 'quantum_code' || id === 'pqc_group') {
       setActiveSubMenu(id);
       onSubMenuToggle?.(true);
@@ -240,6 +257,7 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                   const total = displayedSectors.length;
                   const angle = (index / total) * 360;
                   const radius = 42; // Percentage radius
+                  const isAllowed = isIconAllowedForUser(currentUser, sector.id);
                   
                   return (
                     <div
@@ -250,7 +268,7 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                         onClick={() => handleSelect(sector.id)}
                         initial={{ opacity: 0, scale: 0 }}
                         animate={{ 
-                          opacity: 1, 
+                          opacity: isAllowed ? 1 : 0.65, 
                           scale: 1,
                           left: `${50 + Math.cos((angle * Math.PI) / 180) * radius}%`,
                           top: `${50 + Math.sin((angle * Math.PI) / 180) * radius}%`,
@@ -264,12 +282,22 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                       >
                         {/* Opposite rotation wrapper to keep content perfectly upright */}
                         <motion.div
-                          className="flex flex-col items-center select-none text-center"
+                          className="flex flex-col items-center select-none text-center relative"
                           animate={{ rotate: -360 }}
                           transition={{ repeat: Infinity, duration: 45, ease: "linear" }}
                         >
+                          {!isAllowed && (
+                            <div 
+                              className="absolute -top-1 -right-1 p-1 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] z-30 animate-pulse"
+                              title="Accesso riservato"
+                            >
+                              <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
+                            </div>
+                          )}
                           <div className={`w-[12vmin] h-[12vmin] max-w-[55px] max-h-[55px] md:w-20 md:h-20 rounded-full border flex items-center justify-center mb-1 sm:mb-2 transition-all relative overflow-hidden ${
-                            sector.id === 'translator' 
+                            !isAllowed
+                              ? 'bg-red-950/20 border-red-500/40 opacity-70 group-hover:border-red-400'
+                            : sector.id === 'translator' 
                               ? 'bg-quantum-secondary/20 border-quantum-secondary shadow-[0_0_20px_rgba(157,0,255,0.2)]' 
                             : sector.id === 'send_to_ibm'
                               ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.5)] group-hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] group-hover:border-cyan-400'
@@ -282,14 +310,14 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                               : 'bg-black/80 border-white/10 group-hover:border-quantum-primary group-hover:shadow-[0_0_20px_rgba(0,242,255,0.15)]'
                           }`}>
                             <div className={`absolute inset-0 transition-colors ${
-                              sector.id === 'translator' ? 'bg-quantum-secondary/10' : sector.id === 'send_to_ibm' ? 'bg-cyan-500/10' : sector.id === 'pqc_group' ? 'bg-emerald-500/10' : sector.id === 'realq' ? 'bg-red-500/10' : sector.id === 'mitigation' ? 'bg-amber-500/10' : 'bg-quantum-primary/0 group-hover:bg-quantum-primary/10'
+                              !isAllowed ? 'bg-red-500/5' : sector.id === 'translator' ? 'bg-quantum-secondary/10' : sector.id === 'send_to_ibm' ? 'bg-cyan-500/10' : sector.id === 'pqc_group' ? 'bg-emerald-500/10' : sector.id === 'realq' ? 'bg-red-500/10' : sector.id === 'mitigation' ? 'bg-amber-500/10' : 'bg-quantum-primary/0 group-hover:bg-quantum-primary/10'
                             }`} />
                             <Icon className={`w-[5vmin] h-[5vmin] max-w-[24px] max-h-[24px] md:w-8 md:h-8 transition-transform group-hover:scale-110 ${
-                              sector.id === 'translator' ? 'text-quantum-secondary' : sector.id === 'send_to_ibm' ? 'text-cyan-400 animate-pulse' : sector.id === 'pqc_group' ? 'text-emerald-400' : sector.id === 'realq' ? 'text-red-500' : sector.id === 'mitigation' ? 'text-amber-500' : 'text-quantum-primary'
+                              !isAllowed ? 'text-red-400/80' : sector.id === 'translator' ? 'text-quantum-secondary' : sector.id === 'send_to_ibm' ? 'text-cyan-400 animate-pulse' : sector.id === 'pqc_group' ? 'text-emerald-400' : sector.id === 'realq' ? 'text-red-500' : sector.id === 'mitigation' ? 'text-amber-500' : 'text-quantum-primary'
                             }`} />
                           </div>
                           <span className={`text-[6px] min-[400px]:text-[8px] md:text-xs font-mono font-bold uppercase tracking-tighter sm:tracking-widest bg-black/60 px-1 py-0.5 md:py-1 rounded border border-white/5 backdrop-blur-sm transition-colors whitespace-nowrap overflow-hidden ${
-                            sector.id === 'translator' ? 'text-quantum-secondary border-quantum-secondary/30' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
+                            !isAllowed ? 'text-red-300 border-red-500/30' : sector.id === 'translator' ? 'text-quantum-secondary border-quantum-secondary/30' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
                           }`}>
                             {t(`s_${sector.id}_name`)}
                           </span>
@@ -301,66 +329,104 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
               </motion.div>
 
               {/* Inner Orbit for Blank Page Icon */}
-              <motion.div
-                className="absolute inset-0 flex items-center justify-center pointer-events-none z-25"
-                animate={{ rotate: -360 }}
-                transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
-              >
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <motion.button
-                    onClick={() => onOpenBlank?.()}
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{
-                      opacity: 1,
-                      scale: 1,
-                      left: '50%',
-                      top: '26%',
-                      translateX: '-50%',
-                      translateY: '-50%'
-                    }}
-                    transition={{ duration: 0.8, type: "spring" }}
-                    whileHover={{ scale: 1.15 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="absolute flex flex-col items-center group z-30 pointer-events-auto"
+              {(() => {
+                const isMedicalAllowed = isIconAllowedForUser(currentUser, 'medical_screening');
+                return (
+                  <motion.div
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-25"
+                    animate={{ rotate: -360 }}
+                    transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
                   >
-                    <motion.div
-                      className="flex flex-col items-center select-none text-center"
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
-                    >
-                      <div className="w-[6vmin] h-[6vmin] max-w-[32px] max-h-[32px] md:w-10 md:h-10 rounded-full border border-white/50 bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:bg-white/40 hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] flex items-center justify-center transition-all backdrop-blur-sm relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
-                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full animate-pulse shadow-[0_0_8px_rgba(255,255,255,1)]" />
-                      </div>
-                    </motion.div>
-                  </motion.button>
-                </div>
-              </motion.div>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <motion.button
+                        onClick={() => {
+                          if (!isMedicalAllowed) {
+                            onAccessDenied?.('medical_screening', 'Medical Screening Analysis');
+                            return;
+                          }
+                          onOpenBlank?.();
+                        }}
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{
+                          opacity: isMedicalAllowed ? 1 : 0.65,
+                          scale: 1,
+                          left: '50%',
+                          top: '26%',
+                          translateX: '-50%',
+                          translateY: '-50%'
+                        }}
+                        transition={{ duration: 0.8, type: "spring" }}
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="absolute flex flex-col items-center group z-30 pointer-events-auto"
+                      >
+                        <motion.div
+                          className="flex flex-col items-center select-none text-center relative"
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
+                        >
+                          {!isMedicalAllowed && (
+                            <div 
+                              className="absolute -top-1 -right-1 p-0.5 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_6px_rgba(239,68,68,0.8)] z-30 animate-pulse"
+                              title="Accesso riservato"
+                            >
+                              <Lock className="w-2 h-2 text-white" />
+                            </div>
+                          )}
+                          <div className={`w-[6vmin] h-[6vmin] max-w-[32px] max-h-[32px] md:w-10 md:h-10 rounded-full border ${!isMedicalAllowed ? 'border-red-500/60 bg-red-950/30' : 'border-white/50 bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:bg-white/40 hover:shadow-[0_0_25px_rgba(255,255,255,0.6)]'} flex items-center justify-center transition-all backdrop-blur-sm relative overflow-hidden`}>
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
+                            <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${!isMedicalAllowed ? 'bg-red-400 shadow-[0_0_8px_rgba(239,68,68,1)]' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,1)]'} rounded-full animate-pulse`} />
+                          </div>
+                        </motion.div>
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                );
+              })()}
 
               {/* Central Fixed Sun (Primary Portal - TEST Simulation) */}
-              <div className="absolute w-[28vmin] h-[28vmin] max-w-[155px] max-h-[155px] sm:w-36 sm:h-36 rounded-full flex items-center justify-center z-30 pointer-events-auto">
-                <motion.div
-                  whileHover={{ scale: 1.1, boxShadow: "0 0 55px rgba(0,242,255,0.5)" }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onOpenTest?.()}
-                  className="w-full h-full bg-black/95 border-2 border-quantum-primary hover:border-quantum-primary rounded-full flex flex-col items-center justify-center cursor-pointer shadow-[0_0_35px_rgba(0,242,255,0.25)] relative overflow-hidden backdrop-blur-xl group/hub"
-                  title="Agent AI"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-b from-quantum-primary/10 to-transparent pointer-events-none animate-pulse" />
-                  
-                  <div className="flex flex-col items-center justify-center select-none p-3 text-center h-full w-full">
-                    <div className="flex flex-col items-center justify-center">
-                      <Cpu className="w-8 h-8 sm:w-10 sm:h-10 text-quantum-primary filter drop-shadow-[0_0_12px_rgba(0,242,255,0.6)] group-hover/hub:scale-110 transition-transform duration-300 animate-pulse" />
-                      <span className="text-[10px] sm:text-[11px] md:text-xs font-display font-black uppercase tracking-widest text-white mt-1.5 group-hover/hub:text-quantum-primary transition-colors max-w-[125px]">
-                        Agent AI
-                      </span>
-                      <span className="text-[5px] sm:text-[7px] font-mono text-quantum-primary/60 uppercase tracking-widest mt-0.5 scale-90">
-                        {t('launch_gateway')}
-                      </span>
-                    </div>
+              {(() => {
+                const isAgentAiAllowed = isIconAllowedForUser(currentUser, 'agent_ai');
+                return (
+                  <div className="absolute w-[28vmin] h-[28vmin] max-w-[155px] max-h-[155px] sm:w-36 sm:h-36 rounded-full flex items-center justify-center z-30 pointer-events-auto">
+                    <motion.div
+                      whileHover={{ scale: 1.1, boxShadow: isAgentAiAllowed ? "0 0 55px rgba(0,242,255,0.5)" : "0 0 40px rgba(239,68,68,0.5)" }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        if (!isAgentAiAllowed) {
+                          onAccessDenied?.('agent_ai', 'Agent AI');
+                          return;
+                        }
+                        onOpenTest?.();
+                      }}
+                      className={`w-full h-full bg-black/95 border-2 ${isAgentAiAllowed ? 'border-quantum-primary hover:border-quantum-primary shadow-[0_0_35px_rgba(0,242,255,0.25)]' : 'border-red-500/60 shadow-[0_0_30px_rgba(239,68,68,0.3)]'} rounded-full flex flex-col items-center justify-center cursor-pointer relative overflow-hidden backdrop-blur-xl group/hub`}
+                      title={isAgentAiAllowed ? "Agent AI" : "Agent AI (Accesso Riservato)"}
+                    >
+                      {!isAgentAiAllowed && (
+                        <div 
+                          className="absolute top-2 right-2 p-1.5 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.9)] z-40 animate-pulse"
+                          title="Accesso riservato"
+                        >
+                          <Lock className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                      <div className={`absolute inset-0 bg-gradient-to-b ${isAgentAiAllowed ? 'from-quantum-primary/10' : 'from-red-500/10'} to-transparent pointer-events-none animate-pulse`} />
+                      
+                      <div className="flex flex-col items-center justify-center select-none p-3 text-center h-full w-full">
+                        <div className="flex flex-col items-center justify-center">
+                          <Cpu className={`w-8 h-8 sm:w-10 sm:h-10 ${isAgentAiAllowed ? 'text-quantum-primary filter drop-shadow-[0_0_12px_rgba(0,242,255,0.6)]' : 'text-red-400 filter drop-shadow-[0_0_12px_rgba(239,68,68,0.6)]'} group-hover/hub:scale-110 transition-transform duration-300 animate-pulse`} />
+                          <span className={`text-[10px] sm:text-[11px] md:text-xs font-display font-black uppercase tracking-widest ${isAgentAiAllowed ? 'text-white group-hover/hub:text-quantum-primary' : 'text-red-200 group-hover/hub:text-red-300'} mt-1.5 transition-colors max-w-[125px]`}>
+                            Agent AI
+                          </span>
+                          <span className={`text-[5px] sm:text-[7px] font-mono ${isAgentAiAllowed ? 'text-quantum-primary/60' : 'text-red-400/70'} uppercase tracking-widest mt-0.5 scale-90`}>
+                            {isAgentAiAllowed ? t('launch_gateway') : 'ACCESSO LIMITATO'}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
                   </div>
-                </motion.div>
-              </div>
+                );
+              })()}
 
               {/* Orbits and trails */}
               <div className="absolute inset-0 border border-white/5 rounded-full pointer-events-none scale-[0.55] opacity-20" />
@@ -378,36 +444,57 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
               {displayedSectors.map((sector, index) => {
                 const Icon = ICON_MAP[sector.icon] || Cpu;
                 const isPqcSub = activeSubMenu === 'pqc_group';
+                const isSubAllowed = isIconAllowedForUser(currentUser, sector.id);
                 return (
                   <motion.button
                     key={sector.id}
                     onClick={() => handleSelect(sector.id)}
                     initial={{ opacity: 0, x: -30 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    animate={{ opacity: isSubAllowed ? 1 : 0.65, x: 0 }}
                     transition={{ delay: index * 0.1, type: "spring", stiffness: 100 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className="w-full max-w-lg group relative"
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-r ${isPqcSub ? 'from-emerald-500/0 via-emerald-500/10' : 'from-quantum-primary/0 via-quantum-primary/10'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl sm:rounded-2xl`} />
-                    <div className={`relative p-3 sm:p-5 md:p-6 bg-black/60 border border-white/10 rounded-xl sm:rounded-2xl flex items-center gap-3 sm:gap-5 md:gap-6 transition-all backdrop-blur-xl overflow-hidden ${
-                      isPqcSub 
-                        ? 'group-hover:border-emerald-500 group-hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]' 
-                        : 'group-hover:border-quantum-primary group-hover:shadow-[0_0_40px_rgba(0,242,255,0.2)]'
+                    <div className={`absolute inset-0 bg-gradient-to-r ${
+                      !isSubAllowed 
+                        ? 'from-red-500/0 via-red-500/10' 
+                        : isPqcSub 
+                        ? 'from-emerald-500/0 via-emerald-500/10' 
+                        : 'from-quantum-primary/0 via-quantum-primary/10'
+                    } to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl sm:rounded-2xl`} />
+                    <div className={`relative p-3 sm:p-5 md:p-6 bg-black/60 border rounded-xl sm:rounded-2xl flex items-center gap-3 sm:gap-5 md:gap-6 transition-all backdrop-blur-xl overflow-hidden ${
+                      !isSubAllowed
+                        ? 'border-red-500/40 bg-red-950/15 group-hover:border-red-400 group-hover:shadow-[0_0_30px_rgba(239,68,68,0.25)]'
+                        : isPqcSub 
+                        ? 'border-white/10 group-hover:border-emerald-500 group-hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]' 
+                        : 'border-white/10 group-hover:border-quantum-primary group-hover:shadow-[0_0_40px_rgba(0,242,255,0.2)]'
                     }`}>
-                      <div className={`absolute inset-0 bg-gradient-to-br ${isPqcSub ? 'from-emerald-500/5' : 'from-quantum-primary/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity`} />
-                      <div className={`w-10 h-10 sm:w-14 sm:h-14 md:w-20 md:h-20 rounded-lg sm:rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center transition-all shadow-inner relative z-10 ${
-                        isPqcSub 
-                          ? 'group-hover:border-emerald-500 group-hover:bg-emerald-500/10' 
-                          : 'group-hover:border-quantum-primary group-hover:bg-quantum-primary/10'
+                      {!isSubAllowed && (
+                        <div 
+                          className="absolute top-3 right-3 p-1 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] z-30 animate-pulse"
+                          title="Accesso riservato"
+                        >
+                          <Lock className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                      <div className={`absolute inset-0 bg-gradient-to-br ${
+                        !isSubAllowed ? 'from-red-500/5' : isPqcSub ? 'from-emerald-500/5' : 'from-quantum-primary/5'
+                      } to-transparent opacity-0 group-hover:opacity-100 transition-opacity`} />
+                      <div className={`w-10 h-10 sm:w-14 sm:h-14 md:w-20 md:h-20 rounded-lg sm:rounded-2xl bg-black/40 border flex items-center justify-center transition-all shadow-inner relative z-10 ${
+                        !isSubAllowed
+                          ? 'border-red-500/40 bg-red-950/30'
+                          : isPqcSub 
+                          ? 'border-white/10 group-hover:border-emerald-500 group-hover:bg-emerald-500/10' 
+                          : 'border-white/10 group-hover:border-quantum-primary group-hover:bg-quantum-primary/10'
                       }`}>
                         <Icon className={`w-5 h-5 sm:w-7 sm:h-7 md:w-10 md:h-10 group-hover:scale-110 group-hover:rotate-6 transition-transform ${
-                          isPqcSub ? 'text-emerald-400' : 'text-quantum-primary'
+                          !isSubAllowed ? 'text-red-400' : isPqcSub ? 'text-emerald-400' : 'text-quantum-primary'
                         }`} />
                       </div>
                       <div className="flex-1 text-left min-w-0 relative z-10">
                         <h3 className={`text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider sm:tracking-widest mb-0.5 sm:mb-1 transition-colors ${
-                          isPqcSub ? 'group-hover:text-emerald-400' : 'group-hover:text-quantum-primary'
+                          !isSubAllowed ? 'group-hover:text-red-300' : isPqcSub ? 'group-hover:text-emerald-400' : 'group-hover:text-quantum-primary'
                         }`}>
                           {t(`s_${sector.id}_name`)}
                         </h3>
@@ -417,12 +504,14 @@ export default function SectorSelector({ onSelect, initialSubMenu = null, onSubM
                       </div>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity pr-1 sm:pr-2 md:pr-4 relative z-10 hidden sm:block">
                         <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full border flex items-center justify-center bg-black/45 ${
-                          isPqcSub 
+                          !isSubAllowed
+                            ? 'border-red-500/50 bg-red-500/5 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                            : isPqcSub 
                             ? 'border-emerald-500/50 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.2)]' 
                             : 'border-quantum-primary/50 bg-quantum-primary/5 shadow-[0_0_15px_rgba(0,242,255,0.2)]'
                         }`}>
                           <ArrowLeft className={`w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 rotate-180 ${
-                            isPqcSub ? 'text-emerald-400' : 'text-quantum-primary'
+                            !isSubAllowed ? 'text-red-400' : isPqcSub ? 'text-emerald-400' : 'text-quantum-primary'
                           }`} />
                         </div>
                       </div>
