@@ -492,7 +492,7 @@ measure q -> c;`);
           className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1 group"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-mono text-xs tracking-widest uppercase">{t('ibm_back_to_dashboard')}</span>
+          <span className="font-mono text-[10px] sm:text-xs tracking-widest uppercase">Back to Home Page</span>
         </button>
         <div className="flex items-center gap-2 px-3 py-1 bg-quantum-primary/10 border border-quantum-primary/30 rounded-full">
           <Cpu className="w-3.5 h-3.5 text-quantum-primary animate-pulse" />

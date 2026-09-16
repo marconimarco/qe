@@ -290,10 +290,6 @@ export default function SectorSelector({
                           <div className={`w-[12vmin] h-[12vmin] max-w-[55px] max-h-[55px] md:w-20 md:h-20 rounded-full border flex items-center justify-center mb-1 sm:mb-2 transition-all relative overflow-hidden ${
                             !isAllowed
                               ? 'bg-red-950/40 border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.35)] opacity-80 group-hover:border-red-400 group-hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]'
-                            : sector.id === 'translator' 
-                              ? 'bg-quantum-secondary/20 border-quantum-secondary shadow-[0_0_20px_rgba(157,0,255,0.2)]' 
-                            : sector.id === 'crosscode'
-                              ? 'bg-indigo-950/40 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.35)] group-hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]'
                             : sector.id === 'send_to_ibm'
                               ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.5)] group-hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] group-hover:border-cyan-400'
                             : sector.id === 'pqc_group'
@@ -305,14 +301,14 @@ export default function SectorSelector({
                               : 'bg-black/80 border-white/10 group-hover:border-quantum-primary group-hover:shadow-[0_0_20px_rgba(0,242,255,0.15)]'
                           }`}>
                             <div className={`absolute inset-0 transition-colors ${
-                              !isAllowed ? 'bg-red-500/10' : sector.id === 'translator' ? 'bg-quantum-secondary/10' : sector.id === 'crosscode' ? 'bg-indigo-500/10' : sector.id === 'send_to_ibm' ? 'bg-cyan-500/10' : sector.id === 'pqc_group' ? 'bg-emerald-500/10' : sector.id === 'realq' ? 'bg-red-500/10' : sector.id === 'mitigation' ? 'bg-amber-500/10' : 'bg-quantum-primary/0 group-hover:bg-quantum-primary/10'
+                              !isAllowed ? 'bg-red-500/10' : sector.id === 'send_to_ibm' ? 'bg-cyan-500/10' : sector.id === 'pqc_group' ? 'bg-emerald-500/10' : sector.id === 'realq' ? 'bg-red-500/10' : sector.id === 'mitigation' ? 'bg-amber-500/10' : 'bg-quantum-primary/0 group-hover:bg-quantum-primary/10'
                             }`} />
                             <Icon className={`w-[5vmin] h-[5vmin] max-w-[24px] max-h-[24px] md:w-8 md:h-8 transition-transform group-hover:scale-110 ${
-                              !isAllowed ? 'text-red-400' : sector.id === 'translator' ? 'text-quantum-secondary' : sector.id === 'crosscode' ? 'text-indigo-400' : sector.id === 'send_to_ibm' ? 'text-cyan-400 animate-pulse' : sector.id === 'pqc_group' ? 'text-emerald-400' : sector.id === 'realq' ? 'text-red-500' : sector.id === 'mitigation' ? 'text-amber-500' : 'text-quantum-primary'
+                              !isAllowed ? 'text-red-400' : sector.id === 'send_to_ibm' ? 'text-cyan-400 animate-pulse' : sector.id === 'pqc_group' ? 'text-emerald-400' : sector.id === 'realq' ? 'text-red-500' : sector.id === 'mitigation' ? 'text-amber-500' : 'text-quantum-primary'
                             }`} />
                           </div>
                           <span className={`text-[6px] min-[400px]:text-[8px] md:text-xs font-mono font-bold uppercase tracking-tighter sm:tracking-widest bg-black/60 px-1 py-0.5 md:py-1 rounded border border-white/5 backdrop-blur-sm transition-colors whitespace-nowrap overflow-hidden ${
-                            !isAllowed ? 'text-red-300 border-red-500/40 bg-red-950/40' : sector.id === 'translator' ? 'text-quantum-secondary border-quantum-secondary/30' : sector.id === 'crosscode' ? 'text-indigo-300 border-indigo-500/30' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
+                            !isAllowed ? 'text-red-300 border-red-500/40 bg-red-950/40' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
                           }`}>
                             {t(`s_${sector.id}_name`)}
                           </span>

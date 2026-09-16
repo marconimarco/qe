@@ -264,7 +264,9 @@ export const generateQiskitPythonCode = (
   }
 
   pyCode += `\n# 4. Misurazione e Simulatore Locale AerSimulator\n`;
-  pyCode += `qc.measure(q, c)\n`;
+  for (let i = 0; i < numItems; i++) {
+    pyCode += `qc.measure(q[${i}], c[${i}])\n`;
+  }
   pyCode += `simulator = AerSimulator()\n`;
   pyCode += `compiled_circuit = transpile(qc, simulator)\n`;
   pyCode += `job = simulator.run(compiled_circuit, shots=1024)\n`;

@@ -624,7 +624,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
             className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1"
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 h-5" />
-            <span className="font-mono text-[10px] sm:text-sm tracking-widest uppercase">{t('back')}</span>
+            <span className="font-mono text-[10px] sm:text-sm tracking-widest uppercase">BACK TO HOME PAGE</span>
           </button>
           {['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(sector.id) && (
             <button 
@@ -889,16 +889,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
         {/* Main Simulation Area */}
         <div className={(sector.isSpecial || sector.id === 'quantumbi' || sector.id === 'finance' || sector.id === 'insurance') ? "xl:col-span-4" : "xl:col-span-3"}>
           <AnimatePresence mode="wait">
-            {sector.id === 'translator' ? (
-              <motion.div
-                key="translator"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-              >
-                <QuantumTranslator />
-              </motion.div>
-            ) : sector.id === 'mitigation' ? (
+            {sector.id === 'mitigation' ? (
               <motion.div
                 key="mitigation"
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -907,16 +898,6 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
               >
                 <OptimizeDenoise />
               </motion.div>
-            ) : sector.id === 'crosscode' ? (
-              <motion.div
-                key="crosscode"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-              >
-                <CrossCode onSwitchToBI={() => onSectorChange?.('quantumbi')} />
-              </motion.div>
-
             ) : (sector.id === 'quantumbi' || sector.id === 'finance' || sector.id === 'insurance') ? (
               <motion.div
                 key={sector.id}

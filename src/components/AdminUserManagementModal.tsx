@@ -1231,7 +1231,7 @@ export default function AdminUserManagementModal({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setUserSelectedIcons(['agent_ai', 'translator', 'realq'])}
+                          onClick={() => setUserSelectedIcons(['agent_ai', 'realq'])}
                           className="px-2 py-0.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/20 text-[10px] transition-colors cursor-pointer"
                         >
                           Solo Base
@@ -1245,7 +1245,7 @@ export default function AdminUserManagementModal({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setUserSelectedIcons(['agent_ai', 'send_to_ibm', 'translator', 'crosscode', 'mitigation'])}
+                          onClick={() => setUserSelectedIcons(['agent_ai', 'send_to_ibm', 'mitigation'])}
                           className="px-2 py-0.5 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary rounded-lg border border-quantum-primary/20 text-[10px] transition-colors cursor-pointer"
                         >
                           Full Quantum

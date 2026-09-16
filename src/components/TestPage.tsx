@@ -61,31 +61,31 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
     const rischio1 = Math.round(Math.pow(Math.sin(rad / 2), 2) * 100);
 
     // TRADUTTORE SEMANTICO UNIVERSALE
-    let labelStato0 = "Stabilità";
-    let labelStato1 = "Rischio Residuo";
+    let labelStato0 = "Componente Residua (Stabilità)";
+    let labelStato1 = "Valore CSV (Spinta/Alpha)";
     let labelColonna = "Rendimento/Priorità";
 
     const sLower = dati.settore.toLowerCase();
     if (sLower.includes("finanz")) {
       labelColonna = "Rendimento/Priorità";
-      labelStato0 = "Stabilità";
-      labelStato1 = "Rischio Residuo";
+      labelStato0 = "Componente Residua (Stabilità)";
+      labelStato1 = "Valore CSV (Rendimento/Alpha)";
     } else if (sLower.includes("chimic") || sLower.includes("farmaceutica") || sLower.includes("materiali")) {
       labelColonna = "Affinità Legame";
-      labelStato0 = "Stato Fondamentale Orbitale";
-      labelStato1 = "Eccitazione Molecolare/Instabilità";
+      labelStato0 = "Stato Orbitale a Riposo (Residuo)";
+      labelStato1 = "Valore CSV (Eccitazione Attiva)";
     } else if (sLower.includes("produzion") || sLower.includes("manifattura")) {
       labelColonna = "Priorità Commessa";
-      labelStato0 = "Efficienza OEE Impianto";
-      labelStato1 = "Rischio Fermo Macchina (Makespan)";
+      labelStato0 = "Margine di Inattività (Residuo)";
+      labelStato1 = "Valore CSV (Efficienza/OEE)";
     } else if (sLower.includes("sicurezz") || sLower.includes("telecomunicazion") || sLower.includes("reti")) {
       labelColonna = "Criticità Log SIEM";
-      labelStato0 = "Integrità Network";
-      labelStato1 = "Contenimento Minacce";
+      labelStato0 = "Rischio Base (Residuo)";
+      labelStato1 = "Valore CSV (Contenimento Attivo)";
     } else if (sLower.includes("sanità") || sLower.includes("sanita") || sLower.includes("genomica")) {
       labelColonna = "Livello Espressione Genica";
-      labelStato0 = "Omeostasi/Cellula Sana";
-      labelStato1 = "Mutazione Cellulare";
+      labelStato0 = "Componente Silente (Residua)";
+      labelStato1 = "Valore CSV (Espressione/Mutazione)";
     }
 
     let outputBase = `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V4 COMPLETATA]**
@@ -1110,7 +1110,7 @@ ${pythonSnippet}
     if (theta === 180) {
       return `[ALLERTA] Qubit al 100% su |1⟩. Rilevato collo di bottiglia nei dati CSV.`;
     }
-    return `[STATO ATTIVO] Stabilità: ${p0Pct}% (|0⟩) | Rischio: ${p1Pct}% (|1⟩) | θ=${theta}°, φ=${phi}° | Vincolo: ${vincoloStile === 'blocco_rigido' ? 'Rigido' : 'Morbido'}`;
+    return `[STATO ATTIVO] Componente Residua: ${p0Pct}% (|0⟩) | Valore CSV (Spinta): ${p1Pct}% (|1⟩) | θ=${theta}°, φ=${phi}° | Vincolo: ${vincoloStile === 'blocco_rigido' ? 'Rigido' : 'Morbido'}`;
   };
 
   const renderFormattedMessage = (text: string) => {
@@ -1237,7 +1237,7 @@ ${pythonSnippet}
             onClick={onBack}
             className="px-3.5 py-1.5 border border-white/15 bg-white/5 hover:bg-white/10 text-white/90 rounded-md transition-all font-mono text-xs uppercase tracking-wider flex items-center gap-2"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Torna al Cruscotto
+            <ArrowLeft className="w-3.5 h-3.5" /> Back (Torna alla Home Page)
           </button>
           <div className="h-4 w-px bg-white/15" />
           <div className="flex items-center gap-2">
@@ -2258,30 +2258,30 @@ export function IstogrammaQuantisticoUniversale({ theta_radianti, settore }: { t
   const h1 = Math.max(5, p1 * 100);
 
   // Traduttore semantico per l'istogramma
-  let label0 = "Stabilità";
-  let label1 = "Rischio Residuo";
+  let label0 = "Componente Residua (Stabilità)";
+  let label1 = "Valore CSV (Spinta/Alpha)";
   let gradientClass = "from-emerald-500 to-green-400"; // Default
   
   const sLower = settore.toLowerCase();
   if (sLower.includes("finanz")) {
-    label0 = "Stabilità";
-    label1 = "Rischio Residuo";
+    label0 = "Componente Residua (Stabilità)";
+    label1 = "Valore CSV (Rendimento/Alpha)";
     gradientClass = "from-emerald-500 to-green-400";
   } else if (sLower.includes("chimic") || sLower.includes("farmaceutica") || sLower.includes("materiali")) {
-    label0 = "Stato Fondamentale Orbitale";
-    label1 = "Eccitazione Molecolare/Instabilità";
+    label0 = "Stato Orbitale a Riposo (Residuo)";
+    label1 = "Valore CSV (Eccitazione Attiva)";
     gradientClass = "from-purple-500 to-fuchsia-400";
   } else if (sLower.includes("produzion") || sLower.includes("manifattura")) {
-    label0 = "Efficienza OEE Impianto";
-    label1 = "Rischio Fermo Macchina (Makespan)";
+    label0 = "Margine di Inattività (Residuo)";
+    label1 = "Valore CSV (Efficienza/OEE)";
     gradientClass = "from-blue-500 to-cyan-400";
   } else if (sLower.includes("sicurezz") || sLower.includes("telecomunicazion") || sLower.includes("reti")) {
-    label0 = "Integrità Network";
-    label1 = "Contenimento Minacce";
+    label0 = "Rischio Base (Residuo)";
+    label1 = "Valore CSV (Contenimento Attivo)";
     gradientClass = "from-amber-500 to-orange-400";
   } else if (sLower.includes("sanità") || sLower.includes("sanita") || sLower.includes("genomica")) {
-    label0 = "Omeostasi/Cellula Sana";
-    label1 = "Mutazione Cellulare";
+    label0 = "Componente Silente (Residua)";
+    label1 = "Valore CSV (Espressione/Mutazione)";
     gradientClass = "from-rose-500 to-red-400";
   }
 

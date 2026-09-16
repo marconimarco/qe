@@ -1,4 +1,4 @@
-export type SectorId = 'finance' | 'insurance' | 'logistics' | 'energy' | 'telecom' | 'manufacturing' | 'mitigation' | 'translator' | 'crosscode' | 'quantumbi' | 'quantum_code' | 'pqc_group' | 'pqc_locker' | 'pqc_keygen' | 'pqc_chat' | 'realq' | 'large' | 'various' | 'send_to_ibm';
+export type SectorId = 'finance' | 'insurance' | 'logistics' | 'energy' | 'telecom' | 'manufacturing' | 'mitigation' | 'quantumbi' | 'quantum_code' | 'pqc_group' | 'pqc_locker' | 'pqc_keygen' | 'pqc_chat' | 'realq' | 'large' | 'various' | 'send_to_ibm';
 
 export interface Sector {
   id: SectorId;
@@ -62,16 +62,6 @@ export interface SimulationResult {
 }
 
 export const SECTORS: Sector[] = [
-  {
-    id: 'translator',
-    name: 'Quantum Translator',
-    icon: 'Languages',
-    description: 'Translate between Python (Qiskit), OpenQASM, and Visual Composer.',
-    focus: 'Quantum Code Translation',
-    variablesLabel: 'Circuit Logic',
-    stressEvent: 'Syntax Error',
-    isSpecial: true,
-  },
   {
     id: 'finance',
     name: 'Banking',
@@ -138,16 +128,6 @@ export const SECTORS: Sector[] = [
     focus: 'Quantum Error Mitigation',
     variablesLabel: 'Gates/Qubits',
     stressEvent: 'Thermal Decoherence',
-    isSpecial: true,
-  },
-  {
-    id: 'crosscode',
-    name: 'Cross Code',
-    icon: 'Terminal',
-    description: 'Analysis and cross-compilation between quantum algorithms and high-performance classical code.',
-    focus: 'Quantum-Classical Interop',
-    variablesLabel: 'Hybrid Logic',
-    stressEvent: 'Memory Leak',
     isSpecial: true,
   },
   {

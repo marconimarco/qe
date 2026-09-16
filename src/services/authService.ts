@@ -87,20 +87,6 @@ export const ALL_APP_ICONS: AppIconPermission[] = [
     description: 'Accesso a Qiskit Runtime, invio circuiti hardware e calibrazione QASM 3.0.'
   },
   {
-    id: 'translator',
-    name: 'Quantum Translator',
-    category: 'quantum',
-    icon: 'Languages',
-    description: 'Traduzione incrociata tra linguaggi quantistici, Python e OpenQASM.'
-  },
-  {
-    id: 'crosscode',
-    name: 'Cross Code Interop',
-    category: 'quantum',
-    icon: 'Code2',
-    description: 'Analisi ibrida e cross-compilazione tra quantum e high-performance classical.'
-  },
-  {
     id: 'mitigation',
     name: 'Noise Management',
     category: 'quantum',
@@ -610,9 +596,6 @@ export function isIconAllowedForUser(user: CurrentUserSession | AuthUser | null,
         if (['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(iconId)) {
           return allowed.includes('pqc_group');
         }
-        if (iconId === 'quantum_code') {
-          return allowed.includes('translator') || allowed.includes('crosscode');
-        }
         return false;
       }
     }
@@ -625,9 +608,6 @@ export function isIconAllowedForUser(user: CurrentUserSession | AuthUser | null,
   if (user.allowedIcons.includes(iconId)) return true;
   if (['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(iconId)) {
     return user.allowedIcons.includes('pqc_group');
-  }
-  if (iconId === 'quantum_code') {
-    return user.allowedIcons.includes('translator') || user.allowedIcons.includes('crosscode');
   }
   return false;
 }
