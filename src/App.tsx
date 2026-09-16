@@ -390,6 +390,7 @@ function AppContent({
           <MedicalScreening onBack={() => setIsBlankPageOpen(false)} />
         ) : isTestPageOpen ? (
           <TestPage 
+            currentUser={currentUser}
             onBack={() => setIsTestPageOpen(false)} 
             onOpenIbm={() => { 
               if (!isIconAllowedForUser(currentUser, 'send_to_ibm')) {

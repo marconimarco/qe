@@ -9,6 +9,68 @@ export interface AppIconPermission {
   description: string;
 }
 
+export interface AgentAiCategoryPermission {
+  id: string;
+  name: string;
+  icon: string;
+  scenarioCount: number;
+  description: string;
+}
+
+export const ALL_AGENT_AI_CATEGORIES: AgentAiCategoryPermission[] = [
+  {
+    id: "Finanza e Mercati",
+    name: "Finanza e Mercati",
+    icon: "💼",
+    scenarioCount: 26,
+    description: "Hedging, QUBO, stima rischio Basel IV, pricing derivati, AML e scoring creditizio."
+  },
+  {
+    id: "Logistica e Supply Chain",
+    name: "Logistica e Supply Chain",
+    icon: "🚚",
+    scenarioCount: 13,
+    description: "Vehicle routing (VRPTW), bin packing 3D, allocazione gate e supply chain multi-echelon."
+  },
+  {
+    id: "Energia e Utilities",
+    name: "Energia e Utilities",
+    icon: "⚡",
+    scenarioCount: 12,
+    description: "Unit commitment (OPF), posizionamento turbine eoliche, smart charging V2G e microgrid."
+  },
+  {
+    id: "Chimica, Farmaceutica e Materiali",
+    name: "Chimica, Farmaceutica e Materiali",
+    icon: "🧪",
+    scenarioCount: 15,
+    description: "VQE per molecole complesse, drug screening enzimatico, superconduttori e folding peptidico."
+  },
+  {
+    id: "Produzione e Manifattura",
+    name: "Produzione e Manifattura",
+    icon: "⚙️",
+    scenarioCount: 9,
+    description: "Job-shop scheduling CNC, cutting stock lamiere/vetro e bilanciamento linee robotizzate."
+  },
+  {
+    id: "Sicurezza, Telecomunicazioni e Reti",
+    name: "Sicurezza, Telecomunicazioni e Reti",
+    icon: "🛡️",
+    scenarioCount: 11,
+    description: "Protocolli QKD, routing 5G/6G core, allocazione frequenze e crittografia post-quantum."
+  },
+  {
+    id: "Sanità e Genomica",
+    name: "Sanità e Genomica",
+    icon: "🧬",
+    scenarioCount: 22,
+    description: "Screening Grover farmaci, radioterapia oncologica (IGRT), GWAS diagnostica e triage."
+  }
+];
+
+export const ALL_AGENT_AI_CATEGORY_IDS: string[] = ALL_AGENT_AI_CATEGORIES.map(c => c.id);
+
 export const ALL_APP_ICONS: AppIconPermission[] = [
   {
     id: 'agent_ai',
@@ -90,6 +152,7 @@ export interface AuthUser {
   hasAcceptedAgreements?: boolean;
   acceptedAgreementsTimestamp?: string;
   allowedIcons?: string[]; // Array of allowed icon IDs
+  allowedAgentAiCategories?: string[]; // Array of allowed Agent AI category IDs
 }
 
 export interface CurrentUserSession {
@@ -104,6 +167,7 @@ export interface CurrentUserSession {
   hasAcceptedAgreements?: boolean;
   acceptedAgreementsTimestamp?: string;
   allowedIcons?: string[];
+  allowedAgentAiCategories?: string[];
 }
 
 const USERS_STORAGE_KEY = 'spark_quantum_users_db_v1';
@@ -121,7 +185,8 @@ export const DEFAULT_USERS: AuthUser[] = [
     createdAt: '2026-01-15T08:00:00.000Z',
     lastLogin: '2026-08-18T11:50:00.000Z',
     hasAcceptedAgreements: false,
-    allowedIcons: ALL_APP_ICON_IDS
+    allowedIcons: ALL_APP_ICON_IDS,
+    allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
   },
   {
     id: 'usr_demo_003',
@@ -134,7 +199,8 @@ export const DEFAULT_USERS: AuthUser[] = [
     createdAt: '2026-03-01T10:00:00.000Z',
     lastLogin: '2026-08-18T12:00:00.000Z',
     hasAcceptedAgreements: true,
-    allowedIcons: ALL_APP_ICON_IDS
+    allowedIcons: ALL_APP_ICON_IDS,
+    allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
   },
   {
     id: 'usr_user_002',
@@ -147,7 +213,8 @@ export const DEFAULT_USERS: AuthUser[] = [
     createdAt: '2026-02-01T09:30:00.000Z',
     lastLogin: '2026-08-18T10:15:00.000Z',
     hasAcceptedAgreements: false,
-    allowedIcons: ALL_APP_ICON_IDS
+    allowedIcons: ALL_APP_ICON_IDS,
+    allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
   }
 ];
 
@@ -164,6 +231,16 @@ export function getStoredUsers(): AuthUser[] {
       return DEFAULT_USERS;
     }
 
+    let needsSave = false;
+
+    // Ensure backwards compatibility: populate allowedAgentAiCategories if not set yet
+    for (const u of parsed) {
+      if (u.allowedAgentAiCategories === undefined) {
+        u.allowedAgentAiCategories = ALL_AGENT_AI_CATEGORY_IDS;
+        needsSave = true;
+      }
+    }
+
     // Ensure demo account is always available in storage
     const hasDemo = parsed.some((u: AuthUser) => u.username?.trim().toLowerCase() === 'demo');
     if (!hasDemo) {
@@ -178,8 +255,13 @@ export function getStoredUsers(): AuthUser[] {
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
         hasAcceptedAgreements: true,
-        allowedIcons: ALL_APP_ICON_IDS
+        allowedIcons: ALL_APP_ICON_IDS,
+        allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
       });
+      needsSave = true;
+    }
+
+    if (needsSave) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(parsed));
     }
 
@@ -218,7 +300,10 @@ export function getCurrentSession(): CurrentUserSession | null {
         hasAcceptedAgreements: freshUser.hasAcceptedAgreements ?? true,
         allowedIcons: freshUser.allowedIcons !== undefined 
           ? freshUser.allowedIcons 
-          : (freshUser.role === 'admin' ? ALL_APP_ICON_IDS : [])
+          : (freshUser.role === 'admin' ? ALL_APP_ICON_IDS : []),
+        allowedAgentAiCategories: freshUser.allowedAgentAiCategories !== undefined
+          ? freshUser.allowedAgentAiCategories
+          : (freshUser.role === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : [])
       };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedSession));
       return updatedSession;
@@ -245,7 +330,8 @@ export function setCurrentSession(user: AuthUser | null): void {
     lastLogin: new Date().toISOString(),
     hasAcceptedAgreements: user.hasAcceptedAgreements ?? false,
     acceptedAgreementsTimestamp: user.acceptedAgreementsTimestamp,
-    allowedIcons: user.allowedIcons ?? ALL_APP_ICON_IDS
+    allowedIcons: user.allowedIcons ?? ALL_APP_ICON_IDS,
+    allowedAgentAiCategories: user.allowedAgentAiCategories ?? ALL_AGENT_AI_CATEGORY_IDS
   };
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
 }
@@ -368,6 +454,7 @@ export function createNewUser(
     role: UserRole;
     status: UserStatus;
     allowedIcons?: string[];
+    allowedAgentAiCategories?: string[];
   }
 ): { success: boolean; message: string; user?: AuthUser } {
   if (currentUserRole !== 'admin') {
@@ -400,7 +487,10 @@ export function createNewUser(
       hasAcceptedAgreements: true,
       allowedIcons: data.allowedIcons !== undefined
         ? data.allowedIcons
-        : (data.role === 'admin' ? ALL_APP_ICON_IDS : [])
+        : (data.role === 'admin' ? ALL_APP_ICON_IDS : []),
+      allowedAgentAiCategories: data.allowedAgentAiCategories !== undefined
+        ? data.allowedAgentAiCategories
+        : (data.role === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : ALL_AGENT_AI_CATEGORY_IDS)
     };
     saveStoredUsers(users);
 
@@ -429,7 +519,10 @@ export function createNewUser(
     hasAcceptedAgreements: true,
     allowedIcons: data.allowedIcons !== undefined
       ? data.allowedIcons
-      : (data.role === 'admin' ? ALL_APP_ICON_IDS : [])
+      : (data.role === 'admin' ? ALL_APP_ICON_IDS : []),
+    allowedAgentAiCategories: data.allowedAgentAiCategories !== undefined
+      ? data.allowedAgentAiCategories
+      : (data.role === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : ALL_AGENT_AI_CATEGORY_IDS)
   };
 
   users.push(newUser);
@@ -477,7 +570,10 @@ export function updateExistingUser(
     password: updates.password && updates.password.trim().length >= 3 ? updates.password.trim() : users[index].password,
     allowedIcons: updates.allowedIcons !== undefined
       ? updates.allowedIcons
-      : (users[index].allowedIcons !== undefined ? users[index].allowedIcons : (newRole === 'admin' ? ALL_APP_ICON_IDS : []))
+      : (users[index].allowedIcons !== undefined ? users[index].allowedIcons : (newRole === 'admin' ? ALL_APP_ICON_IDS : [])),
+    allowedAgentAiCategories: updates.allowedAgentAiCategories !== undefined
+      ? updates.allowedAgentAiCategories
+      : (users[index].allowedAgentAiCategories !== undefined ? users[index].allowedAgentAiCategories : (newRole === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : ALL_AGENT_AI_CATEGORY_IDS))
   };
 
   saveStoredUsers(users);
@@ -536,6 +632,34 @@ export function isIconAllowedForUser(user: CurrentUserSession | AuthUser | null,
   return false;
 }
 
+export function isAgentAiCategoryAllowedForUser(
+  user: CurrentUserSession | AuthUser | null, 
+  categoryId: string
+): boolean {
+  if (!user) return false;
+  // Admins always have access to all Agent AI categories
+  if (user.role === 'admin') return true;
+
+  // Always consult stored users to get the live, updated permissions
+  try {
+    const storedUsers = getStoredUsers();
+    const freshUser = storedUsers.find(
+      u => u.id === user.id || (u.username && user.username && u.username.trim().toLowerCase() === user.username.trim().toLowerCase())
+    );
+    if (freshUser) {
+      if (freshUser.role === 'admin') return true;
+      if (freshUser.allowedAgentAiCategories !== undefined) {
+        return freshUser.allowedAgentAiCategories.includes(categoryId);
+      }
+    }
+  } catch {
+    // fallback to provided user object
+  }
+
+  if (!user.allowedAgentAiCategories || !Array.isArray(user.allowedAgentAiCategories)) return false;
+  return user.allowedAgentAiCategories.includes(categoryId);
+}
+
 export function updateUserIconPermissions(
   currentUserRole: UserRole,
   targetUserId: string,
@@ -565,6 +689,37 @@ export function updateUserIconPermissions(
   }
 
   return { success: true, message: 'Permessi icone aggiornati con successo.' };
+}
+
+export function updateUserAgentAiCategoryPermissions(
+  currentUserRole: UserRole,
+  targetUserId: string,
+  allowedCategories: string[]
+): { success: boolean; message: string } {
+  if (currentUserRole !== 'admin') {
+    return { success: false, message: 'Solo gli amministratori possono gestire i permessi delle categorie.' };
+  }
+
+  const users = getStoredUsers();
+  const index = users.findIndex(u => u.id === targetUserId);
+  if (index === -1) {
+    return { success: false, message: 'Utente non trovato.' };
+  }
+
+  users[index].allowedAgentAiCategories = allowedCategories;
+  saveStoredUsers(users);
+
+  // If target is current user or session matches username, update session
+  const session = getCurrentSession();
+  if (session && (session.id === targetUserId || (session.username && users[index].username && session.username.trim().toLowerCase() === users[index].username.trim().toLowerCase()))) {
+    setCurrentSession(users[index]);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated', { detail: { username: users[index].username } }));
+  }
+
+  return { success: true, message: 'Permessi categorie Agent AI aggiornati con successo.' };
 }
 
 export function getIconPermissionDetails(iconId: string): AppIconPermission | undefined {

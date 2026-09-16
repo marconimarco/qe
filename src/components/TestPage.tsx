@@ -4,7 +4,7 @@ import {
   ArrowLeft, Send, Terminal, Loader2, Sparkles, Cpu, RotateCcw, 
   CheckCircle2, Layers, Zap, Shield, Database, Activity, Compass, 
   HelpCircle, ChevronRight, Sliders, Upload, Copy, Check, Calendar, 
-  FileText, FileCheck, Search, Download
+  FileText, FileCheck, Search, Download, Lock
 } from 'lucide-react';
 import axios from 'axios';
 import aiStudioPrompt from '../promptText.txt?raw';
@@ -12,6 +12,11 @@ import { getStoredApiKey } from '../services/apiKeyService';
 import { getDemoCsvBySector } from "../data/demoCsv";
 import { generateQiskitCode, generateQiskitPythonCode } from "../data/codeGenerators";
 import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfile } from "../data/taxonomicEngine";
+import { 
+  CurrentUserSession, 
+  isAgentAiCategoryAllowedForUser, 
+  getCurrentSession 
+} from "../services/authService";
 
 export interface SectorScenario {
   id: string;
@@ -338,11 +343,29 @@ const SECTOR_DATA: Record<string, { icon: string; scenarios: SectorScenario[] }>
   }
 };
 
-export default function TestPage({ onBack, onOpenIbm, setSharedQasm }: { onBack: () => void; onOpenIbm?: () => void; setSharedQasm?: (code: string) => void; }) {
+export default function TestPage({ 
+  onBack, 
+  onOpenIbm, 
+  setSharedQasm,
+  currentUser
+}: { 
+  onBack: () => void; 
+  onOpenIbm?: () => void; 
+  setSharedQasm?: (code: string) => void; 
+  currentUser?: CurrentUserSession | null;
+}) {
   const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string }[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // User and permissions live sync
+  const [liveUser, setLiveUser] = useState<CurrentUserSession | null>(currentUser || getCurrentSession());
+  const [categoryDeniedModal, setCategoryDeniedModal] = useState<{ isOpen: boolean; sectorName: string } | null>(null);
+
+  useEffect(() => {
+    setLiveUser(currentUser || getCurrentSession());
+  }, [currentUser]);
 
   // Interview state progression
   // 0: Categoria, 1: Scenario, 2: CSV, 3A: Periodo, 3B: Strategia, 4A: Infrastruttura, 4B: Vincolo, 4C: Chiusura, 5: Completed
@@ -357,6 +380,25 @@ export default function TestPage({ onBack, onOpenIbm, setSharedQasm }: { onBack:
   const [finalPython, setFinalPython] = useState("");
   const [finalJson, setFinalJson] = useState("");
   const [selectedVincolo, setSelectedVincolo] = useState<'blocco_rigido' | 'legame_morbido'>('blocco_rigido');
+
+  // Live listener for real-time permission revocation
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      const fresh = getCurrentSession();
+      setLiveUser(fresh);
+      if (selectedSector && !isAgentAiCategoryAllowedForUser(fresh, selectedSector)) {
+        setSelectedSector('');
+        setSelectedScenario(null);
+        setCurrentPhase('0_cat');
+        setCategoryDeniedModal({ isOpen: true, sectorName: selectedSector });
+      }
+    };
+    window.addEventListener('quantum_user_permissions_updated', handlePermissionsUpdated);
+    return () => {
+      window.removeEventListener('quantum_user_permissions_updated', handlePermissionsUpdated);
+    };
+  }, [selectedSector]);
+
   const { csv1: currentCsv1, csv2: currentCsv2 } = getDemoCsvBySector(
     selectedSector || "", 
     selectedScenario?.id || "", 
@@ -807,6 +849,17 @@ export default function TestPage({ onBack, onOpenIbm, setSharedQasm }: { onBack:
 
     // Track selections
     if (activePhase === '0_cat') {
+      const isAllowed = isAgentAiCategoryAllowedForUser(liveUser, userMessage);
+      if (!isAllowed) {
+        setIsLoading(false);
+        setCategoryDeniedModal({ isOpen: true, sectorName: userMessage });
+        setMessages([
+          ...messages,
+          { role: 'user' as const, text: userMessage },
+          { role: 'model' as const, text: `🔒 **Accesso Categoria Riservato:** Non disponi dei permessi per accedere al settore aziendale **"${userMessage}"**. Rivolgiti all'amministratore di sistema per richiedere l'abilitazione.` }
+        ]);
+        return;
+      }
       setSelectedSector(userMessage);
       setAssetSector(userMessage);
       nextPhase = '1_scen';
@@ -1294,20 +1347,42 @@ ${pythonSnippet}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {Object.keys(SECTOR_DATA).map((sector) => {
                     const count = SECTOR_DATA[sector].scenarios.length;
+                    const isAllowed = isAgentAiCategoryAllowedForUser(liveUser, sector);
                     return (
                       <button
                         key={sector}
-                        onClick={() => handleQuickClick(sector)}
+                        onClick={() => {
+                          if (!isAllowed) {
+                            setCategoryDeniedModal({ isOpen: true, sectorName: sector });
+                            return;
+                          }
+                          handleQuickClick(sector);
+                        }}
                         disabled={isLoading}
-                        className="px-3 py-2.5 bg-slate-800/90 hover:bg-cyan-950/80 hover:border-cyan-500/60 border border-white/15 rounded-lg text-left font-mono text-xs text-white transition-all flex items-center justify-between group shadow-sm"
+                        className={`px-3 py-2.5 rounded-lg text-left font-mono text-xs transition-all flex items-center justify-between group shadow-sm cursor-pointer ${
+                          isAllowed
+                            ? 'bg-slate-800/90 hover:bg-cyan-950/80 hover:border-cyan-500/60 border border-white/15 text-white'
+                            : 'bg-red-950/20 hover:bg-red-950/40 border border-red-500/30 text-gray-300 opacity-80 hover:opacity-100 hover:border-red-500/60'
+                        }`}
+                        title={isAllowed ? `Accedi alla categoria ${sector}` : `Accesso riservato dall'amministratore: non hai i permessi per ${sector}`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <span className="text-base shrink-0">{SECTOR_DATA[sector].icon}</span>
-                          <span className="truncate font-medium group-hover:text-cyan-300">{sector}</span>
+                          <span className={`truncate font-medium ${isAllowed ? 'group-hover:text-cyan-300 text-slate-100' : 'text-gray-400 group-hover:text-red-300'}`}>
+                            {sector}
+                          </span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-mono px-1.5 py-0.5 rounded bg-white/5 shrink-0 ml-1">
-                          {count}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                          {!isAllowed && (
+                            <span className="flex items-center gap-1 text-[9px] font-mono text-red-400 bg-red-500/15 border border-red-500/30 px-1.5 py-0.5 rounded font-bold">
+                              <Lock className="w-2.5 h-2.5" />
+                              <span className="hidden sm:inline">Bloccato</span>
+                            </span>
+                          )}
+                          <span className="text-[10px] text-slate-400 font-mono px-1.5 py-0.5 rounded bg-white/5">
+                            {count}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
@@ -1956,6 +2031,39 @@ ${pythonSnippet}
           }
         }}
       />
+
+      {/* Category Access Denied Modal */}
+      {categoryDeniedModal?.isOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none">
+          <div className="w-full max-w-md bg-[#0c1322] border-2 border-red-500/60 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.25)] flex flex-col text-white text-center items-center gap-4">
+            <div className="p-3.5 bg-red-500/15 border border-red-500/40 rounded-2xl text-red-400">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-display font-bold uppercase text-base sm:text-lg text-white">
+                Accesso Categoria Riservato
+              </h3>
+              <p className="text-xs font-mono text-gray-300 leading-relaxed">
+                Non disponi delle autorizzazioni per accedere a questo settore aziendale:
+              </p>
+              <div className="py-2 px-3 bg-red-500/10 border border-red-500/30 rounded-xl font-mono text-xs font-bold text-red-300">
+                {categoryDeniedModal.sectorName}
+              </div>
+              <p className="text-[11px] font-sans text-gray-400 leading-relaxed">
+                L'amministratore di sistema ha limitato il tuo account per questa specifica categoria di Agents AI. Contatta il responsabile (CSO o Amministratore) per richiedere l'abilitazione.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setCategoryDeniedModal(null)}
+              className="w-full py-2.5 px-4 bg-red-600/80 hover:bg-red-500 text-white font-mono font-bold text-xs uppercase rounded-xl transition-all shadow-lg cursor-pointer"
+            >
+              Ho Capito
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

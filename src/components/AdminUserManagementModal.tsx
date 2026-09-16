@@ -18,7 +18,11 @@ import {
   ALL_APP_ICONS,
   ALL_APP_ICON_IDS,
   updateUserIconPermissions,
-  AppIconPermission
+  AppIconPermission,
+  ALL_AGENT_AI_CATEGORIES,
+  ALL_AGENT_AI_CATEGORY_IDS,
+  updateUserAgentAiCategoryPermissions,
+  AgentAiCategoryPermission
 } from '../services/authService';
 
 const PERMISSION_ICON_MAP: Record<string, React.ElementType> = {
@@ -54,11 +58,15 @@ export default function AdminUserManagementModal({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
 
-  // Icon Permissions management state
+  // Permissions management state (Icons & Agents AI Categories)
   const [managingIconsUser, setManagingIconsUser] = useState<AuthUser | null>(null);
+  const [permissionsActiveTab, setPermissionsActiveTab] = useState<'icons' | 'agent_ai'>('icons');
   const [userSelectedIcons, setUserSelectedIcons] = useState<string[]>([]);
+  const [userSelectedCategories, setUserSelectedCategories] = useState<string[]>(ALL_AGENT_AI_CATEGORY_IDS);
   const [newAllowedIcons, setNewAllowedIcons] = useState<string[]>(ALL_APP_ICON_IDS);
+  const [newAllowedCategories, setNewAllowedCategories] = useState<string[]>(ALL_AGENT_AI_CATEGORY_IDS);
   const [editAllowedIcons, setEditAllowedIcons] = useState<string[]>(ALL_APP_ICON_IDS);
+  const [editAllowedCategories, setEditAllowedCategories] = useState<string[]>(ALL_AGENT_AI_CATEGORY_IDS);
 
   // Form states (Add user)
   const [newUsername, setNewUsername] = useState('');
@@ -134,7 +142,8 @@ export default function AdminUserManagementModal({
       email: newEmail.trim(),
       role: newRole,
       status: newStatus,
-      allowedIcons: newRole === 'admin' ? ALL_APP_ICON_IDS : newAllowedIcons
+      allowedIcons: newRole === 'admin' ? ALL_APP_ICON_IDS : newAllowedIcons,
+      allowedAgentAiCategories: newRole === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : newAllowedCategories
     });
 
     if (res.success) {
@@ -148,6 +157,7 @@ export default function AdminUserManagementModal({
       setNewRole('user');
       setNewStatus('active');
       setNewAllowedIcons(ALL_APP_ICON_IDS);
+      setNewAllowedCategories(ALL_AGENT_AI_CATEGORY_IDS);
       loadUsers();
     } else {
       showToast('error', res.message);
@@ -164,12 +174,20 @@ export default function AdminUserManagementModal({
     setEditRole(user.role);
     setEditStatus(user.status);
     setEditAllowedIcons(user.allowedIcons ?? (user.role === 'admin' ? ALL_APP_ICON_IDS : []));
+    setEditAllowedCategories(user.allowedAgentAiCategories ?? (user.role === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : ALL_AGENT_AI_CATEGORY_IDS));
   };
 
-  // Open Icon Permissions Dedicated Modal
-  const handleOpenIconPermissions = (user: AuthUser) => {
+  // Open Permissions Dedicated Modal (Icons or Agent AI Categories)
+  const handleOpenPermissions = (user: AuthUser, initialTab: 'icons' | 'agent_ai' = 'icons') => {
     setManagingIconsUser(user);
+    setPermissionsActiveTab(initialTab);
     setUserSelectedIcons(user.allowedIcons ?? (user.role === 'admin' ? ALL_APP_ICON_IDS : []));
+    setUserSelectedCategories(user.allowedAgentAiCategories ?? (user.role === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : ALL_AGENT_AI_CATEGORY_IDS));
+  };
+
+  // Backward compatibility alias
+  const handleOpenIconPermissions = (user: AuthUser) => {
+    handleOpenPermissions(user, 'icons');
   };
 
   // Toggle icon in dedicated modal
@@ -179,12 +197,21 @@ export default function AdminUserManagementModal({
     );
   };
 
-  // Save Icon Permissions
-  const handleSaveIconPermissions = () => {
+  // Toggle Agent AI category in dedicated modal
+  const handleToggleUserCategory = (categoryId: string) => {
+    setUserSelectedCategories(prev =>
+      prev.includes(categoryId) ? prev.filter(c => c !== categoryId) : [...prev, categoryId]
+    );
+  };
+
+  // Save Permissions (Both Icons and Categories)
+  const handleSaveAllPermissions = () => {
     if (!managingIconsUser) return;
-    const res = updateUserIconPermissions(currentUser.role, managingIconsUser.id, userSelectedIcons);
-    if (res.success) {
-      showToast('success', res.message);
+    const resIcons = updateUserIconPermissions(currentUser.role, managingIconsUser.id, userSelectedIcons);
+    const resCategories = updateUserAgentAiCategoryPermissions(currentUser.role, managingIconsUser.id, userSelectedCategories);
+    
+    if (resIcons.success && resCategories.success) {
+      showToast('success', `Permessi icone e categorie salvati con successo per @${managingIconsUser.username}.`);
       setManagingIconsUser(null);
       loadUsers();
       if (onSessionUpdated && managingIconsUser.id === currentUser.id) {
@@ -199,14 +226,18 @@ export default function AdminUserManagementModal({
             status: refreshed.status,
             createdAt: refreshed.createdAt,
             lastLogin: refreshed.lastLogin,
-            allowedIcons: refreshed.allowedIcons
+            allowedIcons: refreshed.allowedIcons,
+            allowedAgentAiCategories: refreshed.allowedAgentAiCategories
           });
         }
       }
     } else {
-      showToast('error', res.message);
+      showToast('error', resIcons.message || resCategories.message);
     }
   };
+
+  // Backward compatibility alias for icon saving
+  const handleSaveIconPermissions = handleSaveAllPermissions;
 
   // Handle Save Edit
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -219,7 +250,8 @@ export default function AdminUserManagementModal({
       email: editEmail,
       role: editRole,
       status: editStatus,
-      allowedIcons: editRole === 'admin' ? ALL_APP_ICON_IDS : editAllowedIcons
+      allowedIcons: editRole === 'admin' ? ALL_APP_ICON_IDS : editAllowedIcons,
+      allowedAgentAiCategories: editRole === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : editAllowedCategories
     };
 
     if (editPassword.trim()) {
@@ -532,7 +564,7 @@ export default function AdminUserManagementModal({
                     <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
                       {/* Allowed Icons Badge & Quick Manage */}
                       <button
-                        onClick={() => handleOpenIconPermissions(user)}
+                        onClick={() => handleOpenPermissions(user, 'icons')}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
                           user.role === 'admin'
                             ? 'bg-quantum-primary/10 border-quantum-primary/30 text-quantum-primary'
@@ -552,6 +584,28 @@ export default function AdminUserManagementModal({
                         </span>
                       </button>
 
+                      {/* Allowed Agent AI Categories Badge & Quick Manage */}
+                      <button
+                        onClick={() => handleOpenPermissions(user, 'agent_ai')}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          user.role === 'admin'
+                            ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+                            : (user.allowedAgentAiCategories?.length ?? ALL_AGENT_AI_CATEGORY_IDS.length) === ALL_AGENT_AI_CATEGORY_IDS.length
+                            ? 'bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20'
+                            : (user.allowedAgentAiCategories?.length ?? 0) === 0
+                            ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                            : 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+                        }`}
+                        title="Gestisci singole categorie Agents AI per questo utente"
+                      >
+                        <Cpu className="w-3 h-3 shrink-0" />
+                        <span>
+                          {user.role === 'admin' 
+                            ? 'Tutte (Admin)' 
+                            : `${user.allowedAgentAiCategories?.length ?? ALL_AGENT_AI_CATEGORY_IDS.length}/${ALL_AGENT_AI_CATEGORIES.length} Categorie AI`}
+                        </span>
+                      </button>
+
                       {/* Status Badge & Toggle */}
                       <button
                         onClick={() => handleToggleStatus(user)}
@@ -567,13 +621,22 @@ export default function AdminUserManagementModal({
                         <span>{user.status === 'active' ? 'Attivo' : 'Sospeso'}</span>
                       </button>
 
-                      {/* Icon Permissions Button */}
+                      {/* Icon Permissions Quick Button */}
                       <button
-                        onClick={() => handleOpenIconPermissions(user)}
+                        onClick={() => handleOpenPermissions(user, 'icons')}
                         className="p-1.5 bg-white/5 hover:bg-cyan-400/20 text-gray-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 rounded-xl transition-all cursor-pointer"
-                        title="Gestione Accesso Singole Icone"
+                        title="Configura Accesso Icone Portale"
                       >
                         <Sliders className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Agent AI Categories Quick Button */}
+                      <button
+                        onClick={() => handleOpenPermissions(user, 'agent_ai')}
+                        className="p-1.5 bg-white/5 hover:bg-purple-400/20 text-gray-300 hover:text-purple-300 border border-white/10 hover:border-purple-400/40 rounded-xl transition-all cursor-pointer"
+                        title="Configura Categorie Agents AI"
+                      >
+                        <Cpu className="w-3.5 h-3.5" />
                       </button>
 
                       {/* Edit Button */}
@@ -773,6 +836,54 @@ export default function AdminUserManagementModal({
                       </label>
                     ))}
                   </div>
+
+                  {/* Categorie Agents AI in Add User */}
+                  <div className="pt-3 mt-3 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] uppercase text-purple-300 font-bold flex items-center gap-1.5">
+                        <Cpu className="w-3 h-3 text-purple-400" />
+                        Categorie Agents AI ({newAllowedCategories.length}/{ALL_AGENT_AI_CATEGORIES.length})
+                      </label>
+                      <div className="flex items-center gap-1.5 text-[9px] font-mono">
+                        <button
+                          type="button"
+                          onClick={() => setNewAllowedCategories(ALL_AGENT_AI_CATEGORY_IDS)}
+                          className="text-purple-400 hover:underline cursor-pointer"
+                        >
+                          Tutte
+                        </button>
+                        <span>•</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewAllowedCategories([])}
+                          className="text-red-400 hover:underline cursor-pointer"
+                        >
+                          Nessuna
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                      {ALL_AGENT_AI_CATEGORIES.map((cat) => (
+                        <label
+                          key={cat.id}
+                          className="flex items-center gap-2 p-1.5 rounded-lg bg-purple-950/20 border border-purple-500/20 text-[10px] cursor-pointer hover:bg-purple-950/40"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={newAllowedCategories.includes(cat.id)}
+                            onChange={() => {
+                              setNewAllowedCategories(prev => 
+                                prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id]
+                              );
+                            }}
+                            className="rounded border-purple-500/30 text-purple-500 focus:ring-0"
+                          />
+                          <span className="text-xs shrink-0">{cat.icon}</span>
+                          <span className="truncate text-slate-200">{cat.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -947,6 +1058,54 @@ export default function AdminUserManagementModal({
                       </label>
                     ))}
                   </div>
+
+                  {/* Categorie Agents AI in Edit User */}
+                  <div className="pt-3 mt-3 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] uppercase text-purple-300 font-bold flex items-center gap-1.5">
+                        <Cpu className="w-3 h-3 text-purple-400" />
+                        Categorie Agents AI ({editAllowedCategories.length}/{ALL_AGENT_AI_CATEGORIES.length})
+                      </label>
+                      <div className="flex items-center gap-1.5 text-[9px] font-mono">
+                        <button
+                          type="button"
+                          onClick={() => setEditAllowedCategories(ALL_AGENT_AI_CATEGORY_IDS)}
+                          className="text-purple-400 hover:underline cursor-pointer"
+                        >
+                          Tutte
+                        </button>
+                        <span>•</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditAllowedCategories([])}
+                          className="text-red-400 hover:underline cursor-pointer"
+                        >
+                          Nessuna
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                      {ALL_AGENT_AI_CATEGORIES.map((cat) => (
+                        <label
+                          key={cat.id}
+                          className="flex items-center gap-2 p-1.5 rounded-lg bg-purple-950/20 border border-purple-500/20 text-[10px] cursor-pointer hover:bg-purple-950/40"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editAllowedCategories.includes(cat.id)}
+                            onChange={() => {
+                              setEditAllowedCategories(prev => 
+                                prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id]
+                              );
+                            }}
+                            className="rounded border-purple-500/30 text-purple-500 focus:ring-0"
+                          />
+                          <span className="text-xs shrink-0">{cat.icon}</span>
+                          <span className="truncate text-slate-200">{cat.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -970,7 +1129,7 @@ export default function AdminUserManagementModal({
         </div>
       )}
 
-      {/* SUB-MODAL: Manage Icon Permissions for User */}
+      {/* SUB-MODAL: Manage Permissions (Icons & Agents AI Categories) for User */}
       {managingIconsUser && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fadeIn select-none text-white">
           <div 
@@ -978,22 +1137,26 @@ export default function AdminUserManagementModal({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-3">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-cyan-300">
-                  <Sliders className="w-5 h-5" />
+                <div className={`p-2.5 rounded-2xl border ${
+                  permissionsActiveTab === 'icons' 
+                    ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300' 
+                    : 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+                }`}>
+                  {permissionsActiveTab === 'icons' ? <Sliders className="w-5 h-5" /> : <Cpu className="w-5 h-5" />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-display font-bold uppercase text-sm sm:text-base tracking-wider text-white">
-                      Permessi Icone Utente
+                      Permessi Accesso Utente
                     </h3>
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-mono uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold">
                       @{managingIconsUser.username}
                     </span>
                   </div>
                   <p className="text-[10px] sm:text-xs text-gray-400 font-mono">
-                    Abilita o revoca l'accesso alle singole icone e moduli per {managingIconsUser.name}
+                    Configura visibilità e accesso alle icone di sistema e alle singole categorie di Agents AI
                   </p>
                 </div>
               </div>
@@ -1006,144 +1169,280 @@ export default function AdminUserManagementModal({
               </button>
             </div>
 
+            {/* Tab Navigation (Icone Portale vs Categorie Agents AI) */}
+            <div className="flex items-center gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/10 mb-3">
+              <button
+                type="button"
+                onClick={() => setPermissionsActiveTab('icons')}
+                className={`flex-1 py-2 px-3 rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  permissionsActiveTab === 'icons'
+                    ? 'bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Icone Portale ({userSelectedIcons.length}/{ALL_APP_ICONS.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPermissionsActiveTab('agent_ai')}
+                className={`flex-1 py-2 px-3 rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  permissionsActiveTab === 'agent_ai'
+                    ? 'bg-purple-500/20 border border-purple-400/50 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Categorie Agents AI ({userSelectedCategories.length}/{ALL_AGENT_AI_CATEGORIES.length})</span>
+              </button>
+            </div>
+
             {/* If user is admin */}
             {managingIconsUser.role === 'admin' ? (
               <div className="p-4 rounded-2xl bg-quantum-primary/10 border border-quantum-primary/30 text-quantum-primary font-mono text-xs mb-4 flex items-center gap-3">
                 <Shield className="w-5 h-5 shrink-0" />
                 <div>
                   <strong className="block text-white uppercase text-[11px]">Privilegi Amministratore (CSO)</strong>
-                  Gli account con ruolo Amministratore hanno accesso permanente e incondizionato a tutte le icone del sistema.
+                  Gli account con ruolo Amministratore hanno accesso permanente e incondizionato a tutte le icone del sistema e a tutte le categorie Agents AI.
                 </div>
               </div>
             ) : (
               <>
-                {/* Presets & Quick Action Toolbar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-2xl mb-4 font-mono text-[11px]">
-                  <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">Presets Rapidi:</span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setUserSelectedIcons(ALL_APP_ICON_IDS)}
-                      className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white rounded-lg border border-white/10 text-[10px] transition-colors cursor-pointer"
-                    >
-                      Abilita Tutte
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUserSelectedIcons([])}
-                      className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-lg border border-red-500/20 text-[10px] transition-colors cursor-pointer"
-                    >
-                      Disabilita Tutte
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUserSelectedIcons(['agent_ai', 'translator', 'realq'])}
-                      className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/20 text-[10px] transition-colors cursor-pointer"
-                    >
-                      Solo Base
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUserSelectedIcons(['pqc_group', 'realq'])}
-                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded-lg border border-emerald-500/20 text-[10px] transition-colors cursor-pointer"
-                    >
-                      Solo PQC
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUserSelectedIcons(['agent_ai', 'send_to_ibm', 'translator', 'crosscode', 'mitigation'])}
-                      className="px-2.5 py-1 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary rounded-lg border border-quantum-primary/20 text-[10px] transition-colors cursor-pointer"
-                    >
-                      Full Quantum
-                    </button>
-                  </div>
-                </div>
-
-                {/* Icons Grid with Scroll */}
-                <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 max-h-[50vh] font-mono">
-                  {ALL_APP_ICONS.map((appIcon) => {
-                    const isChecked = userSelectedIcons.includes(appIcon.id);
-                    const IconComp = PERMISSION_ICON_MAP[appIcon.icon] || Cpu;
-
-                    return (
-                      <div
-                        key={appIcon.id}
-                        onClick={() => handleToggleUserIcon(appIcon.id)}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
-                          isChecked
-                            ? 'bg-cyan-950/30 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.1)]'
-                            : 'bg-white/[0.01] border-white/5 opacity-60 hover:opacity-85 hover:border-white/20'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2.5 rounded-xl border mt-0.5 ${
-                            isChecked
-                              ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-300'
-                              : 'bg-white/5 border-white/10 text-gray-500'
-                          }`}>
-                            <IconComp className="w-4 h-4" />
-                          </div>
-
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white text-xs">{appIcon.name}</span>
-                              <span className={`px-1.5 py-0.2 text-[9px] uppercase font-bold rounded ${
-                                appIcon.category === 'core'
-                                  ? 'bg-quantum-primary/20 text-quantum-primary'
-                                  : appIcon.category === 'quantum'
-                                  ? 'bg-cyan-500/20 text-cyan-300'
-                                  : appIcon.category === 'security'
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : 'bg-amber-500/20 text-amber-300'
-                              }`}>
-                                {appIcon.category}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-gray-400 mt-1 font-sans leading-relaxed">
-                              {appIcon.description}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 mt-1">
-                          {isChecked ? (
-                            <CheckSquare className="w-5 h-5 text-cyan-400" />
-                          ) : (
-                            <Square className="w-5 h-5 text-gray-600" />
-                          )}
-                        </div>
+                {/* TAB 1: ICON PERMISSIONS */}
+                {permissionsActiveTab === 'icons' && (
+                  <>
+                    {/* Presets & Quick Action Toolbar for Icons */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-white/[0.02] border border-white/5 rounded-2xl mb-3 font-mono text-[11px]">
+                      <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">Presets Rapidi Icone:</span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedIcons(ALL_APP_ICON_IDS)}
+                          className="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-white rounded-lg border border-white/10 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Abilita Tutte
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedIcons([])}
+                          className="px-2 py-0.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-lg border border-red-500/20 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Disabilita Tutte
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedIcons(['agent_ai', 'translator', 'realq'])}
+                          className="px-2 py-0.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/20 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Solo Base
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedIcons(['pqc_group', 'realq'])}
+                          className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded-lg border border-emerald-500/20 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Solo PQC
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedIcons(['agent_ai', 'send_to_ibm', 'translator', 'crosscode', 'mitigation'])}
+                          className="px-2 py-0.5 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary rounded-lg border border-quantum-primary/20 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Full Quantum
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+
+                    {/* Icons Grid with Scroll */}
+                    <div className="flex-1 overflow-y-auto pr-1 space-y-2 max-h-[46vh] font-mono">
+                      {ALL_APP_ICONS.map((appIcon) => {
+                        const isChecked = userSelectedIcons.includes(appIcon.id);
+                        const IconComp = PERMISSION_ICON_MAP[appIcon.icon] || Cpu;
+
+                        return (
+                          <div
+                            key={appIcon.id}
+                            onClick={() => handleToggleUserIcon(appIcon.id)}
+                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                              isChecked
+                                ? 'bg-cyan-950/30 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.1)]'
+                                : 'bg-white/[0.01] border-white/5 opacity-60 hover:opacity-85 hover:border-white/20'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`p-2 rounded-xl border mt-0.5 ${
+                                isChecked
+                                  ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-300'
+                                  : 'bg-white/5 border-white/10 text-gray-500'
+                              }`}>
+                                <IconComp className="w-4 h-4" />
+                              </div>
+
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-white text-xs">{appIcon.name}</span>
+                                  <span className={`px-1.5 py-0.2 text-[9px] uppercase font-bold rounded ${
+                                    appIcon.category === 'core'
+                                      ? 'bg-quantum-primary/20 text-quantum-primary'
+                                      : appIcon.category === 'quantum'
+                                      ? 'bg-cyan-500/20 text-cyan-300'
+                                      : appIcon.category === 'security'
+                                      ? 'bg-emerald-500/20 text-emerald-300'
+                                      : 'bg-amber-500/20 text-amber-300'
+                                  }`}>
+                                    {appIcon.category}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-0.5 font-sans leading-relaxed">
+                                  {appIcon.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 mt-1">
+                              {isChecked ? (
+                                <CheckSquare className="w-5 h-5 text-cyan-400" />
+                              ) : (
+                                <Square className="w-5 h-5 text-gray-600" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* TAB 2: AGENTS AI CATEGORIES PERMISSIONS */}
+                {permissionsActiveTab === 'agent_ai' && (
+                  <>
+                    {/* Presets & Quick Action Toolbar for Categories */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-white/[0.02] border border-white/5 rounded-2xl mb-3 font-mono text-[11px]">
+                      <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">Presets Categorie:</span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedCategories(ALL_AGENT_AI_CATEGORY_IDS)}
+                          className="px-2 py-0.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-lg border border-purple-500/30 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Abilita Tutte (7)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedCategories([])}
+                          className="px-2 py-0.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-lg border border-red-500/20 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Disabilita Tutte (0)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedCategories(['Finanza e Mercati', 'Logistica e Supply Chain'])}
+                          className="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-slate-200 rounded-lg border border-white/10 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Finanza & Logistica
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedCategories(['Energia e Utilities', 'Chimica, Farmaceutica e Materiali'])}
+                          className="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-slate-200 rounded-lg border border-white/10 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Energia & Chimica
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedCategories(['Sanità e Genomica', 'Sicurezza, Telecomunicazioni e Reti'])}
+                          className="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-slate-200 rounded-lg border border-white/10 text-[10px] transition-colors cursor-pointer"
+                        >
+                          Sanità & Sicurezza
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Categories List with Scroll */}
+                    <div className="flex-1 overflow-y-auto pr-1 space-y-2 max-h-[46vh] font-mono">
+                      {ALL_AGENT_AI_CATEGORIES.map((cat) => {
+                        const isChecked = userSelectedCategories.includes(cat.id);
+
+                        return (
+                          <div
+                            key={cat.id}
+                            onClick={() => handleToggleUserCategory(cat.id)}
+                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                              isChecked
+                                ? 'bg-purple-950/30 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.12)]'
+                                : 'bg-white/[0.01] border-white/5 opacity-60 hover:opacity-85 hover:border-white/20'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center text-xl shrink-0 mt-0.5 ${
+                                isChecked
+                                  ? 'bg-purple-500/20 border-purple-400/40 text-white shadow-inner'
+                                  : 'bg-white/5 border-white/10 text-gray-400'
+                              }`}>
+                                {cat.icon}
+                              </div>
+
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-white text-xs">{cat.name}</span>
+                                  <span className="px-2 py-0.5 text-[9px] font-mono font-bold rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    {cat.scenarioCount} scenari
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-1 font-sans leading-relaxed">
+                                  {cat.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 mt-1">
+                              {isChecked ? (
+                                <CheckSquare className="w-5 h-5 text-purple-400" />
+                              ) : (
+                                <Square className="w-5 h-5 text-gray-600" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </>
             )}
 
             {/* Footer */}
-            <div className="pt-4 border-t border-white/10 mt-4 flex items-center justify-between font-mono text-xs">
-              <div className="text-gray-400 text-[11px]">
+            <div className="pt-3.5 border-t border-white/10 mt-3 flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-xs">
+              <div className="text-gray-400 text-[11px] flex items-center gap-2">
                 {managingIconsUser.role === 'admin' ? (
-                  <span>Tutte le icone consentite</span>
+                  <span>Tutte le icone e categorie consentite (Admin)</span>
                 ) : (
-                  <span>
-                    <strong className="text-cyan-300 font-bold">{userSelectedIcons.length}</strong> su {ALL_APP_ICONS.length} icone abilitate
-                  </span>
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span className="inline-flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30 text-cyan-300">
+                      <Sliders className="w-3 h-3" />
+                      <strong>{userSelectedIcons.length}/{ALL_APP_ICONS.length}</strong> Icone
+                    </span>
+                    <span className="inline-flex items-center gap-1 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/30 text-purple-300">
+                      <Cpu className="w-3 h-3" />
+                      <strong>{userSelectedCategories.length}/{ALL_AGENT_AI_CATEGORIES.length}</strong> Categorie AI
+                    </span>
+                  </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setManagingIconsUser(null)}
-                  className="px-3.5 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors cursor-pointer"
                 >
                   Chiudi
                 </button>
                 {managingIconsUser.role !== 'admin' && (
                   <button
                     type="button"
-                    onClick={handleSaveIconPermissions}
-                    className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-black font-bold uppercase rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.3)]"
+                    onClick={handleSaveAllPermissions}
+                    className="px-4 py-1.5 bg-gradient-to-r from-cyan-400 to-purple-400 hover:from-cyan-300 hover:to-purple-300 text-black font-bold uppercase rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.3)]"
                   >
                     Salva Permessi
                   </button>
