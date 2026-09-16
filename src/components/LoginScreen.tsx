@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Shield, Key, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, Cpu } from 'lucide-react';
-import { loginUser, CurrentUserSession } from '../services/authService';
+import { Shield, Key, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, Cpu, Sparkles, UserCheck } from 'lucide-react';
+import { loginUser, CurrentUserSession, getStoredUsers } from '../services/authService';
 import QuantumParticleCanvas from './QuantumParticleCanvas';
 
 interface LoginScreenProps {
@@ -13,6 +13,25 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const fillCredentials = (userType: 'demo' | 'admin' | 'quantum_user') => {
+    const users = getStoredUsers();
+    const target = users.find(u => u.username.toLowerCase() === userType);
+    if (target) {
+      setUsername(target.username);
+      setPassword(target.password);
+    } else if (userType === 'demo') {
+      setUsername('demo');
+      setPassword('DemoPassword2026!');
+    } else if (userType === 'admin') {
+      setUsername('admin');
+      setPassword('AdminPassword2026!');
+    } else {
+      setUsername('quantum_user');
+      setPassword('UserPassword2026!');
+    }
+    setErrorMessage(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +170,87 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               )}
             </button>
           </form>
+
+          {/* Quick Access Account Selector */}
+          <div className="mt-6 pt-5 border-t border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-quantum-primary" />
+                Account Rapidi (1-Click Fill)
+              </span>
+              <span className="text-[9px] font-mono text-gray-500">
+                Fai click per compilare
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {/* Demo Account button */}
+              <button
+                type="button"
+                id="quick-login-demo-btn"
+                onClick={() => fillCredentials('demo')}
+                className="p-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-left transition-all group cursor-pointer"
+                title="Compila credenziali Utente Demo"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-display font-bold text-cyan-300 group-hover:text-white uppercase">
+                    Demo
+                  </span>
+                  <UserCheck className="w-3 h-3 text-cyan-400" />
+                </div>
+                <div className="text-[9px] font-mono text-gray-400 truncate">
+                  u: <strong className="text-gray-200">demo</strong>
+                </div>
+                <div className="text-[8px] font-mono text-gray-500">
+                  User Standard
+                </div>
+              </button>
+
+              {/* Admin Account button */}
+              <button
+                type="button"
+                id="quick-login-admin-btn"
+                onClick={() => fillCredentials('admin')}
+                className="p-2.5 rounded-xl bg-quantum-primary/10 hover:bg-quantum-primary/20 border border-quantum-primary/30 text-left transition-all group cursor-pointer"
+                title="Compila credenziali Amministratore"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-display font-bold text-quantum-primary group-hover:text-white uppercase">
+                    Admin
+                  </span>
+                  <Shield className="w-3 h-3 text-quantum-primary" />
+                </div>
+                <div className="text-[9px] font-mono text-gray-400 truncate">
+                  u: <strong className="text-gray-200">admin</strong>
+                </div>
+                <div className="text-[8px] font-mono text-gray-500">
+                  Full Control
+                </div>
+              </button>
+
+              {/* Quantum User button */}
+              <button
+                type="button"
+                id="quick-login-user-btn"
+                onClick={() => fillCredentials('quantum_user')}
+                className="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-left transition-all group cursor-pointer"
+                title="Compila credenziali Quantum Risk Analyst"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-display font-bold text-gray-300 group-hover:text-white uppercase">
+                    Analyst
+                  </span>
+                  <User className="w-3 h-3 text-gray-400" />
+                </div>
+                <div className="text-[9px] font-mono text-gray-400 truncate">
+                  u: <strong className="text-gray-200">quantum_user</strong>
+                </div>
+                <div className="text-[8px] font-mono text-gray-500">
+                  Risk Analyst
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Footer info */}

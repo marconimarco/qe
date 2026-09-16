@@ -3,7 +3,7 @@ import {
   X, Users, UserPlus, UserCheck, UserX, Shield, Edit3, Trash2, Key, 
   Search, Check, AlertCircle, RefreshCw, Lock, Mail, User, ShieldAlert,
   RotateCcw, Download, Sparkles, Sliders, CheckSquare, Square,
-  Cpu, Terminal, Languages, Code2, HelpCircle
+  Cpu, Terminal, Languages, Code2, HelpCircle, Eye, EyeOff, Copy
 } from 'lucide-react';
 import { 
   AuthUser, 
@@ -76,6 +76,27 @@ export default function AdminUserManagementModal({
   const [editRole, setEditRole] = useState<UserRole>('user');
   const [editStatus, setEditStatus] = useState<UserStatus>('active');
 
+  // Password visibility & clipboard states
+  const [showAddPassword, setShowAddPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [copiedPasswordUserId, setCopiedPasswordUserId] = useState<string | null>(null);
+
+  const togglePasswordVisibility = (userId: string) => {
+    setVisiblePasswords(prev => ({ ...prev, [userId]: !prev[userId] }));
+  };
+
+  const handleCopyPassword = (user: AuthUser) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(user.password);
+      setCopiedPasswordUserId(user.id);
+      showToast('success', `Password dell'utente "${user.username}" copiata negli appunti.`);
+      setTimeout(() => {
+        setCopiedPasswordUserId(null);
+      }, 2000);
+    }
+  };
+
   // Toasts / Feedback
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -101,11 +122,16 @@ export default function AdminUserManagementModal({
   // Handle Add User
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
+    if (newPassword.trim().length < 3) {
+      showToast('error', 'La password deve contenere almeno 3 caratteri.');
+      return;
+    }
+
     const res = createNewUser(currentUser.role, {
-      username: newUsername,
-      password: newPassword,
-      name: newName,
-      email: newEmail,
+      username: newUsername.trim(),
+      password: newPassword.trim(),
+      name: newName.trim(),
+      email: newEmail.trim(),
       role: newRole,
       status: newStatus,
       allowedIcons: newRole === 'admin' ? ALL_APP_ICON_IDS : newAllowedIcons
@@ -197,11 +223,11 @@ export default function AdminUserManagementModal({
     };
 
     if (editPassword.trim()) {
-      if (editPassword.length < 6) {
-        showToast('error', 'La nuova password deve contenere almeno 6 caratteri.');
+      if (editPassword.trim().length < 3) {
+        showToast('error', 'La nuova password deve contenere almeno 3 caratteri.');
         return;
       }
-      updates.password = editPassword;
+      updates.password = editPassword.trim();
     }
 
     const res = updateExistingUser(currentUser.role, editingUser.id, updates);
@@ -462,7 +488,7 @@ export default function AdminUserManagementModal({
                           )}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400 mt-1">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-400 mt-1">
                           <span className="flex items-center gap-1">
                             <Mail className="w-3 h-3 text-gray-500" />
                             {user.email}
@@ -472,8 +498,28 @@ export default function AdminUserManagementModal({
                             Ruolo: <strong className={user.role === 'admin' ? 'text-quantum-primary uppercase' : 'text-cyan-300 uppercase'}>{user.role}</strong>
                           </span>
                           <span>•</span>
-                          <span>
-                            Creato: {new Date(user.createdAt).toLocaleDateString()}
+                          <span className="inline-flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded border border-white/10 text-gray-300 font-mono">
+                            <Key className="w-3 h-3 text-amber-400 shrink-0" />
+                            <span className="text-[10px] text-gray-400 font-sans">Password:</span>
+                            <span className="text-white font-bold">
+                              {visiblePasswords[user.id] ? user.password : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility(user.id)}
+                              className="text-gray-400 hover:text-white p-0.5 ml-0.5 transition-colors cursor-pointer"
+                              title={visiblePasswords[user.id] ? 'Nascondi password' : 'Mostra password in chiaro'}
+                            >
+                              {visiblePasswords[user.id] ? <EyeOff className="w-3 h-3 text-cyan-300" /> : <Eye className="w-3 h-3" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPassword(user)}
+                              className="text-gray-400 hover:text-quantum-primary p-0.5 transition-colors cursor-pointer"
+                              title="Copia password negli appunti"
+                            >
+                              {copiedPasswordUserId === user.id ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+                            </button>
                           </span>
                           <span>•</span>
                           <span className={user.hasAcceptedAgreements ? 'text-green-400' : 'text-amber-400'}>
@@ -603,15 +649,34 @@ export default function AdminUserManagementModal({
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase text-gray-400 mb-1">Password Iniziale * (min. 6 car.)</label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 text-white placeholder:text-gray-600 focus:ring-1 focus:ring-quantum-primary outline-none"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] uppercase text-gray-400">Password Iniziale * (min. 3 car.)</label>
+                  <button
+                    type="button"
+                    onClick={() => setNewPassword('demo2026')}
+                    className="text-[9px] text-quantum-primary hover:underline cursor-pointer"
+                  >
+                    Suggerisci: demo2026
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showAddPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 3 caratteri..."
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 pr-10 text-white placeholder:text-gray-600 focus:ring-1 focus:ring-quantum-primary outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPassword(!showAddPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                    title={showAddPassword ? 'Nascondi' : 'Mostra password in chiaro'}
+                  >
+                    {showAddPassword ? <EyeOff className="w-3.5 h-3.5 text-cyan-300" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -781,16 +846,33 @@ export default function AdminUserManagementModal({
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase text-gray-400 mb-1">
-                  Reset Password (lascia vuoto per non cambiare)
-                </label>
-                <input
-                  type="password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="Nuova password..."
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 text-white placeholder:text-gray-600 focus:ring-1 focus:ring-quantum-primary outline-none"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] uppercase text-gray-400">
+                    Reset Password (lascia vuoto per mantenere)
+                  </label>
+                  {editingUser && (
+                    <span className="text-[9px] text-gray-400 font-mono">
+                      Password Attuale: <strong className="text-amber-300 font-bold">{editingUser.password}</strong>
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showEditPassword ? 'text' : 'password'}
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    placeholder="Nuova password (min. 3 caratteri)..."
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 pr-10 text-white placeholder:text-gray-600 focus:ring-1 focus:ring-quantum-primary outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword(!showEditPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                    title={showEditPassword ? 'Nascondi' : 'Mostra password in chiaro'}
+                  >
+                    {showEditPassword ? <EyeOff className="w-3.5 h-3.5 text-cyan-300" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
