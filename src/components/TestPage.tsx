@@ -782,21 +782,16 @@ export default function TestPage({
       if (!entProfile.needsEntanglement) {
         reply += `👉 **Fase 4B: Configurazione Relazioni tra Risorse (Entanglement)**\n\n`;
         reply += `💡 *${entProfile.reason}*\n\n`;
-        reply += `${entProfile.question}\n\n`;
         reply += `Scegli la configurazione per il circuito quantistico:\n`;
-        reply += `1. ⚡ **Nessun Entanglement (Risorse Indipendenti - Consigliato)**: Stato quantistico separabile puro a zero rumore a due qubit.\n`;
-        reply += `2. 🔀 **Legame Morbido Facoltativo (Porta di Fase Controllata / CP)**: Sinergia elastica debole opzionale per esplorare ipotetiche covarianze.\n`;
-        reply += `3. 🔒 **Blocco Rigido Facoltativo (Porta Controlled-NOT / CX)**: Vincolo forzato di esclusione categorica.\n\n`;
+        reply += `1. ⚡ **Nessun Entanglement (Risorse Indipendenti - Consigliato)**: Stato quantistico separabile puro.\n`;
+        reply += `2. 🔀 **Applica Entanglement (Gestito dall'IA)**: Lascia che il sistema valuti e applichi vincoli (Rigidi o Morbidi) in autonomia.\n\n`;
         reply += `Quale configurazione preferisci?`;
       } else {
         reply += `👉 **Fase 4B: Regola per le Risorse Collegate (Entanglement / Vincoli)**\n\n`;
         reply += `🔒 *${entProfile.reason}*\n\n`;
-        reply += `${entProfile.question}\n\n`;
         reply += `Scegli la tipologia di vincolo quantistico:\n`;
-        reply += `1. 🔒 **Blocco Rigido (Vincolo Hard - Porta Controlled-NOT / CX)**: Esclusione totale e assenza di conflitti simultanei.\n`;
-        reply += `2. 🔀 **Legame Morbido (Vincolo Soft - Porta di Fase Controllata / CP)**: Penalità o sinergia di fase modulata.\n`;
-        reply += `3. ⚡ **Nessun Entanglement (Risorse Indipendenti - Sperimentale)**: Disattiva l'accoppiamento per testare lo stato separabile.\n\n`;
-        reply += `Quale regola preferisci?`;
+        reply += `1. 🔒 **Applica Entanglement Automatico (Gestito dall'IA)**: Il sistema applicherà automaticamente i vincoli quantistici ottimali (Blocco Rigido o Legame Morbido) in base all'analisi del dataset.\n\n`;
+        reply += `Premi il pulsante per confermare.`;
       }
       return reply;
     }
@@ -809,11 +804,16 @@ export default function TestPage({
       const qPrefix = selectedInfra === 'quantum' ? 'Qiskit_' : 'Python_HPC_';
       const algoTarget = qPrefix + (selectedScenario?.modelCode || 'QAOA');
       const msgLower = userInput.toLowerCase();
-      let style = 'legame_morbido';
+      
+      const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
+      let style = entProfile.recommendedVincolo || 'legame_morbido';
+      
       if (msgLower.includes('nessun') || msgLower.includes('indipendent') || msgLower.includes('senza') || msgLower.includes('separabile')) {
         style = 'nessun_vincolo';
       } else if (msgLower.includes('rigido') || msgLower.includes('hard')) {
         style = 'blocco_rigido';
+      } else if (msgLower.includes('morbido') || msgLower.includes('soft')) {
+        style = 'legame_morbido';
       }
       
       const descrRegola = style === 'nessun_vincolo'
@@ -1083,6 +1083,9 @@ ${pythonSnippet}
     setSelectedVincolo('blocco_rigido');
     setTargetAlgoritmo('IDLE');
     setAssetSector('N/A');
+    setCustomCsv1Content(null);
+    setCustomCsv2Content(null);
+    setUploadedFiles([]);
     setVincoloStile('N/A');
     setTheta(0);
     setPhi(0);
@@ -1731,7 +1734,7 @@ ${pythonSnippet}
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
                           onClick={() => handleQuickClick("Nessun Entanglement (Risorse Indipendenti - Consigliato)")}
                           disabled={isLoading}
@@ -1746,28 +1749,15 @@ ${pythonSnippet}
                         </button>
 
                         <button
-                          onClick={() => handleQuickClick("Legame Morbido Facoltativo (Sinergia flessibile / Vincolo Soft - Porta CP)")}
+                          onClick={() => handleQuickClick("Applica Entanglement (Gestito dall'IA)")}
                           disabled={isLoading}
                           className="p-3 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/70 border border-indigo-500/30 rounded-lg font-mono text-xs text-indigo-200 transition-all text-left flex flex-col gap-1 group shadow-sm opacity-90 hover:opacity-100"
                         >
                           <span className="font-bold flex items-center gap-1.5 text-indigo-300 group-hover:text-indigo-200">
-                            🔀 Legame Morbido Facoltativo (Porta CP)
+                            🔀 Applica Entanglement (Gestito dall'IA)
                           </span>
                           <span className="text-[10px] text-slate-300 font-normal leading-normal">
-                            Opzionale: sfasamento debole se desideri esplorare un'ipotetica covarianza residua tra i canali.
-                          </span>
-                        </button>
-
-                        <button
-                          onClick={() => handleQuickClick("Blocco Rigido Facoltativo (Esclusione totale / Vincolo Hard - Porta CX)")}
-                          disabled={isLoading}
-                          className="p-3 bg-slate-800/90 hover:bg-rose-950/50 hover:border-rose-500/70 border border-rose-500/30 rounded-lg font-mono text-xs text-rose-200 transition-all text-left flex flex-col gap-1 group shadow-sm opacity-90 hover:opacity-100"
-                        >
-                          <span className="font-bold flex items-center gap-1.5 text-rose-300 group-hover:text-rose-200">
-                            🔒 Blocco Rigido Facoltativo (Porta CX)
-                          </span>
-                          <span className="text-[10px] text-slate-300 font-normal leading-normal">
-                            Opzionale: forza vincoli rigidi di mutua esclusione non necessari.
+                            Lascia che il sistema valuti e applichi vincoli (Rigidi o Morbidi) in autonomia in base al dataset.
                           </span>
                         </button>
                       </div>
@@ -1798,43 +1788,17 @@ ${pythonSnippet}
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       <button
-                        onClick={() => handleQuickClick("Blocco Rigido (Esclusione totale / Vincolo Hard - Porta CX)")}
+                        onClick={() => handleQuickClick("Applica Entanglement Automatico (Gestito dall'IA)")}
                         disabled={isLoading}
-                        className="p-3 bg-slate-800/90 hover:bg-rose-950/50 hover:border-rose-500/70 border border-rose-500/40 rounded-lg font-mono text-xs text-rose-200 transition-all text-left flex flex-col gap-1 group shadow-sm"
+                        className="p-3 bg-slate-800/90 hover:bg-amber-950/50 hover:border-amber-500/70 border border-amber-500/40 rounded-lg font-mono text-xs text-amber-200 transition-all text-left flex flex-col gap-1 group shadow-sm"
                       >
-                        <span className="font-bold flex items-center gap-1.5 text-rose-300 group-hover:text-rose-200">
-                          🔒 Blocco Rigido (Porta Controlled-NOT / CX)
+                        <span className="font-bold flex items-center gap-1.5 text-amber-300 group-hover:text-amber-200">
+                          🔒 Applica Entanglement Automatico (Gestito dall'IA)
                         </span>
                         <span className="text-[10px] text-slate-300 font-normal leading-normal">
-                          Esclusione categorica: impedisce conflitti simultanei e sovrapposizioni mutualmente esclusive.
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={() => handleQuickClick("Legame Morbido (Sinergia flessibile / Vincolo Soft - Porta CP)")}
-                        disabled={isLoading}
-                        className="p-3 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/70 border border-indigo-500/40 rounded-lg font-mono text-xs text-indigo-200 transition-all text-left flex flex-col gap-1 group shadow-sm"
-                      >
-                        <span className="font-bold flex items-center gap-1.5 text-indigo-300 group-hover:text-indigo-200">
-                          🔀 Legame Morbido (Porta di Fase Controllata / CP)
-                        </span>
-                        <span className="text-[10px] text-slate-300 font-normal leading-normal">
-                          Sinergia elastica: introduce sfasamento angolare modulato sulla correlazione.
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={() => handleQuickClick("Nessun Entanglement (Risorse Indipendenti - Senza Vincoli)")}
-                        disabled={isLoading}
-                        className="p-3 bg-slate-800/90 hover:bg-slate-700/60 hover:border-slate-400/50 border border-white/15 rounded-lg font-mono text-xs text-slate-300 transition-all text-left flex flex-col gap-1 group shadow-sm opacity-80 hover:opacity-100"
-                      >
-                        <span className="font-bold flex items-center gap-1.5 text-slate-300 group-hover:text-white">
-                          ⚡ Nessun Vincolo (Sperimentale)
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-normal leading-normal">
-                          Disattiva l'accoppiamento per testare lo stato separabile puro ignorando le interdipendenze.
+                          Il sistema applicherà automaticamente i vincoli quantistici ottimali (Blocco Rigido o Legame Morbido) in base all'analisi del dataset.
                         </span>
                       </button>
                     </div>

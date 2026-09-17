@@ -29,7 +29,7 @@ export const TAXONOMIC_SECTORS: Record<string, TaxonomicSectorConfig> = {
     aliases: ["sicurezza", "telecomunicazioni", "reti", "cyber", "cybersecurity", "malware", "sec-q", "sec-c", "network"],
     spiegazioneStrategia: "Scolpitura del panorama di contenimento delle minacce informatiche. L'algoritmo isola vettori d'attacco o ottimizza l'instradamento dei pacchetti nel core network.",
     spiegazioneVincolo: "Interdipendenza logica tra endpoint, server e nodi di rete. Un vincolo Hard impone la quarantena immediata ed esclusiva; un vincolo Soft modula la propagazione euristica del traffico.",
-    ids: ["host_endpoint", "processo_sospetto", "database_core", "nodo_wan"],
+    ids: ["server_firewall", "nodo_vpn", "host_endpoint", "database_core"],
     stratAggTitle: "⚡ Isolamento Immediato Minacce",
     stratPrudTitle: "🛡️ Euristica Continuità Operativa"
   },
@@ -49,7 +49,7 @@ export const TAXONOMIC_SECTORS: Record<string, TaxonomicSectorConfig> = {
     aliases: ["sanità", "sanita", "biomedicina", "genomica", "medicina", "ospedale", "clinica", "protein", "san-q", "san-c", "med_"],
     spiegazioneStrategia: "Massimizzazione del throughput delle sale operatorie o modellazione del ripiegamento proteico (Protein Folding) per identificare stati di minima energia molecolare.",
     spiegazioneVincolo: "Incompatibilità tra equipe cliniche o matching genetico HLA dei donatori. Un vincolo rigido impedisce collisioni orarie nei blocchi chirurgici; un vincolo morbido calcola le sinergie terapeutiche.",
-    ids: ["sala_operatoria", "equipe_medica", "catena_amminoacidica", "marcatore_dna"],
+    ids: ["sala_operatoria", "equipe_medica", "catena_proteica", "marcatore_dna"],
     stratAggTitle: "⚡ Throughput Massimizzato Clinico",
     stratPrudTitle: "🛡️ Tutela Personale e Riserve"
   },

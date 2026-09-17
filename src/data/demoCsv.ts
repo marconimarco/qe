@@ -1,147 +1,256 @@
 // DEMO CSV GENERATOR — TAXONOMIC QUANTUM ENGINE V3
-// Mappatura esatta degli anagrafici e matrici di vincolo per i 7 settori industriali
+// Mappatura esatta e deterministica dei dataset nativi per ciascuno dei 7 settori industriali.
+// Ogni settore ha tassativamente i propri file CSV demo con anagrafica e matrice connessioni.
 
+export interface DemoResource {
+  id: string;
+  nome: string;
+  cat: string;
+  costo: string;
+  qta: string;
+  peso: number;
+}
+
+export interface SectorDemoData {
+  sectorKey: string;
+  categoryName: string;
+  description: string;
+  resources: DemoResource[];
+  matrix: number[][];
+}
+
+// 1. GUIDA INTESTAZIONE DEI FILE CSV (Standard FIFO)
+const header1Template = (catName: string) => 
+  `# =========================================================================================\n` +
+  `# GUIDA ALLA COMPILAZIONE: FILE 1 - ANAGRAFICA RISORSE [SETTORE: ${catName.toUpperCase()}]\n` +
+  `# =========================================================================================\n` +
+  `# 1. SEPARATORE DI COLONNA: Usa SEMPRE la VIRGOLA (,)\n` +
+  `# 2. SEPARATORE DECIMALE PER I NUMERI: Usa SEMPRE il PUNTO (.) (es. 100.50). MAI la virgola per i decimali.\n` +
+  `# 3. NOMI ID (id_risorsa): Scrivi tutto in MINUSCOLO, usa UNDERSCORE '_' (es. asset_01, hub_centrale).\n` +
+  `# 4. Mappatura Qubit: Riga 1 -> q[0], Riga 2 -> q[1], Riga 3 -> q[2], Riga 4 -> q[3] (FIFO rigoroso)\n` +
+  `# =========================================================================================\n`;
+
+const header2Template = (catName: string) => 
+  `# =========================================================================================\n` +
+  `# GUIDA ALLA COMPILAZIONE: FILE 2 - MATRICE DELLE CONNESSIONI [SETTORE: ${catName.toUpperCase()}]\n` +
+  `# =========================================================================================\n` +
+  `# 1. Prima colonna deve chiamarsi esplicitamente: id_risorsa\n` +
+  `# 2. Intestazioni di colonna successive = ID identici al File 1 in ordine FIFO.\n` +
+  `# 3. Valori da 0.00 a 1.00: 0.00 (indipendente), < 0.60 (legame morbido / CP), >= 0.60 (blocco rigido / CX).\n` +
+  `# =========================================================================================\n`;
+
+export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
+  // 1. FINANZA E MERCATI
+  "Finanza e Mercati": {
+    sectorKey: "finanza",
+    categoryName: "Finanza e Mercati",
+    description: "Portafoglio investimenti, coperture cross-asset e riserva attuariale",
+    resources: [
+      { id: 'asset_01', nome: 'Asset Azionario Alpha Core', cat: 'titoli_equity', costo: '120.50', qta: '1500', peso: 0.85 },
+      { id: 'asset_02', nome: 'Asset Obbligazionario Governativo', cat: 'reddito_fisso', costo: '98.20', qta: '2400', peso: 0.70 },
+      { id: 'coorte_eta_01', nome: 'Coorte Polizze Vita Standard', cat: 'portafoglio_insurtech', costo: '450.00', qta: '500', peso: 0.60 },
+      { id: 'rischio_attuariale', nome: 'Fondo Copertura Rischio Attuariale', cat: 'riserva_capitale', costo: '1000.00', qta: '100', peso: 0.90 }
+    ],
+    matrix: [
+      [1.00, 0.40, 0.60, 0.00],
+      [0.40, 1.00, 0.00, 0.50],
+      [0.60, 0.00, 1.00, 0.70],
+      [0.00, 0.50, 0.70, 1.00]
+    ]
+  },
+
+  // 2. LOGISTICA E SUPPLY CHAIN
+  "Logistica e Supply Chain": {
+    sectorKey: "logistica",
+    categoryName: "Logistica e Supply Chain",
+    description: "Nodi di smistamento, flotta di distribuzione e volumetrie di carico 3D",
+    resources: [
+      { id: 'hub_centrale', nome: 'Hub Logistico Principale', cat: 'nodi_smistamento', costo: '5000.00', qta: '5', peso: 0.95 },
+      { id: 'flotta_veicoli', nome: 'Flotta Furgoni Elettrici', cat: 'vettori_trasporto', costo: '250.00', qta: '40', peso: 0.80 },
+      { id: 'container_3d', nome: 'Container Intermodali High-Cube', cat: 'unita_carico', costo: '1200.00', qta: '15', peso: 0.85 },
+      { id: 'pallet_carico', nome: 'Pallet Standard ISO', cat: 'supporti_movimentazione', costo: '15.00', qta: '800', peso: 0.65 }
+    ],
+    matrix: [
+      [1.00, 0.35, 0.60, 0.00],
+      [0.35, 1.00, 0.00, 0.45],
+      [0.60, 0.00, 1.00, 0.70],
+      [0.00, 0.45, 0.70, 1.00]
+    ]
+  },
+
+  // 3. SICUREZZA, TELECOMUNICAZIONI E RETI
+  "Sicurezza, Telecomunicazioni e Reti": {
+    sectorKey: "sicurezza",
+    categoryName: "Sicurezza, Telecomunicazioni e Reti",
+    description: "Perimetro di sicurezza informatica, nodi crittografici e database riservati",
+    resources: [
+      { id: 'server_firewall', nome: 'Firewall Perimetrale Hardware', cat: 'sicurezza_perimetro', costo: '4500.00', qta: '4', peso: 0.85 },
+      { id: 'nodo_vpn', nome: 'Gateway Crittografico VPN', cat: 'infrastruttura_accesso', costo: '1800.00', qta: '12', peso: 0.70 },
+      { id: 'host_endpoint', nome: 'Endpoint Workstation Critiche', cat: 'nodi_rete', costo: '850.00', qta: '350', peso: 0.60 },
+      { id: 'database_core', nome: 'Database Centrale Riservato', cat: 'asset_sensibile', costo: '25000.00', qta: '2', peso: 0.90 }
+    ],
+    matrix: [
+      [1.00, 0.40, 0.60, 0.00],
+      [0.40, 1.00, 0.00, 0.50],
+      [0.60, 0.00, 1.00, 0.75],
+      [0.00, 0.50, 0.75, 1.00]
+    ]
+  },
+
+  // 4. SANITÀ E GENOMICA
+  "Sanità e Genomica": {
+    sectorKey: "sanita",
+    categoryName: "Sanità e Genomica",
+    description: "Blocchi chirurgici, personale ospedaliero e sequenziamento genomico target",
+    resources: [
+      { id: 'sala_operatoria', nome: 'Blocco Operatorio Chirurgico Alta Complessita', cat: 'infrastruttura_ospedaliera', costo: '8500.00', qta: '4', peso: 0.95 },
+      { id: 'equipe_medica', nome: 'Equipe Chirurgica Specialistica', cat: 'personale_sanitario', costo: '2400.00', qta: '8', peso: 0.85 },
+      { id: 'catena_proteica', nome: 'Catena Polipeptidica Target (Folding)', cat: 'struttura_molecolare', costo: '18.50', qta: '500', peso: 0.70 },
+      { id: 'marcatore_dna', nome: 'Marcatore Genomico HLA Donatore', cat: 'diagnostica_molecolare', costo: '150.00', qta: '120', peso: 0.65 }
+    ],
+    matrix: [
+      [1.00, 0.45, 0.60, 0.00],
+      [0.45, 1.00, 0.00, 0.35],
+      [0.60, 0.00, 1.00, 0.70],
+      [0.00, 0.35, 0.70, 1.00]
+    ]
+  },
+
+  // 5. ENERGIA E UTILITIES
+  "Energia e Utilities": {
+    sectorKey: "energia",
+    categoryName: "Energia e Utilities",
+    description: "Impianti dispacciabili, parchi rinnovabili, accumuli BESS e trasmissione 380kV",
+    resources: [
+      { id: 'turbina_gas', nome: 'Turbina a Gas Peaking ad Alto Rendimento', cat: 'generazione_dispacciabile', costo: '18000.00', qta: '3', peso: 0.85 },
+      { id: 'accumulo_bess', nome: 'Sistema Accumulo Batterie BESS Grid-Scale', cat: 'stoccaggio_elettrochimico', costo: '32000.00', qta: '6', peso: 0.75 },
+      { id: 'centrale_solare', nome: 'Parco Fotovoltaico Rinnovabile', cat: 'generazione_verde', costo: '45.00', qta: '1200', peso: 0.65 },
+      { id: 'linea_alta_tensione', nome: 'Dorsale Trasmissione Elettrica 380kV', cat: 'infrastruttura_rete', costo: '75000.00', qta: '2', peso: 0.90 }
+    ],
+    matrix: [
+      [1.00, 0.40, 0.60, 0.00],
+      [0.40, 1.00, 0.00, 0.50],
+      [0.60, 0.00, 1.00, 0.70],
+      [0.00, 0.50, 0.70, 1.00]
+    ]
+  },
+
+  // 6. PRODUZIONE E MANIFATTURA
+  "Produzione e Manifattura": {
+    sectorKey: "manifattura",
+    categoryName: "Produzione e Manifattura",
+    description: "Linee di montaggio automatizzate, celle robotizzate IoT e macchine CNC 5 assi",
+    resources: [
+      { id: 'linea_montaggio', nome: 'Linea Assemblaggio Automatizzata Core', cat: 'impianto_produzione', costo: '35000.00', qta: '2', peso: 0.90 },
+      { id: 'braccio_robotico_iot', nome: 'Braccio Robotico Saldatura IoT 6 Assi', cat: 'automazione_industriale', costo: '22000.00', qta: '8', peso: 0.80 },
+      { id: 'isola_cnc', nome: 'Isola Fresatura e Tornitura CNC 5 Assi', cat: 'macchine_precisione', costo: '65000.00', qta: '4', peso: 0.75 },
+      { id: 'magazzino_jit', nome: 'Stoccaggio Componenti Just-In-Time', cat: 'buffer_logistico', costo: '8000.00', qta: '3', peso: 0.65 }
+    ],
+    matrix: [
+      [1.00, 0.45, 0.65, 0.00],
+      [0.45, 1.00, 0.00, 0.35],
+      [0.65, 0.00, 1.00, 0.70],
+      [0.00, 0.35, 0.70, 1.00]
+    ]
+  },
+
+  // 7. CHIMICA, FARMACEUTICA E MATERIALI
+  "Chimica, Farmaceutica e Materiali": {
+    sectorKey: "chimica",
+    categoryName: "Chimica, Farmaceutica e Materiali",
+    description: "Catalizzatori metallorganici, molecole target farmacologiche e sintesi ad alta pressione",
+    resources: [
+      { id: 'composto_catalizzatore', nome: 'Composto Catalizzatore Metallorganico', cat: 'reagenti_catalitici', costo: '1250.00', qta: '25', peso: 0.85 },
+      { id: 'molecola_target', nome: 'Molecola Farmacologica Target (Inibitore)', cat: 'target_biologico', costo: '4500.00', qta: '5', peso: 0.95 },
+      { id: 'reattore_h2', nome: 'Reattore Idrogenazione Alta Pressione', cat: 'impianti_sintesi', costo: '55000.00', qta: '2', peso: 0.75 },
+      { id: 'solvente_puro', nome: 'Solvente Organico Supercritico Anidro', cat: 'reagenti_base', costo: '35.00', qta: '600', peso: 0.60 }
+    ],
+    matrix: [
+      [1.00, 0.45, 0.60, 0.00],
+      [0.45, 1.00, 0.00, 0.30],
+      [0.60, 0.00, 1.00, 0.70],
+      [0.00, 0.30, 0.70, 1.00]
+    ]
+  }
+};
+
+/**
+ * Risolve la chiave del settore in modo deterministico e insensibile a maiuscole/minuscole.
+ */
+export function resolveSectorKey(sector: string, scenario: string = ""): string {
+  const norm = (sector + " " + scenario).toLowerCase().trim();
+  if (norm.includes('logist') || norm.includes('supply') || norm.includes('flott') || norm.includes('vrptw') || norm.includes('bin packing') || norm.includes('log-') || norm.includes('log_')) {
+    return "Logistica e Supply Chain";
+  }
+  if (norm.includes('sicur') || norm.includes('cyber') || norm.includes('telecom') || norm.includes('reti') || norm.includes('sec-') || norm.includes('sec_') || norm.includes('malware') || norm.includes('network')) {
+    return "Sicurezza, Telecomunicazioni e Reti";
+  }
+  if (norm.includes('sanit') || norm.includes('biomed') || norm.includes('genom') || norm.includes('medicin') || norm.includes('ospedal') || norm.includes('protein') || norm.includes('san-') || norm.includes('san_') || norm.includes('med_')) {
+    return "Sanità e Genomica";
+  }
+  if (norm.includes('energ') || norm.includes('utilit') || norm.includes('grid') || norm.includes('power') || norm.includes('solare') || norm.includes('ene-') || norm.includes('ene_')) {
+    return "Energia e Utilities";
+  }
+  if (norm.includes('manifatt') || norm.includes('produz') || norm.includes('fabbric') || norm.includes('cnc') || norm.includes('makespan') || norm.includes('man-') || norm.includes('man_')) {
+    return "Produzione e Manifattura";
+  }
+  if (norm.includes('chimic') || norm.includes('farmac') || norm.includes('material') || norm.includes('vqe') || norm.includes('drug') || norm.includes('chem-') || norm.includes('chem_')) {
+    return "Chimica, Farmaceutica e Materiali";
+  }
+  if (norm.includes('finanz') || norm.includes('mercat') || norm.includes('fin-') || norm.includes('fin_') || norm.includes('insurtech') || norm.includes('banking') || norm.includes('portafoglio')) {
+    return "Finanza e Mercati";
+  }
+  return "Finanza e Mercati";
+}
+
+const buildCsv1 = (resources: DemoResource[], catName: string): string => {
+  const lines = ['id_risorsa,nome_visualizzato,categoria,costo_unitario,quantita_disponibile,priorita_peso'];
+  for (const r of resources) {
+    lines.push(`${r.id},${r.nome},${r.cat},${r.costo},${r.qta},${r.peso.toFixed(2)}`);
+  }
+  return header1Template(catName) + lines.join('\n');
+};
+
+const buildCsv2 = (ids: string[], matrixBase: number[][], isNone: boolean, catName: string): string => {
+  const lines: string[] = [];
+  lines.push(['id_risorsa', ...ids].join(','));
+  for (let i = 0; i < ids.length; i++) {
+    const row = [ids[i]];
+    for (let j = 0; j < ids.length; j++) {
+      let val = matrixBase[i] && matrixBase[i][j] !== undefined ? matrixBase[i][j] : 0.0;
+      if (i === j) {
+        val = 1.00;
+      } else if (isNone) {
+        val = 0.00;
+      }
+      row.push(val.toFixed(2));
+    }
+    lines.push(row.join(','));
+  }
+  return header2Template(catName) + lines.join('\n');
+};
+
+/**
+ * Funzione principale esportata: scarica o ottiene il CSV corretto per il settore selezionato
+ */
 export const getDemoCsvBySector = (
   sector: string, 
   scenario: string = "", 
   vincolo: string = "", 
   strategy: string = ""
-) => {
-  const stratLower = strategy.toLowerCase();
-  const isAggressiva = stratLower.includes('aggressiva') || stratLower.includes('spinta') || stratLower.includes('massimizz') || stratLower.includes('sfruttamento') || stratLower.includes('alpha') || stratLower.includes('makespan') || stratLower.includes('throughput') || stratLower.includes('screening') || strategy.includes('⚡');
-  const isPrudente = stratLower.includes('prudent') || stratLower.includes('conservazion') || stratLower.includes('tutela') || stratLower.includes('bilanciamento') || stratLower.includes('margin') || stratLower.includes('sharpe') || stratLower.includes('longevità') || stratLower.includes('riserve') || stratLower.includes('continuità') || strategy.includes('🛡️');
+): { csv1: string; csv2: string; sectorKey: string; dataset: SectorDemoData } => {
+  const canonicalSector = resolveSectorKey(sector, scenario);
+  const dataset = SECTOR_DEMO_DATASETS[canonicalSector] || SECTOR_DEMO_DATASETS["Finanza e Mercati"];
 
-  const adjustPeso = (pesoBase: number) => {
-    let adjusted = pesoBase;
-    if (isAggressiva) {
-      adjusted = Math.min(1.0, pesoBase * 1.15);
-    } else if (isPrudente) {
-      adjusted = pesoBase * 0.85;
-    }
-    return adjusted.toFixed(4);
-  };
+  const isNone = vincolo === 'nessun_vincolo' || 
+                 vincolo === 'senza_entanglement' || 
+                 vincolo.includes('nessun') || 
+                 vincolo.includes('indipendent') || 
+                 vincolo.includes('senza') ||
+                 vincolo.includes('separabile');
 
-  const isNone = vincolo === 'nessun_vincolo' || vincolo === 'senza_entanglement' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
-  const isHard = !isNone && (vincolo === 'blocco_rigido' || vincolo.includes('rigido') || vincolo.includes('hard'));
+  const csv1 = buildCsv1(dataset.resources, dataset.categoryName);
+  const csv2 = buildCsv2(dataset.resources.map(r => r.id), dataset.matrix, isNone, dataset.categoryName);
 
-  const header1 = `# =========================================================================================\n# GUIDA ALLA COMPILAZIONE: FILE 1 - ANAGRAFICA RISORSE (Elementi, Costi, Scorte, Pesi)\n# =========================================================================================\n# 1. SEPARATORE DI COLONNA: Usa SEMPRE la VIRGOLA (,)\n# 2. SEPARATORE DECIMALE PER I NUMERI: Usa SEMPRE il PUNTO (.) (es. 100.50). MAI la virgola per i decimali.\n# 3. NOMI ID (id_risorsa): Scrivi tutto in MINUSCOLO, usa UNDERSCORE '_' (es. asset_01).\n# =========================================================================================\n`;
-  const header2 = `# =========================================================================================\n# GUIDA ALLA COMPILAZIONE: FILE 2 - MATRICE DELLE CONNESSIONI, CORRELAZIONI E VINCOLI\n# =========================================================================================\n# 1. Prima colonna deve chiamarsi esplicitamente: id_risorsa\n# 2. Intestazioni di colonna successive = ID identici al File 1.\n# 3. Valori da 0.00 a 1.00. 0.00 (indipendente), 0.50 (legame morbido), 1.00 (blocco rigido/conflitto).\n# =========================================================================================\n`;
-
-  const buildCsv1 = (data: {id: string, nome: string, cat: string, costo: string, qta: string, peso: number}[]) => {
-    let lines = ['id_risorsa,nome_visualizzato,categoria,costo_unitario,quantita_disponibile,priorita_peso'];
-    for (const d of data) {
-      lines.push(`${d.id},${d.nome},${d.cat},${d.costo},${d.qta},${d.peso.toFixed(2)}`);
-    }
-    return header1 + lines.join('\n');
-  };
-
-  const buildCsv2 = (ids: string[], matrixBase: number[][]) => {
-    let lines = [];
-    lines.push(['id_risorsa', ...ids].join(','));
-    for (let i = 0; i < ids.length; i++) {
-      let row = [ids[i]];
-      for (let j = 0; j < ids.length; j++) {
-        let val = matrixBase[i] && matrixBase[i][j] !== undefined ? matrixBase[i][j] : 0.0;
-        if (i === j) {
-          val = 1.00;
-        } else if (isNone) {
-          val = 0.00;
-        }
-        row.push(val.toFixed(2));
-      }
-      lines.push(row.join(','));
-    }
-    return header2 + lines.join('\n');
-  };
-
-  const defaultMatrix4 = [
-    [1.0, 0.4, 0.6, 0.0],
-    [0.4, 1.0, 0.0, 0.5],
-    [0.6, 0.0, 1.0, 0.7],
-    [0.0, 0.5, 0.7, 1.0]
-  ];
-
-  const norm = (sector + " " + scenario).toLowerCase();
-
-  // 1. FINANZA E MERCATI (Es. fin-q-1, fin-q-2, fin-q-7, fin-c-7 Insurtech)
-  // ID: asset_01, asset_02, coorte_eta_01, rischio_attuariale
-  if (norm.includes('finanz') || norm.includes('mercat') || norm.includes('fin-') || norm.includes('fin_') || norm.includes('insurtech')) {
-    const data = [
-      {id: 'asset_01', nome: 'Asset Azionario Alpha Core', cat: 'titoli_equity', costo: '120.50', qta: '1500', peso: 0.85},
-      {id: 'asset_02', nome: 'Asset Obbligazionario Governativo', cat: 'reddito_fisso', costo: '98.20', qta: '2400', peso: 0.70},
-      {id: 'coorte_eta_01', nome: 'Coorte Polizze Vita Standard', cat: 'portafoglio_insurtech', costo: '450.00', qta: '500', peso: 0.60},
-      {id: 'rischio_attuariale', nome: 'Fondo Copertura Rischio Attuariale', cat: 'riserva_capitale', costo: '1000.00', qta: '100', peso: 0.90}
-    ];
-    return { csv1: buildCsv1(data), csv2: buildCsv2(data.map(d => d.id), defaultMatrix4) };
-  }
-
-  // 2. SICUREZZA, TELECOMUNICAZIONI E RETI (Es. sec-q-1, sec-q-2, sec-c-1 Malware)
-  // ID: host_endpoint, processo_sospetto, database_core, nodo_wan
-  if (norm.includes('sicurez') || norm.includes('telecom') || norm.includes('reti') || norm.includes('cyber') || norm.includes('sec-') || norm.includes('sec_') || norm.includes('malware')) {
-    const data = [
-      {id: 'host_endpoint', nome: 'Workstation Endpoint Rete', cat: 'endpoint_aziendale', costo: '1200.00', qta: '450', peso: 0.75},
-      {id: 'processo_sospetto', nome: 'Vettore d\'Attacco Anomalo', cat: 'rilevamento_minaccia', costo: '0.00', qta: '1', peso: 0.95},
-      {id: 'database_core', nome: 'Database Core Sensibile', cat: 'asset_critico', costo: '25000.00', qta: '1', peso: 1.00},
-      {id: 'nodo_wan', nome: 'Gateway Nodo WAN Rete Primaria', cat: 'nodo_infrastruttura', costo: '4500.00', qta: '4', peso: 0.80}
-    ];
-    return { csv1: buildCsv1(data), csv2: buildCsv2(data.map(d => d.id), defaultMatrix4) };
-  }
-
-  // 3. LOGISTICA E SUPPLY CHAIN (Es. log-q-1 VRPTW, log-q-2 Bin Packing)
-  // ID: hub_centrale, flotta_veicoli, container_3d, pallet_carico
-  if (norm.includes('logistic') || norm.includes('supply') || norm.includes('log-') || norm.includes('log_') || norm.includes('flott') || norm.includes('vrptw') || norm.includes('bin packing')) {
-    const data = [
-      {id: 'hub_centrale', nome: 'Hub Deposito Centrale Smistamento', cat: 'infrastruttura_logistica', costo: '50000.00', qta: '1', peso: 0.95},
-      {id: 'flotta_veicoli', nome: 'Flotta Automezzi Elettrici Consegne', cat: 'mezzi_trasporto', costo: '45000.00', qta: '25', peso: 0.80},
-      {id: 'container_3d', nome: 'Container ISO Standard 3D', cat: 'spazio_carico', costo: '3500.00', qta: '12', peso: 0.85},
-      {id: 'pallet_carico', nome: 'Pallet Carico Alta Densita', cat: 'merce_stoccaggio', costo: '300.00', qta: '150', peso: 0.65}
-    ];
-    return { csv1: buildCsv1(data), csv2: buildCsv2(data.map(d => d.id), defaultMatrix4) };
-  }
-
-  // 4. SANITÀ E BIOMEDICINA (Es. san-q-1, san-q-5 Turni, san-q-14)
-  // ID: sala_operatoria, equipe_medica, catena_amminoacidica, marcatore_dna
-  if (norm.includes('sanit') || norm.includes('biomed') || norm.includes('genom') || norm.includes('san-') || norm.includes('san_') || norm.includes('med_') || norm.includes('ospedal')) {
-    const data = [
-      {id: 'sala_operatoria', nome: 'Blocco Operatorio Chirurgico Alta Complessita', cat: 'infrastruttura_critica', costo: '7500.00', qta: '3', peso: 0.95},
-      {id: 'equipe_medica', nome: 'Equipe Chirurgica Specialistica', cat: 'personale_sanitario', costo: '2200.00', qta: '6', peso: 0.85},
-      {id: 'catena_amminoacidica', nome: 'Catena Polipeptidica Target (Folding)', cat: 'struttura_proteica', costo: '15.00', qta: '1000', peso: 0.70},
-      {id: 'marcatore_dna', nome: 'Marcatore Genetico HLA Donatore', cat: 'profilo_genomico', costo: '120.00', qta: '250', peso: 0.80}
-    ];
-    return { csv1: buildCsv1(data), csv2: buildCsv2(data.map(d => d.id), defaultMatrix4) };
-  }
-
-  // 5. ENERGIA E UTILITIES (Es. ene-q-1 Unit Commitment, ene-q-5 Microgrid)
-  // ID: turbina_gas, accumulo_bess, centrale_solare, linea_alta_tensione
-  if (norm.includes('energi') || norm.includes('utilit') || norm.includes('grid') || norm.includes('ene-') || norm.includes('ene_')) {
-    const data = [
-      {id: 'turbina_gas', nome: 'Turbina a Gas Peaking ad Alto Rendimento', cat: 'generazione_dispacciabile', costo: '150.00', qta: '4', peso: 0.70},
-      {id: 'accumulo_bess', nome: 'Sistema Accumulo Batterie BESS Grid-Scale', cat: 'stoccaggio_elettrochimico', costo: '300.00', qta: '8', peso: 0.90},
-      {id: 'centrale_solare', nome: 'Centrale Fotovoltaica Rinnovabile', cat: 'generazione_verde', costo: '40.00', qta: '1', peso: 0.75},
-      {id: 'linea_alta_tensione', nome: 'Dorsale Trasmissione Elettrica 380kV', cat: 'infrastruttura_rete', costo: '2000.00', qta: '1', peso: 1.00}
-    ];
-    return { csv1: buildCsv1(data), csv2: buildCsv2(data.map(d => d.id), defaultMatrix4) };
-  }
-
-  // 6. PRODUZIONE E MANIFATTURA (Es. man-q-1 Job-Shop, man-q-5)
-  // ID: linea_montaggio, braccio_robotico_iot, isola_cnc, magazzino_jit
-  if (norm.includes('manifattur') || norm.includes('produzion') || norm.includes('fabbric') || norm.includes('cnc') || norm.includes('man-') || norm.includes('man_')) {
-    const data = [
-      {id: 'linea_montaggio', nome: 'Linea Assemblaggio Meccanico Core', cat: 'impianto_produzione', costo: '12000.00', qta: '1', peso: 0.90},
-      {id: 'braccio_robotico_iot', nome: 'Braccio Robotico Saldatura IoT 6 Assi', cat: 'automazione_industriale', costo: '48000.00', qta: '10', peso: 0.80},
-      {id: 'isola_cnc', nome: 'Isola Fresatura e Tornitura CNC 5 Assi', cat: 'macchinario_precisione', costo: '85000.00', qta: '3', peso: 0.75},
-      {id: 'magazzino_jit', nome: 'Stoccaggio Componenti Just-In-Time', cat: 'logistica_interna', costo: '4000.00', qta: '1', peso: 0.85}
-    ];
-    return { csv1: buildCsv1(data), csv2: buildCsv2(data.map(d => d.id), defaultMatrix4) };
-  }
-
-  // 7. CHIMICA, FARMACEUTICA E MATERIALI (Es. chem-q-1 VQE, chem-q-3)
-  // ID: composto_catalizzatore, molecola_target, reattore_h2, solvente_puro
-  const dataChem = [
-    {id: 'composto_catalizzatore', nome: 'Composto Catalizzatore Metallorganico', cat: 'reagente_chimico', costo: '850.00', qta: '50', peso: 0.85},
-    {id: 'molecola_target', nome: 'Molecola Target Farmacologica (Drug Discovery)', cat: 'target_molecolare', costo: '3500.00', qta: '5', peso: 0.95},
-    {id: 'reattore_h2', nome: 'Reattore Idrogenazione Alta Pressione', cat: 'impianto_sintesi', costo: '45000.00', qta: '1', peso: 0.90},
-    {id: 'solvente_puro', nome: 'Solvente Organico di Grado Puro', cat: 'materia_prima', costo: '45.00', qta: '800', peso: 0.60}
-  ];
-  return { csv1: buildCsv1(dataChem), csv2: buildCsv2(dataChem.map(d => d.id), defaultMatrix4) };
+  return { csv1, csv2, sectorKey: canonicalSector, dataset };
 };
