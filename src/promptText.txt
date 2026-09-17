@@ -165,7 +165,7 @@ Se Energia e Utilities:
 • APPROCCIO CLASSICO (PYTHON / HPC):
 1. Previsione Irraggiamento Solare e Produzione Fotovoltaica (LSTM)
 2. Manutenzione Predittiva Turbine a Gas tramite Sensori di Vibrazione
-3. Rilevamento Perdite nella Rete Idrica da Sensori di Flusso
+3. Dispacciamento Energetico e Ottimizzazione della Rete Elettrica (OPF)
 4. Ottimizzazione Termica degli Edifici (HVAC) con Reinforcement Learning
 5. Manutenzione Stradale Ottimizzata tramite Dati Accelerometro Bus
 

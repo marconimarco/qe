@@ -150,7 +150,7 @@ export const INDEPENDENT_SCENARIO_IDS = new Set<string>([
   "chm_c_6",  // Formulazione di Vernici Ecologiche Senza Composti Organici Volatili
   // Energia
   "ene_c_2",  // Manutenzione Predittiva Turbine a Gas tramite Sensori di Vibrazione
-  "ene_c_3",  // Rilevamento Perdite nella Rete Idrica da Sensori di Flusso
+  "ene_c_3",  // Dispacciamento Energetico e Ottimizzazione della Rete Elettrica (OPF)
   "ene_q_7",  // Simulazione Invecchiamento Celle Batteria al Litio
   // Manifattura
   "man_c_1",  // Controllo Qualità Automatico con Telecamere e Reti Convoluzionali (CNN)

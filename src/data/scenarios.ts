@@ -783,9 +783,9 @@ export const QUANTUM_SCENARIOS: QuantumScenario[] = [
     id: "ene-c-3",
     macroarea: "Energia e Utilities",
     technology: "IA Classica / HPC",
-    name: "3. Rilevamento Perdite nella Rete Idrica da Sensori di Flusso",
-    logicType: "Anomaly Detection & Modelli Idraulici",
-    targetVariables: "Pressione_Condotta, Portata_Volumetrica, Differenziale_Flusso"
+    name: "3. Dispacciamento Energetico e Ottimizzazione della Rete Elettrica (OPF)",
+    logicType: "Ottimizzazione Flussi di Potenza",
+    targetVariables: "Flussi_Potenza_Attiva, Bilanciamento_Carichi, Longevita_Rete"
   },
   {
     id: "ene-c-4",
