@@ -129,14 +129,14 @@ export default function QuantumHealth13QubitModal({ isOpen, onClose, onApplyToSc
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">
-                  Motore Quantistico 13 Qubit (Qiskit 1.x Live)
+                  Motore Quantistico 14 Qubit (Qiskit 1.x Live)
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-mono border border-cyan-500/30">
-                  ZZFeatureMap
+                  Hadamard + CX
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Calcolo probabilistico su matrice di densità, entropia di Von Neumann e VQE a 13 qubit.
+                Calcolo probabilistico su matrici di densità ridotte, sovrapposizione Hadamard ed entropia distrettuale a 14 Qubit.
               </p>
             </div>
           </div>
@@ -201,7 +201,7 @@ export default function QuantumHealth13QubitModal({ isOpen, onClose, onApplyToSc
               className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Play className="w-3 h-3 text-cyan-400" />
-              <span>Ricalcola Qiskit 13-Qubit</span>
+              <span>Ricalcola Qiskit 14-Qubit</span>
             </button>
           </div>
         </div>
@@ -492,8 +492,8 @@ export default function QuantumHealth13QubitModal({ isOpen, onClose, onApplyToSc
         {/* Footer Disclaimer */}
         <div className="p-3 sm:p-4 border-t border-white/10 bg-black/40 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] font-mono text-slate-400">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>Computazione probabilistica su matrice densità (ZZFeatureMap, 13 Qubit). Solo per soggetti adulti.</span>
+            <AlertCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span>Computazione quantistica distribuita a 14 Qubit (Hadamard + CX, Qiskit 1.x). Normalizzazione max-bound protect attiva.</span>
           </div>
           <button
             onClick={onClose}

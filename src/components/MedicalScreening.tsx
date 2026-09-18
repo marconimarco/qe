@@ -418,67 +418,75 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
 
   const handleDownloadPdf = () => {
     if (!result) return;
-    let effectiveQuantumReport = latestQuantumReport || result.quantumReport;
-    if (!effectiveQuantumReport) {
-      let calcAge = 42;
-      if (dob) {
-        const bd = new Date(dob);
-        const td = new Date();
-        calcAge = Math.max(18, td.getFullYear() - bd.getFullYear());
-      }
-      const pSys = inputMethod === 'manual' && pressure ? parseInt(pressure) : (result.score < 60 ? 142 : 122);
-      effectiveQuantumReport = elaboraPaginaHealth({
-        eta_anagrafica: calcAge,
-        esami_reali: {
-          pressione_sistolica: pSys,
-          glicemia: result.score < 60 ? 124 : 104,
-          ldl: result.score < 60 ? 158 : 142,
-          hs_pcr: result.score < 60 ? 3.4 : 2.8,
-          creatinina: 0.95,
-          egfr: Math.max(60, Math.min(110, Math.round(result.score * 1.05))),
-          alt_ast: 24,
-          emoglobina: 14.8
+    try {
+      let effectiveQuantumReport = latestQuantumReport || result.quantumReport;
+      if (!effectiveQuantumReport) {
+        let calcAge = 42;
+        if (dob) {
+          const bd = new Date(dob);
+          const td = new Date();
+          calcAge = Math.max(18, td.getFullYear() - bd.getFullYear());
         }
+        const pSys = inputMethod === 'manual' && pressure ? parseInt(pressure) : (result.score < 60 ? 142 : 122);
+        effectiveQuantumReport = elaboraPaginaHealth({
+          eta_anagrafica: calcAge,
+          esami_reali: {
+            pressione_sistolica: pSys,
+            glicemia: result.score < 60 ? 124 : 104,
+            ldl: result.score < 60 ? 158 : 142,
+            hs_pcr: result.score < 60 ? 3.4 : 2.8,
+            creatinina: 0.95,
+            egfr: Math.max(60, Math.min(110, Math.round(result.score * 1.05))),
+            alt_ast: 24,
+            emoglobina: 14.8
+          }
+        });
+        setLatestQuantumReport(effectiveQuantumReport);
+        localStorage.setItem('quantum_medical_active_quantum_report', JSON.stringify(effectiveQuantumReport));
+      }
+
+      const patientFullName = currentUser?.name || result.patientName || localStorage.getItem('quantum_user_name') || 'Mario Rossi';
+      const patientEmail = currentUser?.email || result.patientEmail || localStorage.getItem('quantum_user_email') || 'paziente@quantum-health.eu';
+
+      const fileName = generateMedicalReportPdf({
+        reportId: result.id ? (result.id.startsWith('QM-') ? result.id : `QM-${result.id.slice(-6)}`) : undefined,
+        fullName: patientFullName,
+        email: patientEmail,
+        dob,
+        gender,
+        score: result.score,
+        resultDate: result.date,
+        categoryStatuses: {
+          vitali: result.vitali.status,
+          metabolici: result.metabolici.status,
+          organo: result.organo.status,
+          infiammatorio: result.infiammatorio.status,
+        },
+        vitali: result.vitali,
+        metabolici: result.metabolici,
+        organo: result.organo,
+        infiammatorio: result.infiammatorio,
+        metricsSummary: {
+          bpm: inputMethod === 'manual' && bpm ? bpm : "64",
+          pressure: inputMethod === 'manual' && pressure ? pressure : "122/78",
+          spo2: "98%",
+          stress: `${result.vitali?.metrics?.[0]?.value || '32%'}`
+        },
+        acquiredReports,
+        inputMethod,
+        quantumReport: effectiveQuantumReport
       });
-      setLatestQuantumReport(effectiveQuantumReport);
-      localStorage.setItem('quantum_medical_active_quantum_report', JSON.stringify(effectiveQuantumReport));
+      setPdfDownloadedNotice(`Report clinico "${fileName}" generato e scaricato con successo!`);
+      setTimeout(() => {
+        setPdfDownloadedNotice(null);
+      }, 5000);
+    } catch (err: any) {
+      console.error("Errore durante la generazione o il download del PDF:", err);
+      setPdfDownloadedNotice(`Errore generazione PDF: ${err?.message || 'verifica i dati di input'}`);
+      setTimeout(() => {
+        setPdfDownloadedNotice(null);
+      }, 6000);
     }
-
-    const patientFullName = currentUser?.name || result.patientName || localStorage.getItem('quantum_user_name') || 'Mario Rossi';
-    const patientEmail = currentUser?.email || result.patientEmail || localStorage.getItem('quantum_user_email') || 'paziente@quantum-health.eu';
-
-    const fileName = generateMedicalReportPdf({
-      reportId: result.id ? (result.id.startsWith('QM-') ? result.id : `QM-${result.id.slice(-6)}`) : undefined,
-      fullName: patientFullName,
-      email: patientEmail,
-      dob,
-      gender,
-      score: result.score,
-      resultDate: result.date,
-      categoryStatuses: {
-        vitali: result.vitali.status,
-        metabolici: result.metabolici.status,
-        organo: result.organo.status,
-        infiammatorio: result.infiammatorio.status,
-      },
-      vitali: result.vitali,
-      metabolici: result.metabolici,
-      organo: result.organo,
-      infiammatorio: result.infiammatorio,
-      metricsSummary: {
-        bpm: inputMethod === 'manual' && bpm ? bpm : "64",
-        pressure: inputMethod === 'manual' && pressure ? pressure : "122/78",
-        spo2: "98%",
-        stress: `${result.vitali?.metrics?.[0]?.value || '32%'}`
-      },
-      acquiredReports,
-      inputMethod,
-      quantumReport: effectiveQuantumReport
-    });
-    setPdfDownloadedNotice(`Report clinico "${fileName}" generato e scaricato con successo!`);
-    setTimeout(() => {
-      setPdfDownloadedNotice(null);
-    }, 5000);
   };
 
   const saveToHistory = (newResult: ScreeningResult) => {
@@ -593,18 +601,21 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
         if (bpm) pBpm = parseInt(bpm) || 64;
       }
 
-      // Elaborazione quantistica rigorosa a 13 qubit deterministica (nessun random!)
+      // Elaborazione quantistica rigorosa a 14 qubit deterministica
       const calcQReport = elaboraPaginaHealth({
         eta_anagrafica: a,
         esami_reali: {
           pressione_sistolica: pSys,
+          bpm: pBpm,
           glicemia: pGlicemia,
           ldl: pLdl,
           hs_pcr: pHsPcr,
           creatinina: pCreatinina,
           egfr: pEgfr,
           alt_ast: pAltAst,
-          emoglobina: pEmoglobina
+          emoglobina: pEmoglobina,
+          spo2: 98,
+          hrv: 58
         }
       });
 
@@ -704,7 +715,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
             : "Allerta flogistica attiva (PCR o citochine elevate). Necessario monitoraggio per evitare progressioni patologiche.",
           metrics: [
             { label: "hs-PCR (Proteina C)", value: `${pHsPcr} mg/L` },
-            { label: "Stress Biologico Medio", value: `${lvl4.scanner_olografico_stress_sistemi['Infiammatorio_Immunitario'] || 32}%` }
+            { label: "Stress Biologico Medio", value: `${lvl4.scanner_olografico_stress_sistemi['infiammazione'] || lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] || 32}%` }
           ],
           chartData: mockTimeSeries(38, 14),
           chartColor: "#f59e0b",
@@ -785,11 +796,11 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           <button
             onClick={() => setShow13QubitModal(true)}
             className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.15)] min-h-[38px]"
-            title="Esegui il calcolo 13 Qubit Qiskit 1.x in tempo reale"
+            title="Esegui il calcolo 14 Qubit Qiskit 1.x in tempo reale"
           >
             <Cpu className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden sm:inline">13 Qubit Qiskit</span>
-            <span className="inline sm:hidden">13 Qubit</span>
+            <span className="hidden sm:inline">14 Qubit Qiskit</span>
+            <span className="inline sm:hidden">14 Qubit</span>
           </button>
 
           <button

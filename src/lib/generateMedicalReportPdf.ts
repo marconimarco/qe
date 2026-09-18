@@ -934,8 +934,25 @@ export function generateMedicalReportPdf(params: PdfGeneratorParams): string {
     doc.text(`Pagina ${i} di ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
   }
 
-  // Salvataggio e Download del File
+  // Salvataggio e Download del File compatibile con browser e iframe sandbox
   const filename = `Referto_Clinico_Quantistico_${params.resultDate?.replace(/[^a-zA-Z0-9]/g, '_') || 'Screening'}.pdf`;
-  doc.save(filename);
+  try {
+    const pdfBlob = doc.output('blob');
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }, 2000);
+  } catch (err) {
+    console.warn('Fallback standard su doc.save:', err);
+    doc.save(filename);
+  }
   return filename;
 }
