@@ -5,10 +5,9 @@ import { DOMINO_EFFECT_STEPS } from '../data/medicalCategoriesData';
 interface DominoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGeneratePdf: () => void;
 }
 
-export default function DominoModal({ isOpen, onClose, onGeneratePdf }: DominoModalProps) {
+export default function DominoModal({ isOpen, onClose }: DominoModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -92,23 +91,12 @@ export default function DominoModal({ isOpen, onClose, onGeneratePdf }: DominoMo
         </div>
 
         {/* Modal Footer / Actions */}
-        <div className="p-6 border-t border-white/10 bg-black/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="p-6 border-t border-white/10 bg-black/40 flex flex-col items-center justify-center gap-4">
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-full border border-white/10 text-slate-400 hover:text-white text-xs font-mono uppercase tracking-widest hover:bg-white/5 transition-all cursor-pointer"
+            className="w-full px-6 py-2.5 rounded-full border border-white/10 text-slate-400 hover:text-white text-xs font-mono uppercase tracking-widest hover:bg-white/5 transition-all cursor-pointer"
           >
             Chiudi Finestra
-          </button>
-
-          <button
-            onClick={() => {
-              onGeneratePdf();
-            }}
-            className="w-full sm:w-auto px-7 py-3 rounded-full bg-gradient-to-r from-red-500 to-amber-500 hover:from-red-400 hover:to-amber-400 text-black text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.4)] hover:scale-105 transition-all cursor-pointer"
-          >
-            <FileText className="w-4 h-4" />
-            <span>Scarica Report PDF Clinico</span>
-            <Download className="w-4 h-4" />
           </button>
         </div>
       </div>

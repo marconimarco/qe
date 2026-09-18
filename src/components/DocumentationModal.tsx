@@ -17,7 +17,7 @@ Il modulo analizza 13 Qubit quantistici mappati direttamente sui biomarcatori em
 e strumentali del paziente. Ciascun qubit rappresenta un grado di libertà biologico,
 inizializzato in uno stato di sovrapposizione coerente tramite rotazione RY(θ):
 
-  θ = 2 * arccos( sqrt( 1.0 - (peso_safe * 0.9999) ) )
+  θ = 2 * arcsin( sqrt( peso_safe ) )
   dove: peso_safe = max(0.0, min(1.0, float(peso_normalizzato)))
 
 Mapping dei 13 Qubit:
@@ -124,18 +124,25 @@ def elabora_pagina_health(payload_json: str) -> str:
     qc = QuantumCircuit(num_qubits)
     for i in range(num_qubits):
         peso_safe = max(0.0, min(1.0, float(valori_qubit[i])))
-        theta = 2.0 * np.arccos(np.sqrt(1.0 - (peso_safe * 0.9999)))
+        # REGOLA TRIGONOMETRICA UNICA PER LE PORTE RY: 2 * arcsin(sqrt(peso))
+        theta = 2.0 * np.arcsin(np.sqrt(max(0.0, min(1.0, float(peso_safe)))))
         qc.ry(theta, i)
 
     # --- NUOVI VINCOLI RZZ (Sovrapposizioni da Esami Strumentali/Clinici) ---
-    # Vincolo Emodinamico-Strutturale: Placca Doppler interferisce con ECG/Aritmia
-    qc.rzz(np.pi / 2 * {peso}, 3, 7)
+    # Vincolo Emodinamico-Strutturale: Placca Doppler interferisce con ECG/Aritmia (qubit 3 e 7)
+    peso_emodinamico = float(max(valori_qubit[3], valori_qubit[7]))
+    if peso_emodinamico > 0.0:
+        qc.rzz(np.pi / 2 * peso_emodinamico, 3, 7)
     
-    # Vincolo Filtri (Urine x Ecografia): Proteinuria Urine interferisce con Ecografia Renale Alterata
-    qc.rzz(np.pi / 2 * {peso}, 4, 5)
+    # Vincolo Filtri (Urine x Ecografia): Proteinuria interferisce con Ecografia Renale (qubit 4 e 5)
+    peso_filtri = float(max(valori_qubit[4], valori_qubit[5]))
+    if peso_filtri > 0.0:
+        qc.rzz(np.pi / 2 * peso_filtri, 4, 5)
 
-    # Vincolo Metabolico-Immunitario Locale: Grasso Viscerale interferisce con Calprotectina Fecale
-    qc.rzz(np.pi / 2 * {peso}, 0, 2)
+    # Vincolo Metabolico-Immunitario: Grasso Viscerale interferisce con Infiammazione (qubit 0 e 2)
+    peso_metabolico_imm = float(max(valori_qubit[0], valori_qubit[2]))
+    if peso_metabolico_imm > 0.0:
+        qc.rzz(np.pi / 2 * peso_metabolico_imm, 0, 2)
 
     feature_map = ZZFeatureMap(feature_dimension=num_qubits, reps=1, entanglement='linear')
     feature_circuit = feature_map.assign_parameters(valori_qubit * np.pi)
@@ -147,8 +154,6 @@ def elabora_pagina_health(payload_json: str) -> str:
 
     fidelity = float(np.real(state_fidelity(sv, pure_target)))
     clinical_wellness_score = round(fidelity * 100, 2)
-    s_total = float(np.real(entropy(rho, base=2)))
-    indice_instabilita = round((s_total / num_qubits) * 100, 2)
 
     sistemi_qubits = {
         "Vitali_Emostasi": [3, 6, 7],
@@ -157,6 +162,7 @@ def elabora_pagina_health(payload_json: str) -> str:
         "Infiammazione_Immunitario": [2, 8, 9, 11, 12]
     }
 
+    # TRACCIA PARZIALE per calcolare lo stress reale dei 4 sottosistemi isolati
     mappa_stress = {}
     for sistema, q_list in sistemi_qubits.items():
         all_qubits = set(range(num_qubits))
@@ -164,6 +170,9 @@ def elabora_pagina_health(payload_json: str) -> str:
         sub_rho = partial_trace(rho, trace_qubits)
         sub_entropy = float(np.real(entropy(sub_rho, base=2)))
         mappa_stress[sistema] = round(min(100.0, (sub_entropy / len(q_list)) * 100), 2)
+
+    # L'indice di instabilità globale riflette la media dell'entropia di Von Neumann dei distretti
+    indice_instabilita = round(float(np.mean(list(mappa_stress.values()))), 2)
 
     somma_pesi = float(np.sum(valori_qubit))
     traiettoria_5 = round(max(0.0, clinical_wellness_score - (somma_pesi * 2.1)), 2)

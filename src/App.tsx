@@ -387,7 +387,10 @@ function AppContent({
       {/* Main container area */}
       <main className="relative z-10 flex-1 flex flex-col">
         {isBlankPageOpen ? (
-          <MedicalScreening onBack={() => setIsBlankPageOpen(false)} />
+          <MedicalScreening 
+            onBack={() => setIsBlankPageOpen(false)} 
+            currentUser={currentUser}
+          />
         ) : isTestPageOpen ? (
           <TestPage 
             currentUser={currentUser}
