@@ -715,7 +715,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
             : "Allerta flogistica attiva (PCR o citochine elevate). Necessario monitoraggio per evitare progressioni patologiche.",
           metrics: [
             { label: "hs-PCR (Proteina C)", value: `${pHsPcr} mg/L` },
-            { label: "Stress Biologico Medio", value: `${lvl4.scanner_olografico_stress_sistemi['infiammazione'] || lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] || 32}%` }
+            { label: "Stress Biologico Medio", value: `${lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] || lvl4.scanner_olografico_stress_sistemi['Infiammatorio_Immunitario'] || 32}%` }
           ],
           chartData: mockTimeSeries(38, 14),
           chartColor: "#f59e0b",

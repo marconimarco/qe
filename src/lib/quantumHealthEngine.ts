@@ -53,10 +53,10 @@ export const MAPPING_QUBITS: Record<string, number> = {
 };
 
 export const SISTEMI_QUBITS: Record<string, number[]> = {
-  parametri_vitali: [3, 7, 8, 9, 10], // Pressione, Emoglobina, BPM/Piastrine, SpO2, HRV
-  metabolismo: [0, 1, 11], // Glicemia, Lipidi, TSH
-  filtri_organo: [4, 5, 6], // Creatinina (q4), eGFR (q5), ALT/AST (q6)
-  infiammazione: [2, 12, 13] // hs-PCR, Cortisolo, Tossine/Immunità
+  Vitali_Emostasi: [3, 7, 8, 9, 10], // Pressione, Emoglobina, BPM/Piastrine, SpO2, HRV
+  Metabolismo_Longevita: [0, 1, 11], // Glicemia, Lipidi, TSH
+  Filtri_Organo_Renale_Epatico: [4, 5, 6], // Creatinina (q4), eGFR (q5), ALT/AST (q6)
+  Infiammazione_Immunitario: [2, 12, 13] // hs-PCR, Cortisolo, Tossine/Immunità
 };
 
 export interface HealthInputData {
@@ -161,7 +161,7 @@ export function elaboraPaginaHealth(input: HealthInputData | string): HealthPage
 
   // Scanner Olografico Stress Sistemi & Entropia Distrettuale (Partial Trace)
   const mappaStress: Record<string, number> = {};
-  const instabilitaDistretti: number[] = [];
+  const entropieRidotte: number[] = [];
 
   for (const [sistema, qIds] of Object.entries(SISTEMI_QUBITS)) {
     const qValidi = qIds.filter(q => q < numQubits);
@@ -171,18 +171,17 @@ export function elaboraPaginaHealth(input: HealthInputData | string): HealthPage
     for (const qId of qValidi) {
       subEntropy += entropieSingoliQubits[qId] || 0;
     }
-    const stressNorm = (subEntropy / qValidi.length) * 100.0;
-    const boundedStress = Math.min(100.0, Math.max(0.0, stressNorm));
-    mappaStress[sistema] = Number(boundedStress.toFixed(2));
-    instabilitaDistretti.push(boundedStress);
+    entropieRidotte.push(subEntropy);
+    const stressPercent = Math.min(100.0, (subEntropy / qValidi.length) * 100.0);
+    mappaStress[sistema] = Number(stressPercent.toFixed(2));
   }
 
-  // Indice di Instabilità ed Entropia media reale (Max Bound Protect <= 100%)
-  const mediaInstabilita = instabilitaDistretti.length > 0 
-    ? instabilitaDistretti.reduce((acc, v) => acc + v, 0) / instabilitaDistretti.length 
+  // Indice di Instabilità ed Entropia media reale (non più bloccata a 0%)
+  const mediaEntropie = entropieRidotte.length > 0 
+    ? entropieRidotte.reduce((acc, v) => acc + v, 0) / entropieRidotte.length 
     : 0;
-  const indiceInstabilita = Number(Math.min(100.0, mediaInstabilita).toFixed(2));
-  const resilienza = Number(Math.max(5.0, 100.0 - (indiceInstabilita * 0.8)).toFixed(2));
+  const indiceInstabilita = Number(Math.min(100.0, (mediaEntropie / 2.0) * 100.0).toFixed(2));
+  const resilienza = Number(Math.max(5.0, 100.0 - (indiceInstabilita * 1.2)).toFixed(2));
 
   // Somma pesi e deviazione totale per stime biologiche
   let deviazioneTotale = 0;
@@ -202,10 +201,7 @@ export function elaboraPaginaHealth(input: HealthInputData | string): HealthPage
   }
 
   const pesoPivot = biomarkersNormalizzati[pivotBiomarker] || 0;
-  // Iniezione di gestione nulla sul guadagno What-If (evita divisioni per zero ed errori se deviazioneTotale == 0)
-  const deltaWhatIf = deviazioneTotale > 0
-    ? Number(((100.0 - clinicalWellnessScore) * (pesoPivot / deviazioneTotale)).toFixed(2))
-    : 0.0;
+  const deltaWhatIf = Number(((100.0 - clinicalWellnessScore) * (pesoPivot / (deviazioneTotale > 0 ? deviazioneTotale : 1))).toFixed(2));
   
   const traiettoria5 = Number(Math.max(0.0, clinicalWellnessScore - (deviazioneTotale * 2.1)).toFixed(2));
   const traiettoria10 = Number(Math.max(0.0, clinicalWellnessScore - (deviazioneTotale * 4.8)).toFixed(2));
