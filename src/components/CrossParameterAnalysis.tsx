@@ -1,8 +1,52 @@
 import React, { useState } from 'react';
 import { CROSS_PARAMETER_PROBLEMS, CrossParameterProblem } from '../data/medicalCategoriesData';
 import { AlertCircle, Zap, ArrowRight, Sparkles, X, Layers } from 'lucide-react';
+import type { ScreeningResult } from './MedicalScreening';
+import { valutaIncrociClinici } from '../lib/quantumHealthEngine';
 
-export default function CrossParameterAnalysis() {
+interface CrossParameterAnalysisProps {
+  result?: ScreeningResult | null;
+}
+
+function checkIsProblemCritical(problemId: string, result?: ScreeningResult | null): boolean {
+  if (!result) return false;
+
+  const esami = result.quantumReport?.configurazione_pagina_health?.livello_2_3_biomarcatori_rilevati?.valori_normalizzati_assegnati;
+  const incroci = esami ? valutaIncrociClinici(esami) : null;
+
+  switch (problemId) {
+    case 'glicemia_colesterolo_ictus':
+      if (incroci?.tempesta_perfetta_coronarie?.stato === 'CRITICO') return true;
+      if (result.metabolici?.status === 'Non Idoneo' && (result.heartRisk === 'high' || result.vitali?.status === 'Non Idoneo')) return true;
+      return false;
+
+    case 'ipertensione_infiammazione_rene':
+      if (result.vitali?.status === 'Non Idoneo' && result.organo?.status === 'Non Idoneo') return true;
+      return false;
+
+    case 'grasso_viscerale_disbiosi_fegato':
+      if (incroci?.blocco_metabolico_grasso_viscerale?.stato === 'CRITICO') return true;
+      if (result.metabolici?.status === 'Non Idoneo' && result.organo?.status === 'Non Idoneo') return true;
+      return false;
+
+    case 'cid_coagulazione_disseminata':
+      if (result.vitali?.status === 'Non Idoneo' && result.infiammatorio?.status === 'Non Idoneo' && result.score < 35) return true;
+      return false;
+
+    case 'rabdomiolisi_danno_renale':
+      if (result.organo?.status === 'Non Idoneo' && result.vitali?.status === 'Non Idoneo' && result.score < 30) return true;
+      return false;
+
+    case 'sepsi_infezione_sistemica':
+      if (result.infiammatorio?.status === 'Non Idoneo' && result.score < 40) return true;
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+export default function CrossParameterAnalysis({ result }: CrossParameterAnalysisProps) {
   const [selectedProblem, setSelectedProblem] = useState<CrossParameterProblem | null>(null);
 
   return (
@@ -22,11 +66,11 @@ export default function CrossParameterAnalysis() {
                 Guida ai Moduli Sottostanti
               </span>
               <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold">
-                6 Incroci Clinici
+                Incroci Clinici Fisiologici
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-300 font-light leading-relaxed">
-              <strong className="text-white font-medium">Cosa mostrano i moduli sotto:</strong> I quadranti interattivi seguenti mostrano esattamente dove e come la reazione a catena ad &quot;Effetto Domino&quot; si manifesta nel tuo corpo incrociando i tuoi specifici biomarcatori. Tocca o clicca su ciascun modulo per esplorare la sequenza a 3 fasi tra gli organi accoppiati, il danno clinico temuto e le indicazioni mediche per arrestarlo.
+              <strong className="text-white font-medium">Cosa mostrano i moduli sotto:</strong> I quadranti interattivi seguenti mostrano esattamente dove e come la reazione a catena ad &quot;Effetto Domino&quot; si manifesta nel tuo corpo incrociando i tuoi specifici biomarcatori. Tocca o clicca su ciascun modulo per esplorare la sequenza a 3 fasi tra i parametri accoppiati, il danno clinico temuto e le indicazioni mediche per arrestarlo.
             </p>
           </div>
         </div>
@@ -36,11 +80,11 @@ export default function CrossParameterAnalysis() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 px-2">
         <div>
           <div className="flex items-center gap-2 text-red-400 font-mono text-[10px] uppercase tracking-widest font-bold">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            I 6 Moduli delle Interconnessioni Critiche
+            <span className="w-2 h-2 rounded-full bg-red-500/80" />
+            Moduli delle Interconnessioni Critiche
           </div>
           <h3 className="text-xl sm:text-2xl font-light text-white tracking-wide mt-1">
-            Mappa delle Reazioni a Catena d&apos;Organo
+            Mappa delle Reazioni a Catena della Salute
           </h3>
         </div>
         <div className="text-[11px] font-mono text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10">
@@ -48,29 +92,33 @@ export default function CrossParameterAnalysis() {
         </div>
       </div>
 
-      {/* LA GRIGLIA DEI 6 MODULI (Bento Grid Responsive) */}
+      {/* LA GRIGLIA DEI MODULI (Bento Grid Responsive) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 bg-[#0f0f0f] border border-white/5 p-3 sm:p-5 rounded-[2rem] shadow-2xl relative overflow-hidden">
         <div className="absolute inset-0 bg-white/[0.01] pointer-events-none mix-blend-overlay" />
         
         {CROSS_PARAMETER_PROBLEMS.map((problem) => {
-          const isPrimary = problem.id === 'glicemia_colesterolo_ictus';
+          const isCritical = checkIsProblemCritical(problem.id, result);
           
           return (
             <div
               key={problem.id}
               onClick={() => setSelectedProblem(problem)}
               className={`group cursor-pointer relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between min-h-[150px] sm:min-h-[160px] border ${
-                isPrimary 
-                  ? 'border-red-500/30 bg-gradient-to-br from-red-950/40 to-black/80 hover:border-red-500/60 shadow-[0_0_30px_rgba(239,68,68,0.1)]' 
+                isCritical 
+                  ? 'border-2 border-red-500/80 bg-gradient-to-br from-red-950/40 to-black/80 hover:border-red-400 led-pulse-red shadow-[0_0_30px_rgba(239,68,68,0.25)]' 
                   : 'border-white/5 bg-[#141414] hover:bg-white/5 hover:border-white/20'
               }`}
             >
               {/* Decorative Glow */}
-              <div className={`absolute -right-10 -top-10 w-24 h-24 blur-3xl rounded-full transition-all duration-700 group-hover:scale-150 ${isPrimary ? 'bg-red-500/20' : 'bg-white/5'}`} />
+              <div className={`absolute -right-10 -top-10 w-24 h-24 blur-3xl rounded-full transition-all duration-700 group-hover:scale-150 ${isCritical ? 'bg-red-500/25' : 'bg-white/5'}`} />
 
               <div className="relative z-10 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-3 gap-2">
-                  <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border truncate ${isPrimary ? 'text-red-200 border-red-500/50 bg-red-500/20' : 'text-slate-300 border-white/10 bg-white/5'}`}>
+                  <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border truncate transition-all ${
+                    isCritical 
+                      ? 'text-red-200 border-red-500 bg-red-500/20 led-pulse-badge-red' 
+                      : 'text-slate-300 border-white/10 bg-white/5'
+                  }`}>
                     {problem.urgenza}
                   </span>
                   <div className="w-7 h-7 rounded-full border border-white/10 bg-black/40 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:bg-white/10 transition-all shrink-0">
@@ -79,7 +127,7 @@ export default function CrossParameterAnalysis() {
                 </div>
 
                 <div className="mt-auto pr-10">
-                  <h4 className={`text-sm sm:text-base font-medium tracking-wide leading-snug mb-1.5 ${isPrimary ? 'text-red-100 font-semibold' : 'text-white'}`}>
+                  <h4 className={`text-sm sm:text-base font-medium tracking-wide leading-snug mb-1.5 ${isCritical ? 'text-red-100 font-semibold' : 'text-white'}`}>
                     {problem.titolo}
                   </h4>
                   <p className="text-[11px] text-slate-400 font-light line-clamp-2 leading-relaxed">

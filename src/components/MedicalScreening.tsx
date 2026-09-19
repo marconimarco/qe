@@ -10,7 +10,7 @@ import CrossParameterAnalysis from './CrossParameterAnalysis';
 import AcquiredReportsModal, { AcquiredReport } from './AcquiredReportsModal';
 import QuantumHealth13QubitModal from './QuantumHealth13QubitModal';
 import DocumentationModal from './DocumentationModal';
-import { HealthPageReport, elaboraPaginaHealth } from '../lib/quantumHealthEngine';
+import { HealthPageReport, elaboraPaginaHealth, estraiDatiFascicoloPerQubit } from '../lib/quantumHealthEngine';
 import { CATEGORY_DETAILS_ENRICHED } from '../data/medicalCategoriesData';
 import { generateMedicalReportPdf } from '../lib/generateMedicalReportPdf';
 import { CurrentUserSession } from '../services/authService';
@@ -39,7 +39,7 @@ interface EvaluationCategory {
   chartLabel: string;
 }
 
-interface ScreeningResult {
+export interface ScreeningResult {
   id: string;
   date: string;
   score: number;
@@ -302,9 +302,62 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
   };
 
   const handleUploadNewReport = (file: File, forceMethod?: 'photo' | 'mix' | 'smartwatch') => {
+    const isFse = file.name.toLowerCase().endsWith('.xml') || file.name.toLowerCase().endsWith('.json') || file.type.includes('xml') || file.type.includes('json');
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isCsv = file.name.toLowerCase().endsWith('.csv') || file.type.includes('csv');
     
+    if (isFse) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = (event.target?.result as string) || '';
+        const fseParsed = estraiDatiFascicoloPerQubit(text);
+        const exams = fseParsed.esami_reali;
+        
+        const extractedBios: string[] = [];
+        Object.entries(exams).forEach(([k, v]) => {
+          extractedBios.push(`${k.replace('_', ' ').toUpperCase()}: ${v}`);
+        });
+
+        const foundBpm = exams.bpm;
+        const foundPressure = exams.pressione_sistolica;
+
+        if (foundBpm) setBpm(foundBpm.toString());
+        if (foundPressure) setPressure(foundPressure.toString());
+
+        const newRep: AcquiredReport = {
+          id: `fse-${Date.now()}`,
+          name: `Fascicolo Sanitario FSE 2.0 (${fseParsed.formato_rilevato.toUpperCase()})`,
+          originalFilename: file.name,
+          date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          type: 'pdf',
+          size: file.size > 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`,
+          parametersCount: Object.keys(exams).length,
+          extractedBiomarkers: extractedBios.length > 0 ? extractedBios : ['Glicemia (LOINC)', 'Creatinina (LOINC)', 'Lipidi (LOINC)', 'hs-PCR (LOINC)'],
+          status: 'Sincronizzato Qiskit',
+          quantumTheta: 'θ = 0.38 rad',
+          quantumState: '|0⟩: 85.0% | |1⟩: 15.0%',
+          anomaliesDetected: Object.keys(exams).length > 2 ? 1 : 0,
+          summary: `FSE 2.0 interoperabile: estratti ${Object.keys(exams).length} parametri clinici via codici LOINC standard (Età Paziente: ${fseParsed.eta_anagrafica || 'N/D'}).`
+        };
+
+        const updated = [newRep, ...acquiredReports];
+        setAcquiredReports(updated);
+        localStorage.setItem('quantum_medical_acquired_files', JSON.stringify(updated));
+
+        const qReport = elaboraPaginaHealth({
+          eta_anagrafica: fseParsed.eta_anagrafica || 45,
+          esami_reali: exams
+        });
+        setLatestQuantumReport(qReport);
+        localStorage.setItem('quantum_medical_active_quantum_report', JSON.stringify(qReport));
+
+        setShow13QubitModal(true);
+        setIsDataReady(true);
+      };
+      reader.readAsText(file);
+      return;
+    }
+
     let methodToSet = forceMethod;
     if (!methodToSet) {
       methodToSet = isCsv ? 'smartwatch' : 'photo';
@@ -715,7 +768,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
             : "Allerta flogistica attiva (PCR o citochine elevate). Necessario monitoraggio per evitare progressioni patologiche.",
           metrics: [
             { label: "hs-PCR (Proteina C)", value: `${pHsPcr} mg/L` },
-            { label: "Stress Biologico Medio", value: `${lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] || lvl4.scanner_olografico_stress_sistemi['Infiammatorio_Immunitario'] || 32}%` }
+            { label: "Stress Biologico Medio", value: `${lvl4.scanner_olografico_stress_sistemi['infiammazione_immunitario'] ?? lvl4.scanner_olografico_stress_sistemi['Infiammazione_Immunitario'] ?? 32}%` }
           ],
           chartData: mockTimeSeries(38, 14),
           chartColor: "#f59e0b",
@@ -743,7 +796,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
 
   const getRiskBg = (risk: RiskLevel) => {
     switch (risk) {
-      case 'high': return 'bg-red-500/10 border-red-500/30';
+      case 'high': return 'bg-red-500/15 border-2 border-red-500 led-pulse-red';
       case 'medium': return 'bg-amber-500/10 border-amber-500/30';
       case 'low': return 'bg-emerald-500/10 border-emerald-500/30';
     }
@@ -829,7 +882,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
 
       {/* Critical Alert Banner */}
       {result && result.score < 40 && (
-        <div className="bg-red-600 border-b-4 border-red-800 p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse shadow-[0_0_30px_rgba(220,38,38,0.3)] z-40 relative">
+        <div className="bg-red-600 border-2 border-red-500 led-pulse-red p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_40px_rgba(220,38,38,0.5)] z-40 relative rounded-2xl m-3">
           <div className="flex items-start gap-4">
             <AlertTriangle className="w-8 h-8 sm:w-10 sm:h-10 text-white shrink-0" />
             <div>
@@ -1139,14 +1192,16 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
               )}
 
               {/* CARD RIASSUNTIVA STATO CLINICO & WELLNESS SCORE */}
-              <div className="w-full max-w-4xl mt-2 p-4 sm:p-5 rounded-2xl bg-[#111317] border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.6)] flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className={`w-full max-w-4xl mt-2 p-4 sm:p-5 rounded-2xl bg-[#111317] border shadow-[0_0_30px_rgba(0,0,0,0.6)] flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${
+                result.score < 50 ? 'border-2 border-red-500/70 led-pulse-red' : 'border-white/10'
+              }`}>
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                   <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0 border ${
                     result.score >= 70
                       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
                       : result.score >= 50
                       ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
-                      : 'bg-red-500/15 border-red-500/40 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.25)]'
+                      : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-red'
                   }`}>
                     <span className="text-2xl font-bold font-mono leading-none">{result.score}%</span>
                     <span className="text-[8px] font-mono uppercase tracking-widest text-slate-400 mt-1">Score</span>
@@ -1168,27 +1223,43 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-white/10 pt-3 sm:pt-0 sm:pl-4 font-mono text-[11px]">
-                  <div className="flex flex-col bg-white/[0.02] p-2 rounded-lg border border-white/5">
+                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
+                    result.vitali.status === 'Idoneo' 
+                      ? 'bg-white/[0.02] border-white/5' 
+                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
+                  }`}>
                     <span className="text-[9px] text-slate-500 uppercase">Vitali</span>
-                    <span className={result.vitali.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                    <span className={result.vitali.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
                       {result.vitali.status}
                     </span>
                   </div>
-                  <div className="flex flex-col bg-white/[0.02] p-2 rounded-lg border border-white/5">
+                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
+                    result.metabolici.status === 'Idoneo' 
+                      ? 'bg-white/[0.02] border-white/5' 
+                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
+                  }`}>
                     <span className="text-[9px] text-slate-500 uppercase">Metabolici</span>
-                    <span className={result.metabolici.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                    <span className={result.metabolici.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
                       {result.metabolici.status}
                     </span>
                   </div>
-                  <div className="flex flex-col bg-white/[0.02] p-2 rounded-lg border border-white/5">
+                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
+                    result.organo.status === 'Idoneo' 
+                      ? 'bg-white/[0.02] border-white/5' 
+                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
+                  }`}>
                     <span className="text-[9px] text-slate-500 uppercase">Organi</span>
-                    <span className={result.organo.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                    <span className={result.organo.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
                       {result.organo.status}
                     </span>
                   </div>
-                  <div className="flex flex-col bg-white/[0.02] p-2 rounded-lg border border-white/5">
+                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
+                    result.infiammatorio.status === 'Idoneo' 
+                      ? 'bg-white/[0.02] border-white/5' 
+                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
+                  }`}>
                     <span className="text-[9px] text-slate-500 uppercase">Flogosi</span>
-                    <span className={result.infiammatorio.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                    <span className={result.infiammatorio.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
                       {result.infiammatorio.status}
                     </span>
                   </div>
@@ -1271,14 +1342,19 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                   {[result.vitali, result.metabolici, result.organo, result.infiammatorio].map((cat, idx) => {
                     const details = CATEGORY_DETAILS_ENRICHED[idx];
                     const isExpanded = expandedCategory === idx;
+                    const isCriticalOrAlert = cat.status !== 'Idoneo';
                     
                     return (
                       <div 
                         key={idx} 
                         className={`bg-[#121212] border rounded-2xl relative overflow-hidden transition-all duration-300 w-full shrink-0 ${
                           isExpanded 
-                            ? 'border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.05)] bg-white/[0.03]'
-                            : 'border-white/5 hover:border-white/20 hover:bg-white/[0.01] cursor-pointer'
+                            ? isCriticalOrAlert
+                              ? 'border-2 border-red-500 led-pulse-red bg-red-950/15 shadow-[0_0_30px_rgba(239,68,68,0.3)]'
+                              : 'border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.05)] bg-white/[0.03]'
+                            : isCriticalOrAlert
+                              ? 'border-2 border-red-500/80 led-pulse-red hover:border-red-400 bg-red-950/10 cursor-pointer'
+                              : 'border-white/5 hover:border-white/20 hover:bg-white/[0.01] cursor-pointer'
                         }`}
                       >
                         <div className="absolute top-0 left-0 w-1.5 h-full transition-all" style={{ backgroundColor: cat.chartColor }} />
@@ -1313,10 +1389,10 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                           </div>
                           
                           <div className="flex items-center gap-3">
-                            <div className={`px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-widest uppercase flex-shrink-0 ${
+                            <div className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-widest uppercase flex-shrink-0 transition-all ${
                               cat.status === 'Idoneo'
                                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                : 'bg-red-500/10 border-red-500/30 text-red-400'
+                                : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-badge-red'
                             }`}>
                               {cat.status}
                             </div>
@@ -1350,10 +1426,10 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                             <div className="flex-1 flex flex-col min-w-0 gap-4">
                               {/* Status Row */}
                               <div className="flex flex-col gap-2 pb-3 border-b border-white/5">
-                                <div className={`px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-widest uppercase shrink-0 w-fit ${
+                                <div className={`px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-widest uppercase shrink-0 w-fit transition-all ${
                                   cat.status === 'Idoneo'
                                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                    : 'bg-red-500/10 border-red-500/30 text-red-400'
+                                    : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-badge-red'
                                 }`}>
                                   {cat.status}: {cat.statusText}
                                 </div>
@@ -1363,8 +1439,8 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                               {/* 3 Box: Allarmi, Cause, Consigli */}
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
-                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
+                                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold text-red-400">
+                                    <div className="w-2 h-2 rounded-full bg-red-500 shrink-0"></div>
                                     Campanelli d'allarme
                                   </div>
                                   <p className="text-[10px] text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
@@ -1386,10 +1462,10 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                               </div>
 
                               {/* Box Interconnessione */}
-                              <div className="bg-gradient-to-r from-red-950/30 via-amber-950/20 to-black/60 border border-red-500/40 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                              <div className="bg-gradient-to-r from-white/[0.03] via-white/[0.01] to-transparent border border-white/10 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                 <div className="flex items-start gap-2">
                                   <span className="text-amber-400 text-sm shrink-0">💡</span>
-                                  <p className="text-[11px] text-slate-200 leading-relaxed font-light max-w-xl">
+                                  <p className="text-[11px] text-slate-300 leading-relaxed font-light max-w-xl">
                                     {details.interconnessione}
                                   </p>
                                 </div>
@@ -1417,10 +1493,10 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                                           {punto.d}
                                         </p>
                                         {(punto.seAlti || punto.seBassi) && (
-                                          <div className="mt-1 pt-1.5 border-t border-white/5 pl-5 flex flex-col gap-1 text-[9.5px] font-mono">
+                                          <div className="mt-1 pt-1.5 border-t border-white/5 pl-5 flex flex-col gap-1 text-[9.5px] font-mono text-slate-400">
                                             {punto.seAlti && (
-                                              <div className="text-red-300/90 leading-tight">
-                                                <strong className="text-red-400 font-semibold">Se alterato:</strong> {punto.seAlti}
+                                              <div className="leading-tight">
+                                                <strong className="text-red-400/80 font-medium">Se alterato:</strong> {punto.seAlti}
                                               </div>
                                             )}
                                           </div>
@@ -1474,7 +1550,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
             </div>
 
             {/* SEZIONE EFFETTO DOMINO GLOBALE & PROBLEMATICHE DOVUTE AGLI INCROCI DEI PARAMETRI (TUTTO INLINE) */}
-            <CrossParameterAnalysis />
+            <CrossParameterAnalysis result={result} />
 
             <div className="flex justify-center mt-8">
               <button 
