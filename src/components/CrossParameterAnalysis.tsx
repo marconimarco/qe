@@ -30,15 +30,45 @@ function checkIsProblemCritical(problemId: string, result?: ScreeningResult | nu
       return false;
 
     case 'cid_coagulazione_disseminata':
-      if (result.vitali?.status === 'Non Idoneo' && result.infiammatorio?.status === 'Non Idoneo' && result.score < 35) return true;
+      if (result.vitali?.status === 'Non Idoneo' && result.infiammatorio?.status === 'Non Idoneo' && result.score < 50) return true;
       return false;
 
     case 'rabdomiolisi_danno_renale':
-      if (result.organo?.status === 'Non Idoneo' && result.vitali?.status === 'Non Idoneo' && result.score < 30) return true;
+      if (result.organo?.status === 'Non Idoneo' && result.vitali?.status === 'Non Idoneo' && result.score < 50) return true;
       return false;
 
     case 'sepsi_infezione_sistemica':
-      if (result.infiammatorio?.status === 'Non Idoneo' && result.score < 40) return true;
+      if (result.infiammatorio?.status === 'Non Idoneo' && (result.score < 50 || result.vitali?.status === 'Non Idoneo')) return true;
+      return false;
+
+    case 'sindrome_metabolica_tripla':
+      if (result.metabolici?.status === 'Non Idoneo' && (result.vitali?.status === 'Non Idoneo' || result.score < 60)) return true;
+      return false;
+
+    case 'pancreatite_ipertrigliceridemia':
+      if (result.metabolici?.status === 'Non Idoneo' && result.organo?.status === 'Non Idoneo') return true;
+      if (incroci?.blocco_metabolico_grasso_viscerale?.stato === 'CRITICO' && result.score < 55) return true;
+      return false;
+
+    case 'iperuricemia_gotta_nefropatia':
+      if (result.organo?.status === 'Non Idoneo' && (result.metabolici?.status === 'Non Idoneo' || result.infiammatorio?.status === 'Non Idoneo')) return true;
+      return false;
+
+    case 'diabete_microangiopatia_nefropatia':
+      if (result.metabolici?.status === 'Non Idoneo' && result.organo?.status === 'Non Idoneo') return true;
+      if (incroci?.tempesta_perfetta_coronarie?.stato === 'CRITICO' && result.organo?.status === 'Non Idoneo') return true;
+      return false;
+
+    case 'ipercalcemia_aritmia_calcoli':
+      if (result.vitali?.status === 'Non Idoneo' && result.organo?.status === 'Non Idoneo' && result.score < 55) return true;
+      return false;
+
+    case 'ipertrofia_cardiaca_scompenso_bnp':
+      if (result.vitali?.status === 'Non Idoneo' && (result.heartRisk === 'high' || result.score < 55)) return true;
+      return false;
+
+    case 'autoimmunita_tiroide_flogosi_poliglandolare':
+      if (result.infiammatorio?.status === 'Non Idoneo' && result.metabolici?.status === 'Non Idoneo') return true;
       return false;
 
     default:
@@ -48,6 +78,9 @@ function checkIsProblemCritical(problemId: string, result?: ScreeningResult | nu
 
 export default function CrossParameterAnalysis({ result }: CrossParameterAnalysisProps) {
   const [selectedProblem, setSelectedProblem] = useState<CrossParameterProblem | null>(null);
+
+  const criticalProblems = CROSS_PARAMETER_PROBLEMS.filter(p => checkIsProblemCritical(p.id, result));
+  const criticalCount = criticalProblems.length;
 
   return (
     <div id="domino-effect-section" className="w-full relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
@@ -63,25 +96,34 @@ export default function CrossParameterAnalysis({ result }: CrossParameterAnalysi
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold">
-                Guida ai Moduli Sottostanti
+                Architettura Quantistica di Sorveglianza Incrociata
               </span>
               <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold">
-                Incroci Clinici Fisiologici
+                Incrocio Parametrico Completo
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-300 font-light leading-relaxed">
-              <strong className="text-white font-medium">Cosa mostrano i moduli sotto:</strong> I quadranti interattivi seguenti mostrano esattamente dove e come la reazione a catena ad &quot;Effetto Domino&quot; si manifesta nel tuo corpo incrociando i tuoi specifici biomarcatori. Tocca o clicca su ciascun modulo per esplorare la sequenza a 3 fasi tra i parametri accoppiati, il danno clinico temuto e le indicazioni mediche per arrestarlo.
+              <strong className="text-white font-medium">Cosa mostrano i moduli sotto:</strong> I quadranti interattivi incrociano i tuoi specifici biomarcatori per tracciare le reazioni a catena ad &quot;Effetto Domino&quot;. Se i parametri correlati sono fuori range, il modulo entra in allerta con un <strong className="text-red-300">bordo rosso pulsante</strong>. Se sono stabili, monitorano la prevenzione a lungo termine. Tocca o clicca su qualsiasi modulo per aprire la sequenza a 3 fasi, le conseguenze cliniche e le indicazioni mediche.
             </p>
           </div>
         </div>
       </div>
 
-      {/* TITOLO SEZIONE MODULI */}
+      {/* TITOLO SEZIONE MODULI CON STATO INCROCI CLINICI */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 px-2">
         <div>
           <div className="flex items-center gap-2 text-red-400 font-mono text-[10px] uppercase tracking-widest font-bold">
-            <span className="w-2 h-2 rounded-full bg-red-500/80" />
+            <span className={`w-2 h-2 rounded-full ${criticalCount > 0 ? 'bg-red-500 led-pulse-red' : 'bg-emerald-500'}`} />
             Moduli delle Interconnessioni Critiche
+            {criticalCount > 0 ? (
+              <span className="ml-1 px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40 text-[9px] led-pulse-badge-red font-mono">
+                {criticalCount} ALLERTE ATTIVE SUI TUOI DATI
+              </span>
+            ) : (
+              <span className="ml-1 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-mono">
+                TUTTE LE INTERCONNESSIONI STABILI
+              </span>
+            )}
           </div>
           <h3 className="text-xl sm:text-2xl font-light text-white tracking-wide mt-1">
             Mappa delle Reazioni a Catena della Salute

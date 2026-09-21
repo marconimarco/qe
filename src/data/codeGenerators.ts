@@ -224,12 +224,14 @@ export const generateQiskitPythonCode = (
 
   let pyCode = `import numpy as np\n`;
   pyCode += `from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile\n`;
-  pyCode += `from qiskit_aer import AerSimulator\n\n`;
+  pyCode += `from qiskit_aer import AerSimulator\n`;
+  pyCode += `from qiskit_aer.primitives import SamplerV2 as AerSampler, EstimatorV2 as AerEstimator\n`;
+  pyCode += `from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager\n\n`;
 
   pyCode += `# 1. Definizione Registri Sequenziali (FIFO Rigido: riga CSV 1 -> q[0], riga 2 -> q[1], ...)\n`;
   pyCode += `q = QuantumRegister(${numItems}, name="q")\n`;
   pyCode += `c = ClassicalRegister(${numItems}, name="c")\n`;
-  pyCode += `qc = QuantumCircuit(q, c)\n\n`;
+  pyCode += `qc = QuantumCircuit(q, c, name="QuantumHealthCircuit")\n\n`;
 
   pyCode += `# 2. Inizializzazione Qubit (Amplitude Encoding)\n`;
   pyCode += `# Formula quantistica esatta: theta = 2.0 * np.arcsin(np.sqrt(peso_safe))\n`;
@@ -263,14 +265,22 @@ export const generateQiskitPythonCode = (
     }
   }
 
-  pyCode += `\n# 4. Misurazione e Simulatore Locale AerSimulator\n`;
+  pyCode += `\n# 4. Misurazione su Registro Classico\n`;
   for (let i = 0; i < numItems; i++) {
     pyCode += `qc.measure(q[${i}], c[${i}])\n`;
   }
+
+  pyCode += `\n# 5. Esecuzione con Qiskit 1.x / 2.x & AerSimulator Primitives V2\n`;
   pyCode += `simulator = AerSimulator()\n`;
-  pyCode += `compiled_circuit = transpile(qc, simulator)\n`;
-  pyCode += `job = simulator.run(compiled_circuit, shots=1024)\n`;
-  pyCode += `print(job.result().get_counts())\n`;
+  pyCode += `pass_manager = generate_preset_pass_manager(backend=simulator, optimization_level=1)\n`;
+  pyCode += `isa_circuit = pass_manager.run(qc)\n\n`;
+  pyCode += `# Inizializzazione SamplerV2 (Qiskit 1.x/2.x Primitive Nativa per conteggi e PubResult)\n`;
+  pyCode += `sampler = AerSampler()\n`;
+  pyCode += `job = sampler.run([isa_circuit], shots=1024)\n`;
+  pyCode += `pub_result = job.result()[0]  # PubResult del circuito campionato\n`;
+  pyCode += `counts = pub_result.data.c.get_counts()\n\n`;
+  pyCode += `print("--- RISULTATO CAMPIONAMENTO BINARIO (SamplerV2 / AerSimulator) ---")\n`;
+  pyCode += `print(counts)\n`;
 
   return pyCode;
 };

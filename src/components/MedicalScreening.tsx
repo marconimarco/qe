@@ -13,7 +13,7 @@ import DocumentationModal from './DocumentationModal';
 import { HealthPageReport, elaboraPaginaHealth, estraiDatiFascicoloPerQubit } from '../lib/quantumHealthEngine';
 import { CATEGORY_DETAILS_ENRICHED } from '../data/medicalCategoriesData';
 import { generateMedicalReportPdf } from '../lib/generateMedicalReportPdf';
-import { CurrentUserSession } from '../services/authService';
+import { CurrentUserSession, getCurrentSession } from '../services/authService';
 
 type InputMethod = 'none' | 'manual' | 'smartwatch' | 'photo';
 type RiskLevel = 'low' | 'medium' | 'high';
@@ -106,6 +106,8 @@ interface MedicalScreeningProps {
 }
 
 export default function MedicalScreening({ onBack, currentUser }: MedicalScreeningProps) {
+  const activeSession = currentUser || getCurrentSession();
+  const isAdmin = activeSession?.role === 'admin';
   const [inputMethod, setInputMethod] = useState<InputMethod>('none');
   const [isDataReady, setIsDataReady] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -846,25 +848,49 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto">
-          <button
-            onClick={() => setShow13QubitModal(true)}
-            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.15)] min-h-[38px]"
-            title="Esegui il calcolo 14 Qubit Qiskit 1.x in tempo reale"
-          >
-            <Cpu className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden sm:inline">14 Qubit Qiskit</span>
-            <span className="inline sm:hidden">14 Qubit</span>
-          </button>
+          {/* 14 QUBIT QISKIT: non cliccabile per utente normale, attivo solo per admin */}
+          {isAdmin ? (
+            <button
+              onClick={() => setShow13QubitModal(true)}
+              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.15)] min-h-[38px]"
+              title="Esegui il calcolo 14 Qubit Qiskit 1.x in tempo reale (Modalità Amministratore)"
+            >
+              <Cpu className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">14 Qubit Qiskit</span>
+              <span className="inline sm:hidden">14 Qubit</span>
+            </button>
+          ) : (
+            <div
+              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-purple-500/15 bg-purple-500/5 text-purple-400/60 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 min-h-[38px] cursor-not-allowed select-none opacity-70"
+              title="Funzione riservata all'infrastruttura di calcolo quantistico (non accessibile per utente standard)"
+            >
+              <Cpu className="w-3.5 h-3.5 text-purple-400/50" />
+              <span className="hidden sm:inline">14 Qubit Qiskit</span>
+              <span className="inline sm:hidden">14 Qubit</span>
+            </div>
+          )}
 
-          <button
-            onClick={() => setShowDocumentationModal(true)}
-            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.1)] min-h-[38px]"
-            title="Apri la guida completa e il codice Qiskit con pulsante di copia e download"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Guida & Codice</span>
-            <span className="inline sm:hidden">Guida</span>
-          </button>
+          {/* GUIDA & CODICE: non cliccabile per utente normale, attivo solo per admin */}
+          {isAdmin ? (
+            <button
+              onClick={() => setShowDocumentationModal(true)}
+              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.1)] min-h-[38px]"
+              title="Apri la guida completa e il codice Qiskit con pulsante di copia e download (Modalità Amministratore)"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Guida & Codice</span>
+              <span className="inline sm:hidden">Guida</span>
+            </button>
+          ) : (
+            <div
+              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-amber-500/15 bg-amber-500/5 text-amber-400/60 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 min-h-[38px] cursor-not-allowed select-none opacity-70"
+              title="Documentazione tecnica e codice sorgente quantistico riservati all'amministratore"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-400/50" />
+              <span className="hidden sm:inline">Guida & Codice</span>
+              <span className="inline sm:hidden">Guida</span>
+            </div>
+          )}
 
           <button
             onClick={() => setShowAcquiredReportsModal(true)}

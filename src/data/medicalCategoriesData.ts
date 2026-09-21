@@ -659,6 +659,234 @@ export const CROSS_PARAMETER_PROBLEMS: CrossParameterProblem[] = [
     ],
     conseguenzaClinica: "Aumento di 3-5 volte del rischio relativo di infarto miocardico acuto, coronaropatia multivasale e diabete di tipo 2 conclamato.",
     indicazioniMediche: "Modifica radicale dello stile di vita (dieta mediterranea ipocalorica, camminata veloce 150 min/settimana), statine a bersaglio LDL < 70 mg/dL e sensibilizzanti all'insulina (metformina)."
+  },
+  {
+    id: "pancreatite_ipertrigliceridemia",
+    titolo: "Pancreatite Acuta Necrotizzante da Ipertrigliceridemia & Lipotossicità",
+    sottotitolo: "Incrocio: Trigliceridi > 500-1000 mg/dL + Lipasi/Amilasi Elevate + Acidosi Metabolica",
+    urgenza: "🔴 Emergenza Addomino-Vascolare",
+    rischioColore: "border-red-500/40 bg-red-500/5",
+    parametriCoinvolti: [
+      { nome: "Trigliceridi Sierici", categoria: "Parametri Metabolici", icon: "🧬" },
+      { nome: "Lipasi ed Amilasi Pancreatica", categoria: "Funzionalità d'Organo", icon: "🔥" },
+      { nome: "Proteina C-Reattiva (hs-PCR)", categoria: "Stato Infiammatorio", icon: "🧪" },
+      { nome: "Calcio Sierico (Ca++)", categoria: "Parametri Vitali", icon: "💧" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Idrolisi Lipasica Tossica & Acidi Grassi Liberi",
+        descrizione: "L'eccesso massivo di trigliceridi viene parzialmente scisso dalla lipasi endoteliale e pancreatica in acidi grassi liberi (FFA) non esterificati a concentrazioni citotossiche.",
+        badge: "Lipotossicità Capillare",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Microtrombosi Capillare & Autodigestione Pancreatica",
+        descrizione: "Gli acidi grassi liberi scatenano ischemia microvascolare nel parenchima del pancreas e attivano prematuramente il tripsinogeno in tripsina attiva all'interno degli acini ghiandolari.",
+        badge: "Autodigestione Ghiandolare",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Necrosi Pancreatica, Ipocalcemia & SIRS Sistemica",
+        descrizione: "La saponificazione dei grassi peripancreatici consuma calcio (ipocalcemia severa) e la lipasi schizza a valori vertiginosi innescando una sindrome da risposta infiammatoria sistemica.",
+        badge: "Necrosi & Shock",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Pancreatite acuta severa necrotizzante con versamento peripancreatico, ipocalcemia tetanica e rischio di insufficienza multiorgano (MOF).",
+    indicazioniMediche: "Ricovero immediato con digiuno assoluto, infusione continua di insulina per stimolare la lipoproteinlipasi endoteliale, idratazione aggressiva endovenosa e plasmaferesi se trigliceridi > 1000 mg/dL."
+  },
+  {
+    id: "iperuricemia_gotta_nefropatia",
+    titolo: "Nefropatia Uratica Ostruente, Iperuricemia & Artrite Gottosa",
+    sottotitolo: "Incrocio: Acido Urico Alto (>7 mg/dL) + eGFR in Declino + Creatinina Alta + Infiammazione (VES/PCR)",
+    urgenza: "🟠 Rischio Reumato-Renale",
+    rischioColore: "border-orange-500/40 bg-orange-500/5",
+    parametriCoinvolti: [
+      { nome: "Acido Urico Sierico", categoria: "Parametri Metabolici", icon: "💎" },
+      { nome: "Creatinina ed eGFR", categoria: "Funzionalità d'Organo", icon: "💧" },
+      { nome: "VES ed hs-PCR", categoria: "Stato Infiammatorio", icon: "🔥" },
+      { nome: "Pressione Arteriosa", categoria: "Parametri Vitali", icon: "🩺" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Sovrasaturazione Sierica di Urato Monosodico",
+        descrizione: "L'iperuricemia cronica (dovuta a dieta purinica, alcol, sindrome metabolica o ridotta escrezione) supera la soglia di solubilità tissutale di 6.8 mg/dL.",
+        badge: "Sovrasaturazione Uratica",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Precipitazione Intratubulare & Attivazione dell'Inflammasoma",
+        descrizione: "I cristalli aghiformi di urato precipitano nei tubuli renali e nelle articolazioni, innescando il recettore NLRP3 e richiamando cascate flogistiche di interleuchina IL-1β.",
+        badge: "Precipitazione a Cristalli",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Fibrosi Interstiziale Renale & Crisi Artritica Infiammatoria",
+        descrizione: "L'infiammazione tubulo-interstiziale cronica riduce l'eGFR e accelera l'ipertensione nefrovascolare, accompagnata da tofi gottosi erosivi dolorosissimi.",
+        badge: "Fibrosi Tubulare & Gotta",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Insufficienza renale cronica progressiva da nefropatia uratica, calcolosi radio-trasparente delle vie urinarie e artropatia gottosa distruttiva.",
+    indicazioniMediche: "Idratazione abbondante (almeno 2-2.5L die), alcalinizzazione delle urine con citrato di potassio, inibitori della xantina ossidasi (allopurinolo o febuxostat) e dieta a basso contenuto di purine e fruttosio."
+  },
+  {
+    id: "diabete_microangiopatia_nefropatia",
+    titolo: "Nefropatia Diabetica & Microangiopatia Capillare Renale-Retinica",
+    sottotitolo: "Incrocio: HbA1c > 7.5% + Microalbuminuria / eGFR Depresso + Ipertensione Glomerulare",
+    urgenza: "🔴 Compromissione Nefronica Severa",
+    rischioColore: "border-red-500/40 bg-red-500/5",
+    parametriCoinvolti: [
+      { nome: "Emoglobina Glicata (HbA1c)", categoria: "Parametri Metabolici", icon: "🍬" },
+      { nome: "Microalbuminuria / Esame Urine", categoria: "Funzionalità d'Organo", icon: "🧪" },
+      { nome: "Creatinina ed eGFR", categoria: "Funzionalità d'Organo", icon: "💧" },
+      { nome: "Pressione Sistolica Differenziale", categoria: "Parametri Vitali", icon: "🩺" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Iperfiltrazione e Glicazione dei Podociti",
+        descrizione: "L'iperglicemia cronica determina vasodilatazione dell'arteriola afferente renale provocando ipertensione capillare nei glomeruli e depositi di prodotti AGE.",
+        badge: "Iperfiltrazione Glomerulare",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Microalbuminuria & Ispessimento della Membrana Basale",
+        descrizione: "La barriera di filtrazione perde le cariche negative proteiche: compare microalbuminuria nelle urine e comincia una progressiva glomerulosclerosi (lesioni di Kimmelstiel-Wilson).",
+        badge: "Albuminuria Patologica",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Sindrome Nefrosica & Declino Terminale dell'eGFR",
+        descrizione: "La filtrazione crolla (eGFR < 45 mL/min), subentrano edemi declivi marcati, macro-proteinuria e ipertensione arteriosa refrattaria di origine renale.",
+        badge: "Glomerulosclerosi Avanzata",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Insufficienza renale terminale uremica con necessità di dialisi o trapianto renale, associata a retinopatia diabetica proliferante.",
+    indicazioniMediche: "Controllo glicemico rigoroso (SGLT2-inibitori nefroprotettivi), blocco del sistema renina-angiotensina con ACE-inibitori o sartanici (ARB) per ridurre la pressione intraglomerulare."
+  },
+  {
+    id: "ipercalcemia_aritmia_calcoli",
+    titolo: "Crisi Ipercalcemica, Accorciamento del QT & Litiasi Renale",
+    sottotitolo: "Incrocio: Calcio Sierico (Ca++) > 10.8 mg/dL + Paratormone (PTH) / Vitamina D + Alterazioni ECG",
+    urgenza: "🟠 Urgenza Elettrolitica & Ritmica",
+    rischioColore: "border-orange-500/40 bg-orange-500/5",
+    parametriCoinvolti: [
+      { nome: "Calcio Sierico (Ca++)", categoria: "Funzionalità d'Organo", icon: "💧" },
+      { nome: "Vitamina D e PTH", categoria: "Parametri Metabolici", icon: "☀️" },
+      { nome: "Tracciato ECG / Intervallo QT", categoria: "Parametri Vitali", icon: "⚡" },
+      { nome: "Creatinina ed Azotemia", categoria: "Funzionalità d'Organo", icon: "🔬" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Sovraccarico Osteoclastico o Iperassorbimento di Calcio",
+        descrizione: "Un iperparatiroidismo primitivo, un'intossicazione da vitamina D o un'ipercalcemia neoplastica aumentano la concentrazione ionizzata di calcio nel siero extracellulare.",
+        badge: "Ipercalcemia Sierica",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Accorciamento dell'Intervallo QT & Diabete Insipido Nefrogenico",
+        descrizione: "Il calcio in eccesso altera i canali ionici miocardici accorciando il potenziale d'azione ventricolare e blocca i recettori dell'aquaporina renale provocando poliuria e disidratazione.",
+        badge: "Accorciamento QT ECG",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Nefrocalcinosi, Blocco Renale & Aritmie Ventricolari Gravi",
+        descrizione: "I sali di calcio precipitano nei tubuli renali (nefrocalcinosi parenchimale), la filtrazione renale collassa e insorgono aritmie cardiache da instabilità elettrica.",
+        badge: "Nefrocalcinosi & Aritmia",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Insufficienza renale acuta parenchimale, arresto cardiaco aritmico ventricolare, letargia mentale e coma ipercalcemico.",
+    indicazioniMediche: "Idratazione forzata immediata con soluzione fisiologica 0.9%, bifosfonati endovenosi (acido zoledronico) o denosumab, sospensione di integratori di calcio/vitamina D ed ECG continuo."
+  },
+  {
+    id: "ipertrofia_cardiaca_scompenso_bnp",
+    titolo: "Sovraccarico Emodinamico Ventricolare & Edema Polmonare",
+    sottotitolo: "Incrocio: Pressione Sistolica > 160 mmHg + NT-proBNP Elevato + Frequenza Elevata / Dispnea",
+    urgenza: "🔴 Emergenza Cardio-Respiratoria",
+    rischioColore: "border-red-500/40 bg-red-500/5",
+    parametriCoinvolti: [
+      { nome: "NT-proBNP / BNP", categoria: "Parametri Vitali", icon: "⚡" },
+      { nome: "Pressione Arteriosa Sistolica", categoria: "Parametri Vitali", icon: "🩺" },
+      { nome: "Saturazione di Ossigeno (SpO2)", categoria: "Parametri Vitali", icon: "🫁" },
+      { nome: "Frequenza Cardiaca (BPM)", categoria: "Parametri Vitali", icon: "💓" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Post-carico Eccessivo & Ipertrofia Miocardica Concentrica",
+        descrizione: "L'ipertensione arteriosa cronica non trattata forza il ventricolo sinistro a generare pressioni elevate, ispessendo le pareti muscolari a scapito dell'elasticità.",
+        badge: "Ipertrofia Ventricolare",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Disfunzione Diastolica & Rilascio di NT-proBNP",
+        descrizione: "Il ventricolo non riesce a distendersi nella diastole. La tensione di parete intracardiaca schizza in alto, inducendo i miociti a secernere NT-proBNP nel circolo ematico.",
+        badge: "Picco Peptidi Natriuretici",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Congestione Polmonare Retrograda & Edema Acuto",
+        descrizione: "La pressione si trasmette all'atrio sinistro e ai capillari polmonari: il liquido trasuda negli alveoli causando dispnea ingravescente, tosse schiumosa e desaturazione (SpO2 < 90%).",
+        badge: "Edema Polmonare Acuto",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Insufficienza cardiaca acuta a frazione d'eiezione preservata/ridotta (HFpEF/HFrEF), edema polmonare cardiogeno e ipossia sistemica.",
+    indicazioniMediche: "Valutazione cardiologica urgente: diuretici dell'ansa per via endovenosa (furosemide), vasodilatatori venosi/arteriosi (nitrati), supporto CPAP respiratorio e titolazione ARNI/beta-bloccanti."
+  },
+  {
+    id: "autoimmunita_tiroide_flogosi_poliglandolare",
+    titolo: "Tiroidite Autoimmune Silente (Hashimoto) & Flogosi Vascolare Reattiva",
+    sottotitolo: "Incrocio: TSH Elevato + Colesterolo LDL Alto + Anticorpi Autoimmuni (ANA/TRAb) + hs-PCR Mossa",
+    urgenza: "🟠 Rischio Flogistico-Endocrino",
+    rischioColore: "border-orange-500/40 bg-orange-500/5",
+    parametriCoinvolti: [
+      { nome: "TSH ed Ormoni Tiroidei (FT4/FT3)", categoria: "Parametri Metabolici", icon: "🦋" },
+      { nome: "Anticorpi Autoimmuni (ANA / Anti-TPO)", categoria: "Stato Infiammatorio", icon: "⚔️" },
+      { nome: "Colesterolo LDL e Trigliceridi", categoria: "Parametri Metabolici", icon: "🧬" },
+      { nome: "Proteina C-Reattiva (hs-PCR)", categoria: "Stato Infiammatorio", icon: "🔥" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Infiltrazione Linfocitaria Tiroidea Autoimmune",
+        descrizione: "Autoanticorpi e linfociti T autoreattivi attaccano i tireociti, riducendo gradualmente la biosintesi degli ormoni tiroidei e inducendo un aumento reattivo del TSH ipofisario.",
+        badge: "Infiltrazione Linfocitaria",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Rallentamento della Clearance Epatica del Colesterolo LDL",
+        descrizione: "La carenza subclinica di ormoni tiroidei deprime la densità dei recettori epatici per le LDL: i livelli ematici di colesterolo e trigliceridi salgono vertiginosamente.",
+        badge: "Ipercolesterolemia Secondaria",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Aterosclerosi Endoteliale & Astenia Polidisregolata",
+        descrizione: "La combinazione di dislipidemia persistente e flogosi autoimmune cronica danneggia le coronarie, con astenia invalidante, bradicardia e intolleranza al freddo.",
+        badge: "Aterosclerosi & Bradicardia",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Ipotiroidismo conclamato irreversibile con dislipidemia aterogena secondaria grave, versamento pericardico e accelerazione del decadimento cognitivo.",
+    indicazioniMediche: "Ecografia tiroidea con color-Doppler, dosaggio anticorpi anti-TPO e anti-Tg, terapia ormonale sostitutiva con levotiroxina titolata sul TSH e monitoraggio dell'assetto lipidico."
   }
 ];
 

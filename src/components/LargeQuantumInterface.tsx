@@ -90,45 +90,48 @@ export default function LargeQuantumInterface() {
     }, 1200);
   };
 
-  const codeString = `# Qiskit v1.x script generated for Macroeconomic Portfolio Optimization
+  const codeString = `# Qiskit v1.x / v2.x script for Quantum Optimization & Simulation
+import numpy as np
 from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
-from qiskit.visualization import plot_histogram
-import numpy as np
+from qiskit_aer.primitives import SamplerV2 as AerSampler
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
-# Portfolio & Macro parameters
+# Macro & Risk Parameters
 inflation = ${inflationRate} / 100.0
 gdp_shock = ${gdpStress} / 100.0
 rates = ${interestRates} / 100.0
 
-# Initialize 4-qubit circuit with state initialization
-qc = QuantumCircuit(4, 4)
+# 1. Initialize 4-qubit circuit
+qc = QuantumCircuit(4, 4, name="QuantumOptCircuit")
 
-# Apply state preparation representative of macroeconomic parameters
-qc.ry(2 * np.arccos(np.sqrt(1 - inflation)), 0)
-qc.ry(2 * np.arccos(np.sqrt(1 - gdp_shock)), 1)
-qc.ry(2 * np.arccos(np.sqrt(1 - rates)), 2)
+# 2. State preparation (Amplitude Encoding esatto: theta = 2 * arcsin(sqrt(peso)))
+qc.ry(2.0 * np.arcsin(np.sqrt(inflation)), 0)
+qc.ry(2.0 * np.arcsin(np.sqrt(gdp_shock)), 1)
+qc.ry(2.0 * np.arcsin(np.sqrt(rates)), 2)
 
-# Entangle market variables with dynamic correlation gates
+# 3. Dynamic correlation gates & Variational Ansätze
 qc.cx(0, 1)
 qc.cx(1, 2)
 qc.cx(2, 3)
-
-# Variational Ansätze for portfolio search space
 qc.h(3)
 qc.cx(3, 0)
 qc.p(np.pi / 4, 1)
 
-# Measurement back to classical registers
+# 4. Final measurement
 qc.measure_all()
 
-# Run simulation on high-performance AerSimulator
+# 5. Execution on AerSimulator with Qiskit 1.x / 2.x Primitive SamplerV2
 simulator = AerSimulator()
-compiled_circuit = qc.decompose()
-result = simulator.run(compiled_circuit, shots=1024).result()
-counts = result.get_counts()
+pass_manager = generate_preset_pass_manager(backend=simulator, optimization_level=1)
+isa_circuit = pass_manager.run(qc)
 
-print("Optimal state sequence found:", counts)`;
+sampler = AerSampler()
+job = sampler.run([isa_circuit], shots=1024)
+pub_result = job.result()[0]
+counts = pub_result.data.meas.get_counts()
+
+print("Optimal state sequence found (SamplerV2 counts):", counts)`;
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(codeString);
