@@ -10,6 +10,9 @@ import CrossParameterAnalysis from './CrossParameterAnalysis';
 import AcquiredReportsModal, { AcquiredReport } from './AcquiredReportsModal';
 import QuantumHealth13QubitModal from './QuantumHealth13QubitModal';
 import DocumentationModal from './DocumentationModal';
+import WearableWorkloadDashboard from './WearableWorkloadDashboard';
+import WearableMetricsInputModal from './WearableMetricsInputModal';
+import { WearableWorkloadMetrics, DEFAULT_WEARABLE_METRICS, valutaEffettiDominoWearable } from '../types/wearable';
 import { HealthPageReport, elaboraPaginaHealth, estraiDatiFascicoloPerQubit } from '../lib/quantumHealthEngine';
 import { CATEGORY_DETAILS_ENRICHED } from '../data/medicalCategoriesData';
 import { generateMedicalReportPdf } from '../lib/generateMedicalReportPdf';
@@ -50,6 +53,8 @@ export interface ScreeningResult {
   metabolici: EvaluationCategory;
   organo: EvaluationCategory;
   infiammatorio: EvaluationCategory;
+  wearableLoad?: EvaluationCategory;
+  wearableMetrics?: WearableWorkloadMetrics;
   quantumReport?: HealthPageReport;
   patientName?: string;
   patientEmail?: string;
@@ -283,6 +288,34 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
         chartColor: "#ef4444",
         chartKey: "value",
         chartLabel: "Indice Flogistico"
+      },
+      wearableMetrics: wearableMetrics,
+      wearableLoad: {
+        title: "Monitoraggio Carico di Lavoro, Sensori IMU & Biomeccanica (Smartwatch)",
+        subtitle: `ACWR: ${wearableMetrics.acwr.toFixed(2)} • Segnale: ${wearableMetrics.sentinelSignal.toUpperCase()} • Passi: ${wearableMetrics.steps.toLocaleString('it-IT')}`,
+        status: wearableMetrics.acwr <= 1.45 && wearableMetrics.sentinelSignal !== 'rossa' && wearableMetrics.fatigueIndex < 65 ? 'Idoneo' : 'Non Idoneo',
+        statusText: wearableMetrics.acwr <= 1.45 && wearableMetrics.sentinelSignal !== 'rossa' && wearableMetrics.fatigueIndex < 65 
+          ? 'Carico Biomeccanico Fisiologico' 
+          : 'Sovraccarico Meccanico / Segnale Sentinella Attivo',
+        description: `ACWR calcolato a ${wearableMetrics.acwr.toFixed(2)}, forza impatto tibiale ${wearableMetrics.impactsTibia}g, indice fatica ${wearableMetrics.fatigueIndex}%, asimmetria posturale ${wearableMetrics.biomechanicAlterations}%. Tracciamento lesioni: ${wearableMetrics.musculoskeletalInjuriesOutcome}.`,
+        metrics: [
+          { label: "ACWR Ratio", value: `${wearableMetrics.acwr.toFixed(2)}` },
+          { label: "Impatti Tibia", value: `${wearableMetrics.impactsTibia}g` },
+          { label: "Carico Cumulativo", value: `${wearableMetrics.cumulativeWorkload} AU` },
+          { label: "Indice Fatica", value: `${wearableMetrics.fatigueIndex}%` }
+        ],
+        chartData: [
+          { time: '6d fa', value: Math.round(wearableMetrics.acwr * 90) },
+          { time: '5d fa', value: Math.round(wearableMetrics.acwr * 95) },
+          { time: '4d fa', value: Math.round(wearableMetrics.acwr * 105) },
+          { time: '3d fa', value: Math.round(wearableMetrics.acwr * 98) },
+          { time: '2d fa', value: Math.round(wearableMetrics.acwr * 102) },
+          { time: '1d fa', value: Math.round(wearableMetrics.acwr * 100) },
+          { time: 'Oggi', value: Math.round(wearableMetrics.acwr * 100) }
+        ],
+        chartColor: "#06b6d4",
+        chartKey: "value",
+        chartLabel: "Trend ACWR (%)"
       }
     };
 
@@ -296,6 +329,46 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
   const [dob, setDob] = useState(() => localStorage.getItem('quantum_medical_dob') || '');
   const [bpm, setBpm] = useState('');
   const [pressure, setPressure] = useState('');
+
+  // Wearable Workload & IMU Biomechanics States
+  const [wearableMetrics, setWearableMetrics] = useState<WearableWorkloadMetrics>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('quantum_medical_wearable_metrics');
+      if (saved) {
+        try {
+          return { ...DEFAULT_WEARABLE_METRICS, ...JSON.parse(saved) };
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    return DEFAULT_WEARABLE_METRICS;
+  });
+  const [showWearableModal, setShowWearableModal] = useState(false);
+
+  // Variabili individuali assegnate ai parametri wearable per input/binding
+  const acwr = wearableMetrics.acwr;
+  const cumulativeWorkload = wearableMetrics.cumulativeWorkload;
+  const mechanicalLoad = wearableMetrics.mechanicalLoad;
+  const imuStatus = wearableMetrics.imuStatus;
+  const accelerometer = wearableMetrics.accelerometerPeak;
+  const gyroscope = wearableMetrics.gyroscopeAngularVelocity;
+  const impacts = wearableMetrics.impactsTibia;
+  const velocity = wearableMetrics.velocity;
+  const distance = wearableMetrics.distance;
+  const steps = wearableMetrics.steps;
+  const biomechanicAlterations = wearableMetrics.biomechanicAlterations;
+  const fatigueIndex = wearableMetrics.fatigueIndex;
+  const sentinelSignal = wearableMetrics.sentinelSignal;
+  const musculoskeletalInjuriesOutcome = wearableMetrics.musculoskeletalInjuriesOutcome;
+
+  const updateWearableField = <K extends keyof WearableWorkloadMetrics>(field: K, val: WearableWorkloadMetrics[K]) => {
+    setWearableMetrics(prev => {
+      const updated = { ...prev, [field]: val };
+      localStorage.setItem('quantum_medical_wearable_metrics', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const handleDeleteReport = (id: string) => {
     const updated = acquiredReports.filter(r => r.id !== id);
@@ -776,6 +849,26 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           chartColor: "#f59e0b",
           chartKey: "value",
           chartLabel: "Livello di Stress"
+        },
+        wearableMetrics: wearableMetrics,
+        wearableLoad: {
+          title: "Monitoraggio Carico di Lavoro, Sensori IMU & Biomeccanica (Smartwatch)",
+          subtitle: `ACWR: ${wearableMetrics.acwr.toFixed(2)} • Segnale: ${wearableMetrics.sentinelSignal.toUpperCase()} • Passi: ${wearableMetrics.steps.toLocaleString('it-IT')}`,
+          status: wearableMetrics.acwr <= 1.45 && wearableMetrics.sentinelSignal !== 'rossa' && wearableMetrics.fatigueIndex < 65 ? 'Idoneo' : 'Non Idoneo',
+          statusText: wearableMetrics.acwr <= 1.45 && wearableMetrics.sentinelSignal !== 'rossa' && wearableMetrics.fatigueIndex < 65 
+            ? 'Carico Biomeccanico Fisiologico' 
+            : 'Sovraccarico Meccanico / Segnale Sentinella Attivo',
+          description: `ACWR calcolato a ${wearableMetrics.acwr.toFixed(2)}, forza impatto tibiale ${wearableMetrics.impactsTibia}g, indice fatica ${wearableMetrics.fatigueIndex}%, asimmetria posturale ${wearableMetrics.biomechanicAlterations}%. Tracciamento lesioni: ${wearableMetrics.musculoskeletalInjuriesOutcome}.`,
+          metrics: [
+            { label: "ACWR Ratio", value: `${wearableMetrics.acwr.toFixed(2)}` },
+            { label: "Impatti Tibia", value: `${wearableMetrics.impactsTibia}g` },
+            { label: "Carico Cumulativo", value: `${wearableMetrics.cumulativeWorkload} AU` },
+            { label: "Indice Fatica", value: `${wearableMetrics.fatigueIndex}%` }
+          ],
+          chartData: mockTimeSeries(wearableMetrics.acwr * 100, 15),
+          chartColor: "#06b6d4",
+          chartKey: "value",
+          chartLabel: "Trend ACWR (%)"
         }
       };
 
@@ -1044,23 +1137,138 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                     </div>
                   )}
                   {inputMethod === 'smartwatch' && (
-                    <div className="flex flex-col gap-4 animate-in fade-in w-full max-w-sm">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-widest">Scegli metodo di importazione</p>
+                    <div className="flex flex-col gap-4 animate-in fade-in w-full max-w-2xl">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-mono font-semibold">
+                            Telemetria Smartwatch & Sensori IMU (Attivi)
+                          </p>
+                          <span className="text-xs text-slate-300">
+                            Monitoraggio in continuo di carico acuto, impatti, accelerazioni e segnali sentinella
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowWearableModal(true)}
+                          className="px-3.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-mono transition-all flex items-center gap-1.5 shrink-0"
+                        >
+                          <Watch className="w-3.5 h-3.5" />
+                          <span>Tutte le 14 Metriche Wearable</span>
+                        </button>
+                      </div>
+
+                      {/* Import bar & Bluetooth */}
                       <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                           <button className="w-full px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-mono transition-all">
-                            Carica file .CSV
+                            Carica Telemetria (.CSV)
                           </button>
                           <input type="file" accept=".csv" onChange={handleCsvUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                         </div>
                         <button onClick={handleBluetoothSync} className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-lg text-xs font-mono transition-all flex items-center justify-center gap-2">
-                          <Watch className="w-3 h-3" /> Connetti API
+                          <Watch className="w-3 h-3 text-cyan-400" /> Sincronizza Dispositivo BLE
                         </button>
                       </div>
+
+                      {/* Interactive inline quick parameters */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-white/5">
+                        <div className="p-2.5 rounded-xl bg-black/40 border border-white/5">
+                          <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
+                            ACWR Ratio
+                          </label>
+                          <input
+                            type="number"
+                            step="0.05"
+                            value={wearableMetrics.acwr}
+                            onChange={(e) => updateWearableField('acwr', parseFloat(e.target.value) || 0)}
+                            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-sm font-bold text-white font-mono focus:border-cyan-500 focus:outline-none"
+                          />
+                          <span className={`text-[9px] font-mono mt-1 block ${wearableMetrics.acwr > 1.45 ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {wearableMetrics.acwr > 1.45 ? '⚠️ Danger Zone' : 'Ottimale (0.8-1.3)'}
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-black/40 border border-white/5">
+                          <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
+                            Impatti Tibia (g)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={wearableMetrics.impactsTibia}
+                            onChange={(e) => updateWearableField('impactsTibia', parseFloat(e.target.value) || 0)}
+                            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-sm font-bold text-white font-mono focus:border-cyan-500 focus:outline-none"
+                          />
+                          <span className={`text-[9px] font-mono mt-1 block ${wearableMetrics.impactsTibia >= 11 ? 'text-red-400' : 'text-slate-400'}`}>
+                            {wearableMetrics.impactsTibia >= 11 ? '⚠️ Picco Forza' : 'Fisiologico'}
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-black/40 border border-white/5">
+                          <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
+                            Passi Totali
+                          </label>
+                          <input
+                            type="number"
+                            step="500"
+                            value={wearableMetrics.steps}
+                            onChange={(e) => updateWearableField('steps', parseInt(e.target.value) || 0)}
+                            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-sm font-bold text-white font-mono focus:border-cyan-500 focus:outline-none"
+                          />
+                          <span className="text-[9px] text-slate-400 font-mono mt-1 block">
+                            Distanza: {wearableMetrics.distance} km
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-black/40 border border-white/5">
+                          <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
+                            Segnale Sentinella
+                          </label>
+                          <div className="flex gap-1 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => updateWearableField('sentinelSignal', 'verde')}
+                              className={`flex-1 py-1 rounded text-[10px] font-mono font-bold border transition-all ${
+                                wearableMetrics.sentinelSignal === 'verde'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500'
+                                  : 'bg-black/50 text-slate-500 border-white/10'
+                              }`}
+                            >
+                              Verde
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateWearableField('sentinelSignal', 'gialla')}
+                              className={`flex-1 py-1 rounded text-[10px] font-mono font-bold border transition-all ${
+                                wearableMetrics.sentinelSignal === 'gialla'
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500'
+                                  : 'bg-black/50 text-slate-500 border-white/10'
+                              }`}
+                            >
+                              Gialla
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateWearableField('sentinelSignal', 'rossa')}
+                              className={`flex-1 py-1 rounded text-[10px] font-mono font-bold border transition-all ${
+                                wearableMetrics.sentinelSignal === 'rossa'
+                                  ? 'bg-red-500/20 text-red-300 border-red-500'
+                                  : 'bg-black/50 text-slate-500 border-white/10'
+                              }`}
+                            >
+                              Rossa
+                            </button>
+                          </div>
+                          <span className="text-[9px] text-slate-500 font-mono mt-1 block truncate">
+                            {wearableMetrics.sentinelSignal === 'verde' ? 'Normale' : 'Allerta precoce'}
+                          </span>
+                        </div>
+                      </div>
+
                       {(isAnalyzing || isDataReady) && (
-                        <div className="flex items-center gap-3 mt-2 text-emerald-400 text-sm font-mono bg-black/40 p-2 rounded border border-emerald-500/20">
+                        <div className="flex items-center gap-3 mt-1 text-emerald-400 text-sm font-mono bg-black/40 p-2.5 rounded-xl border border-emerald-500/20">
                           {isAnalyzing ? <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin shrink-0" /> : <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" />}
-                          {isAnalyzing ? 'Connessione in corso...' : 'Dati acquisiti con successo'}
+                          {isAnalyzing ? 'Elaborazione telemetria...' : 'Dati telemetrici smartwatch sincronizzati e pronti per lo screening'}
                         </div>
                       )}
                     </div>
@@ -1365,8 +1573,8 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                 </div>
 
                 <div className="flex flex-col gap-3 pb-4 pt-1 px-1">
-                  {[result.vitali, result.metabolici, result.organo, result.infiammatorio].map((cat, idx) => {
-                    const details = CATEGORY_DETAILS_ENRICHED[idx];
+                  {[result.vitali, result.metabolici, result.organo, result.infiammatorio, result.wearableLoad].filter(Boolean).map((cat, idx) => {
+                    const details = CATEGORY_DETAILS_ENRICHED[idx] || CATEGORY_DETAILS_ENRICHED[0];
                     const isExpanded = expandedCategory === idx;
                     const isCriticalOrAlert = cat.status !== 'Idoneo';
                     
@@ -1575,6 +1783,12 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
               </div>
             </div>
 
+            {/* DASHBOARD TELEMETRIA WEARABLE (SMARTWATCH & IMU) */}
+            <WearableWorkloadDashboard 
+              metrics={result.wearableMetrics || wearableMetrics} 
+              onEdit={() => setShowWearableModal(true)} 
+            />
+
             {/* SEZIONE EFFETTO DOMINO GLOBALE & PROBLEMATICHE DOVUTE AGLI INCROCI DEI PARAMETRI (TUTTO INLINE) */}
             <CrossParameterAnalysis result={result} />
 
@@ -1594,6 +1808,50 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           </div>
         )}
       </div>
+
+      {/* MODALE SCHEDA TECNICA METRICHE WEARABLE & SMARTWATCH */}
+      <WearableMetricsInputModal
+        isOpen={showWearableModal}
+        onClose={() => setShowWearableModal(false)}
+        onSave={(m) => {
+          setWearableMetrics(m);
+          localStorage.setItem('quantum_medical_wearable_metrics', JSON.stringify(m));
+          if (result) {
+            setResult({
+              ...result,
+              wearableMetrics: m,
+              wearableLoad: {
+                title: "Monitoraggio Carico di Lavoro, Sensori IMU & Biomeccanica (Smartwatch)",
+                subtitle: `ACWR: ${m.acwr.toFixed(2)} • Segnale: ${m.sentinelSignal.toUpperCase()} • Passi: ${m.steps.toLocaleString('it-IT')}`,
+                status: m.acwr <= 1.45 && m.sentinelSignal !== 'rossa' && m.fatigueIndex < 65 ? 'Idoneo' : 'Non Idoneo',
+                statusText: m.acwr <= 1.45 && m.sentinelSignal !== 'rossa' && m.fatigueIndex < 65 
+                  ? 'Carico Biomeccanico Fisiologico' 
+                  : 'Sovraccarico Meccanico / Segnale Sentinella Attivo',
+                description: `ACWR calcolato a ${m.acwr.toFixed(2)}, forza impatto tibiale ${m.impactsTibia}g, indice fatica ${m.fatigueIndex}%, asimmetria posturale ${m.biomechanicAlterations}%. Tracciamento lesioni: ${m.musculoskeletalInjuriesOutcome}.`,
+                metrics: [
+                  { label: "ACWR Ratio", value: `${m.acwr.toFixed(2)}` },
+                  { label: "Impatti Tibia", value: `${m.impactsTibia}g` },
+                  { label: "Carico Cumulativo", value: `${m.cumulativeWorkload} AU` },
+                  { label: "Indice Fatica", value: `${m.fatigueIndex}%` }
+                ],
+                chartData: [
+                  { time: '6d fa', value: Math.round(m.acwr * 90) },
+                  { time: '5d fa', value: Math.round(m.acwr * 95) },
+                  { time: '4d fa', value: Math.round(m.acwr * 105) },
+                  { time: '3d fa', value: Math.round(m.acwr * 98) },
+                  { time: '2d fa', value: Math.round(m.acwr * 102) },
+                  { time: '1d fa', value: Math.round(m.acwr * 100) },
+                  { time: 'Oggi', value: Math.round(m.acwr * 100) }
+                ],
+                chartColor: "#06b6d4",
+                chartKey: "value",
+                chartLabel: "Trend ACWR (%)"
+              }
+            });
+          }
+        }}
+        initialMetrics={wearableMetrics}
+      />
 
       {/* MODALE REFERTI O DATI ACQUISITI */}
       <AcquiredReportsModal

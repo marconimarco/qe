@@ -71,6 +71,34 @@ function checkIsProblemCritical(problemId: string, result?: ScreeningResult | nu
       if (result.infiammatorio?.status === 'Non Idoneo' && result.metabolici?.status === 'Non Idoneo') return true;
       return false;
 
+    case 'acwr_impatti_frattura_stress': {
+      const wm = result.wearableMetrics || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('quantum_medical_wearable_metrics') || '{}') : null);
+      if (wm?.acwr >= 1.45 && wm?.impactsTibia >= 10) return true;
+      if (result.vitali?.status === 'Non Idoneo' && result.score < 55) return true;
+      return false;
+    }
+
+    case 'fatica_giroscopio_rottura_lca': {
+      const wm = result.wearableMetrics || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('quantum_medical_wearable_metrics') || '{}') : null);
+      if (wm?.fatigueIndex >= 65 && (wm?.biomechanicAlterations >= 8 || wm?.sentinelSignal !== 'verde')) return true;
+      if (result.headRisk === 'high' || (result.vitali?.status === 'Non Idoneo' && result.score < 50)) return true;
+      return false;
+    }
+
+    case 'carico_cumulativo_sentinella_overtraining': {
+      const wm = result.wearableMetrics || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('quantum_medical_wearable_metrics') || '{}') : null);
+      if (wm?.cumulativeWorkload >= 1300 || wm?.sentinelSignal === 'gialla' || wm?.sentinelSignal === 'rossa') return true;
+      if (result.infiammatorio?.status === 'Non Idoneo' && result.score < 60) return true;
+      return false;
+    }
+
+    case 'carico_meccanico_rabdomiolisi_renale': {
+      const wm = result.wearableMetrics || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('quantum_medical_wearable_metrics') || '{}') : null);
+      if (wm?.steps >= 20000 && wm?.mechanicalLoad >= 65) return true;
+      if (result.organo?.status === 'Non Idoneo' && result.score < 55) return true;
+      return false;
+    }
+
     default:
       return false;
   }

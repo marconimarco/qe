@@ -284,3 +284,78 @@ export const generateQiskitPythonCode = (
 
   return pyCode;
 };
+
+/**
+ * Generatore di codice Python per Scenari CLASSICI (HPC / CPU / GPU)
+ * Non include registri quantistici, qubit né porte logiche quantistiche.
+ */
+export const generateClassicalHpcPythonCode = (
+  sector: string,
+  scenarioName: string,
+  modelCode: string,
+  csv1: string,
+  csv2: string,
+  strategy: string
+): string => {
+  const { risorse } = parseCsv1Deterministic(csv1);
+  const resourceNames = risorse.map(r => r.nome || r.id);
+
+  let pyCode = `# =====================================================================\n`;
+  pyCode += `# PIPELINE CLASSICA AD ALTE PRESTAZIONI (HPC / GPU / CPU MULTI-CORE)\n`;
+  pyCode += `# Settore: ${sector} | Modello: ${modelCode}\n`;
+  pyCode += `# Scenario: ${scenarioName}\n`;
+  pyCode += `# NOTA: Calcolo convenzionale numerico classico (Zero Qubit / No QASM)\n`;
+  pyCode += `# =====================================================================\n\n`;
+
+  pyCode += `import numpy as np\n`;
+  pyCode += `import pandas as pd\n`;
+
+  if (modelCode.includes('XGBoost') || modelCode.includes('Machine Learning')) {
+    pyCode += `import xgboost as xgb\n`;
+    pyCode += `from sklearn.model_selection import train_test_split\n`;
+    pyCode += `from sklearn.metrics import mean_squared_error, r2_score\n\n`;
+    pyCode += `# 1. Caricamento Dataset e Features Operative\n`;
+    pyCode += `features = np.array([${risorse.map(r => r.peso.toFixed(2)).join(', ')}]).reshape(-1, 1)\n`;
+    pyCode += `target = features * 1.25 + np.random.normal(0, 0.05, size=features.shape)\n\n`;
+    pyCode += `# 2. Addestramento Modello Gradient Boosting (HPC CPU/GPU)\n`;
+    pyCode += `model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.08, max_depth=4, random_state=42)\n`;
+    pyCode += `model.fit(features, target.ravel())\n`;
+    pyCode += `predictions = model.predict(features)\n\n`;
+    pyCode += `print("--- RISULTATO PREVISIONE CLASSICA XGBOOST ---")\n`;
+    pyCode += `for nome, pred in zip(${JSON.stringify(resourceNames)}, predictions):\n`;
+    pyCode += `    print(f"Risorsa: {nome:<30} Valore Previsto: {pred:.4f}")\n`;
+  } else if (modelCode.includes('YOLO') || modelCode.includes('Vision')) {
+    pyCode += `import cv2\n`;
+    pyCode += `# Simulazione Pipeline Computer Vision Real-Time (YOLOv8 Inference)\n`;
+    pyCode += `print("--- INIZIALIZZAZIONE PIPELINE YOLO (CUDA/GPU ACCELERATED) ---")\n`;
+    pyCode += `print("Caricamento pesi modello su tensori CUDA...")\n`;
+    pyCode += `items_detected = ${JSON.stringify(resourceNames)}\n`;
+    pyCode += `print(f"Colli rilevati su nastro trasportatore: {len(items_detected)} unita'")\n`;
+    pyCode += `for i, item in enumerate(items_detected):\n`;
+    pyCode += `    confidence = float(np.clip(0.85 + np.random.uniform(0.01, 0.14), 0.80, 0.99))\n`;
+    pyCode += `    print(f"[TRACK ID: {i+101}] Classe: {item} | Confidence Score: {confidence:.2%}")\n`;
+  } else if (modelCode.includes('GIS') || modelCode.includes('Geolocalizzazione')) {
+    pyCode += `from scipy.spatial.distance import cdist\n`;
+    pyCode += `# Ottimizzazione Flotta GPS e Geofencing Classico (Dijkstra / NetworkX)\n`;
+    pyCode += `print("--- CALCOLO MATRICE DISTANZE E PERCORSI OTTIMALI (GIS / GPS) ---")\n`;
+    pyCode += `nodi = ${JSON.stringify(resourceNames)}\n`;
+    pyCode += `coordinate = np.random.uniform(45.0, 46.0, size=(len(nodi), 2))\n`;
+    pyCode += `dist_matrix = cdist(coordinate, coordinate, metric='euclidean')\n`;
+    pyCode += `print(f"Calcolate distanze minime tra {len(nodi)} nodi logistici con algoritmo di routing classico.")\n`;
+    pyCode += `print(f"Tempo stimato di percorrenza flotta ottimizzato: {np.sum(dist_matrix.min(axis=1)):.2f} ore.")\n`;
+  } else {
+    pyCode += `import scipy.optimize as opt\n`;
+    pyCode += `# Simulazione Discreta / Digital Twin ad Eventi Discreti (DES)\n`;
+    pyCode += `print("--- DIGITAL TWIN & SIMULAZIONE AD ALTE PRESTAZIONI ---")\n`;
+    pyCode += `risorse_sim = ${JSON.stringify(resourceNames)}\n`;
+    pyCode += `capacita = np.array([${risorse.map(r => r.peso.toFixed(2)).join(', ')}])\n`;
+    pyCode += `def costo_funzione(x):\n`;
+    pyCode += `    return np.sum((x - capacita)**2)\n`;
+    pyCode += `res = opt.minimize(costo_funzione, x0=capacita * 0.9, method='SLSQP')\n`;
+    pyCode += `print("Simulazione completata con successo. Ottimo locale raggiunto:")\n`;
+    pyCode += `print(f"Valore obiettivo della simulazione: {res.fun:.6f}")\n`;
+  }
+
+  return pyCode;
+};
+

@@ -63,7 +63,7 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
   "Logistica e Supply Chain": {
     sectorKey: "logistica",
     categoryName: "Logistica e Supply Chain",
-    description: "Nodi di smistamento, flotta di distribuzione e volumetrie di carico 3D",
+    description: "Nodi di smistamento, flotta di distribuzione, cross-docking e allocazione volumetrie",
     resources: [
       { id: 'hub_centrale', nome: 'Hub Logistico Principale', cat: 'nodi_smistamento', costo: '5000.00', qta: '5', peso: 0.95 },
       { id: 'flotta_veicoli', nome: 'Flotta Furgoni Elettrici', cat: 'vettori_trasporto', costo: '250.00', qta: '40', peso: 0.80 },
@@ -75,6 +75,63 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
       [0.35, 1.00, 0.00, 0.45],
       [0.60, 0.00, 1.00, 0.70],
       [0.00, 0.45, 0.70, 1.00]
+    ]
+  },
+
+  // 2B. LOGISTICA - CROSS DOCKING E MAGAZZINO
+  "Logistica_CrossDocking": {
+    sectorKey: "logistica",
+    categoryName: "Logistica: Cross-Docking e Magazzino",
+    description: "Banchine di scarico, linee di smistamento rapido e baie di carico outbound",
+    resources: [
+      { id: 'banchina_inbound_01', nome: 'Banchina Scarico Bilici Fresco', cat: 'gate_inbound', costo: '350.00', qta: '8', peso: 0.90 },
+      { id: 'traslatore_cross_01', nome: 'Buffer Rulliera Smistamento Diretto', cat: 'linea_crossdock', costo: '120.00', qta: '16', peso: 0.75 },
+      { id: 'banchina_outbound_nord', nome: 'Baia Carico Consegne Punti Vendita', cat: 'gate_outbound', costo: '400.00', qta: '12', peso: 0.85 },
+      { id: 'slot_stoccaggio_temp', nome: 'Slot Refrigerato Stazionamento Zero', cat: 'area_polmone', costo: '85.00', qta: '60', peso: 0.60 }
+    ],
+    matrix: [
+      [1.00, 0.75, 0.65, 0.20],
+      [0.75, 1.00, 0.70, 0.40],
+      [0.65, 0.70, 1.00, 0.15],
+      [0.20, 0.40, 0.15, 1.00]
+    ]
+  },
+
+  // 2C. LOGISTICA - PREVISIONE FRESCHI QML E PRICING DINAMICO
+  "Logistica_RetailPricing": {
+    sectorKey: "logistica",
+    categoryName: "Logistica: Commerciale, Freschi & Dynamic Pricing",
+    description: "Lotti deperibili a scadenza ravvicinata, tasso di rotazione e curva markdown",
+    resources: [
+      { id: 'lotto_latticini_fresco', nome: 'Lotto Latticini Scadenza 48h', cat: 'freschissimi_deperibili', costo: '1.80', qta: '1200', peso: 0.92 },
+      { id: 'lotto_ortofrutta_bio', nome: 'Ortofrutta Selezionata Shelf-Life 24h', cat: 'ortofrutta_fresca', costo: '2.40', qta: '850', peso: 0.88 },
+      { id: 'markdown_sconto_30', nome: 'Algoritmo Markdown Sconto Fascia A', cat: 'leva_prezzo_dinamica', costo: '0.45', qta: '500', peso: 0.70 },
+      { id: 'markdown_sconto_50', nome: 'Curva Liquidazione Rapida Anti-Spreco', cat: 'leva_prezzo_aggressiva', costo: '0.20', qta: '300', peso: 0.65 }
+    ],
+    matrix: [
+      [1.00, 0.45, 0.70, 0.60],
+      [0.45, 1.00, 0.65, 0.75],
+      [0.70, 0.65, 1.00, 0.30],
+      [0.60, 0.75, 0.30, 1.00]
+    ]
+  },
+
+  // 2D. LOGISTICA - KNAPSACK SPAZIO SCAFFALE E PLANOGRAMMA
+  "Logistica_KnapsackScaffale": {
+    sectorKey: "logistica",
+    categoryName: "Logistica: Spazio Scaffale & Knapsack Planogramma",
+    description: "Allocazione facciate espositive, rotazione volumetrica e redditività per metro lineare",
+    resources: [
+      { id: 'facing_ad_alta_rotaz', nome: 'Facing Top Seller Ad Alta Rotazione', cat: 'scaffale_livello_occhi', costo: '4.50', qta: '45', peso: 0.95 },
+      { id: 'facing_alto_margine', nome: 'Prodotti Premium Ad Alto Margine', cat: 'scaffale_livello_mani', costo: '8.90', qta: '30', peso: 0.82 },
+      { id: 'prodotto_ingombrante', nome: 'Confezioni Famiglia Bassa Densità Valore', cat: 'scaffale_livello_suolo', costo: '2.10', qta: '20', peso: 0.60 },
+      { id: 'cluster_promo_testata', nome: 'Testata di Gondola Promozionale CRM', cat: 'display_promozionale', costo: '12.00', qta: '15', peso: 0.75 }
+    ],
+    matrix: [
+      [1.00, 0.65, 0.40, 0.70],
+      [0.65, 1.00, 0.30, 0.60],
+      [0.40, 0.30, 1.00, 0.10],
+      [0.70, 0.60, 0.10, 1.00]
     ]
   },
 
@@ -179,6 +236,18 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
  */
 export function resolveSectorKey(sector: string, scenario: string = ""): string {
   const norm = (sector + " " + scenario).toLowerCase().trim();
+
+  // Sub-scenari specializzati di Logistica & Retail Supply Chain
+  if (norm.includes('cross-dock') || norm.includes('cross dock') || norm.includes('stoccaggio') || norm.includes('log_q_10')) {
+    return "Logistica_CrossDocking";
+  }
+  if (norm.includes('fresch') || norm.includes('scarto') || norm.includes('markdown') || norm.includes('pricing') || norm.includes('log_q_11') || norm.includes('log_q_12')) {
+    return "Logistica_RetailPricing";
+  }
+  if (norm.includes('knapsack') || norm.includes('scaffal') || norm.includes('planogram') || norm.includes('crm') || norm.includes('log_q_13') || norm.includes('log_q_14')) {
+    return "Logistica_KnapsackScaffale";
+  }
+
   if (norm.includes('logist') || norm.includes('supply') || norm.includes('flott') || norm.includes('vrptw') || norm.includes('bin packing') || norm.includes('log-') || norm.includes('log_')) {
     return "Logistica e Supply Chain";
   }

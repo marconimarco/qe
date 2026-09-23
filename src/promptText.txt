@@ -147,6 +147,11 @@ Se Logistica e Supply Chain:
 7. Ottimizzazione delle Scorte di Sicurezza Multi-Echelon — Focus Ampiezza
 8. Valutazione Rischio di Interruzione della Catena di Fornitura — Focus Entanglement
 9. Analisi Vulnerabilità della Rete di Distribuzione (Graph Theory) — Focus Entanglement
+10. Magazzino: Orchestrazione Flussi Stoccaggio e Cross-Docking (QAOA) — Focus Entanglement
+11. Commerciale: Previsione Domanda Prodotti Freschi (QML Anti-Spreco) — Focus Entanglement
+12. Pricing Dinamico e Markdown Ottimale per Prodotti a Scadenza — Focus Ampiezza
+13. Spazio: Ottimizzazione Layout Scaffale e Allocazione Merci (Knapsack) — Focus Entanglement
+14. Marketing & CRM: Iper-Personalizzazione e Clustering Promozioni (Q-Means) — Focus Entanglement
 • APPROCCIO CLASSICO (PYTHON / HPC):
 1. Previsione della Domanda di Vendita con Gradient Boosting (XGBoost)
 2. Tracciamento Visivo Automatico Colli con Telecamere OCR (YOLO)

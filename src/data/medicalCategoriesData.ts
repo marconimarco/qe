@@ -296,6 +296,113 @@ export const CATEGORY_DETAILS_ENRICHED: CategoryData[] = [
     cause: "Focolai infettivi non drenati, disbiosi intestinale con traslocazione batterica, malattie reumatologiche croniche, patologie ematologiche mieloproliferative, neoplasie occulte.",
     consigli: "Consulto reumatologico o infettivologico d'urgenza, emocolture in picco febbrile, ecografia delle stazioni linfonodali ed elettroforesi sieroproteica capillare. Integrazione mirata per il microbiota intestinale, protocolli nutrizionali anti-infiammatori (Omega-3).",
     interconnessione: "Un'infiammazione silente (hs-PCR) mantenuta alta nel tempo accelera l'aterosclerosi nei vasi (Parametri Metabolici), logora la barriera glomerulare renale (Funzionalità d'Organo) e predispone a crisi vascolari improvvise (Parametri Vitali)."
+  },
+  {
+    id: 4,
+    title: "Monitoraggio Carico di Lavoro, Sensori IMU & Biomeccanica Wearable (Smartwatch)",
+    valore: "La quantificazione precisa del carico cinematico, dello stress muscoloscheletrico e della prevenzione infortuni via telemetria smartwatch.",
+    obiettivo: "Prevenzione di sovrallenamento, lesioni miotendinee e rotture legamentose tramite incrocio di accelerometria, giroscopio, impatti tibiali e ratio ACWR.",
+    urgenza: "🟡 Urgenza Dinamico-Traumatologica (Prevenzione attiva di infortuni da sovraccarico).",
+    urgenzaTag: "Urgenza Dinamica Wearable",
+    urgenzaDesc: "Se alterati o sbilanciati, i carichi meccanici innescano microfratture, periostite, cedimenti legamentosi ed esaurimento sistemico.",
+    urgenzaBadgeColor: "bg-cyan-500/10 border-cyan-500/30 text-cyan-400",
+    punti: [
+      {
+        t: "ACWR (Acute-to-Chronic Workload Ratio)",
+        d: "Rapporto tra il carico di lavoro recente (acuto, 7 giorni) e il carico abituale (cronico, 28 giorni). Range 'Sweet Spot' ottimale: 0.8 - 1.3.",
+        icon: "📊",
+        seAlti: "ACWR >1.5: 'Danger Zone', rischio di infortunio muscoloscheletrico triplicato per spike di carico improvviso.",
+        seBassi: "ACWR <0.8: 'Under-training', decondizionamento dei tessuti e vulnerabilità ai carichi futuri."
+      },
+      {
+        t: "Carico Cumulativo (Cumulative Workload)",
+        d: "Stress meccanico totale accumulato dall'atleta in giorni o settimane (espresso in Arbitrary Units AU).",
+        icon: "📈",
+        seAlti: "Sovraccarico cronico, esaurimento della sintesi del collagene e rischio di tendinopatia cronica o overtraining.",
+        seBassi: "Volume insufficiente per mantenere gli adattamenti aerobici e neuromuscolari."
+      },
+      {
+        t: "Carico Meccanico (Mechanical Load)",
+        d: "Quantificazione delle forze fisiche esterne subite dall'apparato muscoloscheletrico ad ogni passo o impatto (kJ o AU).",
+        icon: "⚙️",
+        seAlti: "Forze d'impatto distruttive sul sistema osseo-cartilagineo, micro-lesioni sarcolemmali e rischio di rabdomiolisi.",
+        seBassi: "Carico meccanico protettivo o rigenerativo a basso impatto articolare."
+      },
+      {
+        t: "IMU (Inertial Measurement Units) & Stato Sensori",
+        d: "Gruppo di sensori inerziali ad alta frequenza (100-200 Hz) che traccia il corpo in 3D nello spazio.",
+        icon: "📡",
+        seAlti: "Alta fedeltà di campionamento e tracciamento millimetrico.",
+        seBassi: "Perdita di pacchetti o drift inerziale da ricalibrare."
+      },
+      {
+        t: "Accelerometro Triassiale (Accelerometer Peak)",
+        d: "Misurazione delle accelerazioni e decelerazioni brusche sui tre assi ortogonali (X, Y, Z).",
+        icon: "⚡",
+        seAlti: "Picchi di decelerazione violenti (>6g) correlati a elevato stress sui legamenti crociati.",
+        seBassi: "Movimento fluido e assorbimento controllato dell'energia cinetica."
+      },
+      {
+        t: "Giroscopio (Gyroscope Angular Velocity)",
+        d: "Sensore che misura la velocità angolare e l'orientamento dei segmenti corporei (deg/s).",
+        icon: "🔄",
+        seAlti: "Instabilità torsionale, valgismo dinamico del ginocchio o rotazione anomala della caviglia.",
+        seBassi: "Stabilità multiassiale e perfetto allineamento cinematico."
+      },
+      {
+        t: "Impatti Ossei / Tibia (Tibial Impacts Force)",
+        d: "Forza d'urto meccanica registrata sui segmenti ossei ad ogni appoggio (g-force).",
+        icon: "💥",
+        seAlti: "Impatti >11g: pericolo imminente di periostite tibiale e fratture da stress.",
+        seBassi: "Forze d'urto ammortizzate fisiologicamente (<8g)."
+      },
+      {
+        t: "Velocità & Distanza Percorsa",
+        d: "Tasso di spostamento, rapidità del gesto atletico (km/h) e volume totale dello spostamento (km).",
+        icon: "🏃",
+        seAlti: "Velocità elevata con volume esteso: richiede massimo dispendio energetico e recupero prolungato.",
+        seBassi: "Ritmo di rigenerazione o deambulazione standard."
+      },
+      {
+        t: "Passi & Cadenza (Steps & Cadence)",
+        d: "Conteggio e frequenza dei passi eseguiti (passi totali e cadenza passi al minuto spm).",
+        icon: "👟",
+        seAlti: "Oltre 20.000 passi: sovraccarico fasciale plantare e rischio tendinite achillea se la cadenza è bassa.",
+        seBassi: "Sedentarietà (<5.000 passi) o fase di riposo clinico."
+      },
+      {
+        t: "Alterazioni Biomeccaniche & Asimmetrie (AI Biomechanical Alterations)",
+        d: "Asimmetrie tra lato destro e sinistro, variazioni della postura o dell'appoggio rilevate dall'algoritmo.",
+        icon: "⚖️",
+        seAlti: "Asimmetria >8-10%: indice evidente di compenso per micro-dolore o deficit propriocettivo.",
+        seBassi: "Simmetria bilaterale ideale (<5% di deviazione tra gli arti)."
+      },
+      {
+        t: "Indice di Fatica (Fatigue Index)",
+        d: "Decadimento e perdita progressiva di efficienza del gesto atletico nel corso della sessione (%).",
+        icon: "📉",
+        seAlti: "Fatica >65%: cedimento neuromuscolare e incapacità di stabilizzare le articolazioni.",
+        seBassi: "Efficienza neuromuscolare brillante e resistenza alla fatica ottimale."
+      },
+      {
+        t: "Segnale Sentinella / Luce Gialla (Sentinel Signal)",
+        d: "Deviazione statistica dal comportamento cinematico abituale prima dell'esordio del sintomo doloroso.",
+        icon: "🟡",
+        seAlti: "Luce Gialla o Rossa: allarme precoce di sovraccarico che anticipa la lesione clinica.",
+        seBassi: "Luce Verde: cinematica coerente con lo storico dell'atleta."
+      },
+      {
+        t: "Infortuni Muscoloscheletrici (Musculoskeletal Injuries Outcome)",
+        d: "Dato clinico di tracciamento dell'evento lesivo da incrociare con la cronologia del carico e delle metriche.",
+        icon: "🩹",
+        seAlti: "Lesioni miotendinee o distorsioni attive che impongono riabilitazione guidata.",
+        seBassi: "Assenza di lesioni pregresse o attive."
+      }
+    ],
+    allarmi: "Spike improvviso di ACWR (>1.5), impatti tibiali superiori a 12g, comparsa del Segnale Sentinella (Luce Gialla), asimmetria tra gli arti superiore al 10%, indice di fatica >70% nei cambi di direzione.",
+    cause: "Aumento troppo rapido del volume d'allenamento, scarpe scariche, terreno rigido, calo della reattività neuromuscolare per deprivazione di sonno o disidratazione.",
+    consigli: "Programmazione rigorosa del carico con regola del 10% settimanale; esercizi di potenziamento eccentrico per tendini e polpacci; test periodici su pedana baropodometrica; de-escalation tempestiva alla comparsa della Luce Gialla.",
+    interconnessione: "Il sovraccarico biomeccanico attiva mediatori infiammatori sistemici (hs-PCR e citochine) che aumentano la viscosità ematica e il carico cardiaco, oltre a rischiare rabdomiolisi da sforzo e sofferenza renale."
   }
 ];
 
@@ -887,6 +994,158 @@ export const CROSS_PARAMETER_PROBLEMS: CrossParameterProblem[] = [
     ],
     conseguenzaClinica: "Ipotiroidismo conclamato irreversibile con dislipidemia aterogena secondaria grave, versamento pericardico e accelerazione del decadimento cognitivo.",
     indicazioniMediche: "Ecografia tiroidea con color-Doppler, dosaggio anticorpi anti-TPO e anti-Tg, terapia ormonale sostitutiva con levotiroxina titolata sul TSH e monitoraggio dell'assetto lipidico."
+  },
+  {
+    id: "acwr_impatti_frattura_stress",
+    titolo: "Spike di Carico (ACWR), Forze d'Impatto & Frattura da Stress Tibiale",
+    sottotitolo: "Incrocio: ACWR > 1.5 + Impatti Ossei/Tibia Elevati (>11g) + Alterazioni Biomeccaniche d'Appoggio (>8%)",
+    urgenza: "🔴 Allerta Meccanica Ossea Critica",
+    rischioColore: "border-red-500/50 bg-red-500/10",
+    parametriCoinvolti: [
+      { nome: "ACWR (Acute-to-Chronic Workload)", categoria: "Monitoraggio Carico Smartwatch", icon: "📊" },
+      { nome: "Impatti Ossei / Tibia (g)", categoria: "Sensori Biomeccanici IMU", icon: "💥" },
+      { nome: "Alterazioni Biomeccaniche / Asimmetria", categoria: "Metriche Avanzate AI", icon: "⚖️" },
+      { nome: "Carico Meccanico Cumulativo", categoria: "Monitoraggio Carico Smartwatch", icon: "⚙️" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Spike di Carico Improvviso (ACWR Fuori Finestra)",
+        descrizione: "Il carico acuto recente supera del 50% il volume cronico di adattamento. L'apparato muscoloscheletrico non ha completato il turnover rigenerativo osseo.",
+        badge: "Spike di Volume",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Accumulo Forze d'Impatto & Periostite Reattiva",
+        descrizione: "I sensori IMU registrano accelerazioni d'impatto ripetute (>11g) con asimmetria tra arto destro e sinistro: l'osso corticale della tibia si infiamma con edema periostale doloroso.",
+        badge: "Stress da Impatto Tibiale",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Frattura da Fatica & Stop Forzato",
+        descrizione: "Le microfratture trabecolari si fondono in una rima di frattura da stress sub-corticale con impotenza funzionale immediata e rischio di lesione permanente.",
+        badge: "Frattura da Stress",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Frattura da stress della corticale tibiale, periostite invalidante e distacco micro-fasciale con stop agonistico prolungato (60-90 giorni).",
+    indicazioniMediche: "Risonanza magnetica (MRI) della tibia mirata per edema intraspongioso; sospensione totale degli impatti; de-escalation dell'ACWR nel range verde (0.8 - 1.2) con lavoro a basso impatto (nuoto/ciclismo)."
+  },
+  {
+    id: "fatica_giroscopio_rottura_lca",
+    titolo: "Cedimento Neuromuscolare, Discontrollo Angolare & Rischio Lesione LCA/Menisco",
+    sottotitolo: "Incrocio: Indice di Fatica > 65% + Deviazione Angolare Giroscopio + Decadimento Velocità",
+    urgenza: "🔴 Allerta Traumatologica Articolare",
+    rischioColore: "border-red-500/40 bg-red-500/5",
+    parametriCoinvolti: [
+      { nome: "Indice di Fatica (AI Synthesized)", categoria: "Metriche Avanzate AI", icon: "📉" },
+      { nome: "Giroscopio (Velocità Angolare & Orientamento)", categoria: "Sensori Biomeccanici IMU", icon: "🔄" },
+      { nome: "Accelerometro Triassiale (Picco Decelerazione)", categoria: "Sensori Biomeccanici IMU", icon: "⚡" },
+      { nome: "Infortuni Muscoloscheletrici Precedenti", categoria: "Esiti Clinici", icon: "🩹" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Fatica Neuromuscolare & Ritardo Elettromiografico",
+        descrizione: "L'indice di fatica elevato compromette la reattività dei fusi neuromuscolari. Il tempo di attivazione riflessa dei muscoli stabilizzatori del ginocchio aumenta drasticamente.",
+        badge: "Depressione Riflessi",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Instabilità nei Piani di Flesso-Estensione (Giroscopio)",
+        descrizione: "Il giroscopio rileva oscillazioni angolari caotiche nei cambi di direzione e salti: si manifesta il valgo dinamico del ginocchio, non più contrastato dai muscoli esausti.",
+        badge: "Valgismo Dinamico Anomalo",
+        badgeColor: "bg-orange-500/20 text-orange-300 border-orange-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Forza di Taglio Eccessiva & Rottura Capsulo-Legamentosa",
+        descrizione: "La forza cinetica si scarica interamente sul legamento crociato anteriore (LCA) e sul corno posteriore del menisco provocando lesione o rottura traumatica acuta.",
+        badge: "Rottura LCA / Meniscopatia",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Rottura acuta del legamento crociato anteriore (LCA) o distorsione capsulo-legamentosa di 3° grado con emartro e instabilità articolare cronica.",
+    indicazioniMediche: "Test clinico di Lachman e Pivot-Shift; risonanza magnetica ad alto campo del ginocchio; interruzione immediata dell'attività ad alta intensità; protocollo neuromuscolare preventivo FIFA 11+."
+  },
+  {
+    id: "carico_cumulativo_sentinella_overtraining",
+    titolo: "Sovraccarico Cronico, Segnale Sentinella (Luce Gialla) & Tendinopatia Degenerativa",
+    sottotitolo: "Incrocio: Carico Cumulativo Estremo + Segnale Sentinella Attivo (Luce Gialla) + HRV Depresso",
+    urgenza: "🟠 Rischio Overtraining & Tendinopatia",
+    rischioColore: "border-amber-500/40 bg-amber-500/5",
+    parametriCoinvolti: [
+      { nome: "Carico Cumulativo (Cumulative Workload)", categoria: "Monitoraggio Carico Smartwatch", icon: "📈" },
+      { nome: "Segnale Sentinella / Luce Gialla", categoria: "Metriche Avanzate AI", icon: "🟡" },
+      { nome: "Variabilità Cardiaca (HRV)", categoria: "Parametri Vitali Smartwatch", icon: "💓" },
+      { nome: "Distanza Totale & Passi", categoria: "Sensori Biomeccanici IMU", icon: "👟" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Deviazione Statistica Silente (Luce Gialla)",
+        descrizione: "L'algoritmo predittivo dello smartwatch intercetta il 'Segnale Sentinella': micro-alterazioni della cadenza e della frequenza passi prima ancora che l'atleta avverta dolore conscio.",
+        badge: "Luce Sentinella Attiva",
+        badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Infiammazione e Disorganizzazione del Collagene",
+        descrizione: "Il carico cumulativo cronico non smaltito deprime il tono vagale (HRV basso) e innesca neo-angiogenesi caotica nelle fibre del tendine d'Achille o rotuleo.",
+        badge: "Degenerazione Tendinea",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Sindrome da Sovrallenamento (OTS) & Lesione Inserzionale",
+        descrizione: "Stato infiammatorio cronico subclinico con astenia sistemica e rottura parziale o totale del tendine sottocutaneo.",
+        badge: "Rottura Tendinea / Overtraining",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Tendinopatia achillea/rotulea cronica con degenerazione mucoide fibro-elastica e sindrome da sovrallenamento sistemico (Overtraining Syndrome).",
+    indicazioniMediche: "Eco-Color-Doppler tendineo per mappare neo-vascolarizzazioni anomale; riduzione del carico cumulativo del 40%; inserimento di esercizi isometrici ed eccentrici a carico controllato."
+  },
+  {
+    id: "carico_meccanico_rabdomiolisi_renale",
+    titolo: "Sovraccarico Meccanico Estremo, Volume Passi & Rischio Nefrotossico da Mioglobina",
+    sottotitolo: "Incrocio: Carico Meccanico > 70 kJ + Passi Massivi (>22.000) + Disidratazione Emodinamica",
+    urgenza: "🟠 Rischio Danno Renale Muscolare",
+    rischioColore: "border-cyan-500/40 bg-cyan-500/5",
+    parametriCoinvolti: [
+      { nome: "Carico Meccanico (Mechanical Load)", categoria: "Monitoraggio Carico Smartwatch", icon: "⚙️" },
+      { nome: "Passi & Distanza Percorsa", categoria: "Sensori Biomeccanici IMU", icon: "🏃" },
+      { nome: "Creatinina ed eGFR", categoria: "Funzionalità d'Organo", icon: "💧" },
+      { nome: "Pressione & Idratazione", categoria: "Parametri Vitali", icon: "🩺" }
+    ],
+    fasi: [
+      {
+        fase: "Fase 1",
+        nome: "Stress Meccanico Estremo sulle Fibre Scheletriche",
+        descrizione: "Sessioni di sforzo prolungato con volume di passi enorme generano centinaia di migliaia di micro-urti sul comparto muscolare antigravitazionale.",
+        badge: "Sovraccarico Meccanico",
+        badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
+      },
+      {
+        fase: "Fase 2",
+        nome: "Liberazione di Mioglobina ed Enzimi nel Plasma",
+        descrizione: "La mioglobina rilasciata dal muscolo danneggiato supera la capacità di legame delle proteine plasmatiche e comincia ad accumularsi nei glomeruli renali.",
+        badge: "Mioglobinemia da Esercizio",
+        badgeColor: "bg-blue-500/20 text-blue-300 border-blue-500/30"
+      },
+      {
+        fase: "Fase 3",
+        nome: "Ostruzione Tubulare & Sofferenza del Filtrato",
+        descrizione: "In presenza di disidratazione e sudorazione abbondante, la mioglobina precipita nei tubuli formando cilindri ostruenti con caduta transitoria dell'eGFR.",
+        badge: "Rischio Danno Tubulare",
+        badgeColor: "bg-red-500/20 text-red-300 border-red-500/30"
+      }
+    ],
+    conseguenzaClinica: "Sofferenza renale acuta reversibile post-sforzo da precipitazione di pigmenti mioglobinurici con ipercreatininemia transitoria.",
+    indicazioniMediche: "Idratazione idrosalina abbondante (almeno 3 litri die con elettroliti); controllo esame urine con stick mioglobina e dosaggio CPK e creatinina a 24-48 ore dallo sforzo."
   }
 ];
 

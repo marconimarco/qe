@@ -22,6 +22,7 @@ import aiStudioPrompt from './promptText.txt?raw';
 import { Check, Copy } from 'lucide-react';
 
 import MedicalScreening from './components/MedicalScreening';
+import QuantumNetNewsButton from './components/QuantumNetNewsButton';
 
 export default function App() {
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(() => {

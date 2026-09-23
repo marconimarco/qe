@@ -29,8 +29,8 @@ export const ALL_AGENT_AI_CATEGORIES: AgentAiCategoryPermission[] = [
     id: "Logistica e Supply Chain",
     name: "Logistica e Supply Chain",
     icon: "🚚",
-    scenarioCount: 13,
-    description: "Vehicle routing (VRPTW), bin packing 3D, allocazione gate e supply chain multi-echelon."
+    scenarioCount: 18,
+    description: "Vehicle routing (VRPTW), bin packing 3D, cross-docking, QML scarto fresco, markdown pricing e knapsack scaffale."
   },
   {
     id: "Energia e Utilities",

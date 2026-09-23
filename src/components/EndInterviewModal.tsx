@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ExternalLink, Activity, Network, Cpu, Play } from 'lucide-react';
+import { X, ExternalLink, Activity, Network, Cpu, Play, CheckCircle2, Server } from 'lucide-react';
 import { CodeBlockWithCopy, IstogrammaQuantisticoUniversale } from './TestPage';
 
 interface EndInterviewModalProps {
@@ -13,6 +13,7 @@ interface EndInterviewModalProps {
   phi: number;
   targetAlgoritmo: string;
   sector: string;
+  scenarioType?: 'quantum' | 'classical';
   onSendToIBM: () => void;
 }
 
@@ -138,9 +139,11 @@ function BlochSphere({ theta, phi, targetAlgoritmo }: { theta: number; phi: numb
 }
 
 export default function EndInterviewModal({
-  isOpen, onClose, qasmCode, pythonCode, jsonCode, theta, phi, targetAlgoritmo, sector, onSendToIBM
+  isOpen, onClose, qasmCode, pythonCode, jsonCode, theta, phi, targetAlgoritmo, sector, scenarioType = 'quantum', onSendToIBM
 }: EndInterviewModalProps) {
   if (!isOpen) return null;
+
+  const isQuantumScenario = scenarioType === 'quantum' && targetAlgoritmo.startsWith('Qiskit_');
 
   return (
     <AnimatePresence>
@@ -160,8 +163,15 @@ export default function EndInterviewModal({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-900/50">
             <h2 className="font-mono text-lg font-bold text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-amber-400" />
+              <Activity className={`w-5 h-5 ${isQuantumScenario ? 'text-amber-400' : 'text-emerald-400'}`} />
               Risultati dell'Intervista Strategica
+              <span className={`text-xs px-2 py-0.5 rounded border ml-2 ${
+                isQuantumScenario 
+                  ? 'bg-purple-950/70 text-purple-300 border-purple-500/40' 
+                  : 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
+              }`}>
+                {isQuantumScenario ? '⚛️ Pipeline Quantistica (QPU)' : '💻 Calcolo Classico (HPC / GPU)'}
+              </span>
             </h2>
             <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
               <X className="w-5 h-5 text-slate-400" />
@@ -173,8 +183,10 @@ export default function EndInterviewModal({
             
             {/* Codici Generati */}
             <div className="flex flex-col gap-4">
-              <h3 className="font-mono text-sm font-bold text-cyan-300 border-b border-white/10 pb-2">Codici Generati</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <h3 className="font-mono text-sm font-bold text-cyan-300 border-b border-white/10 pb-2">
+                {isQuantumScenario ? 'Codici Quantistici Generati' : 'Pipeline Classica HPC Generata'}
+              </h3>
+              <div className={`grid grid-cols-1 ${isQuantumScenario ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-4`}>
                 <div className="flex flex-col gap-2 min-h-[200px]">
                   <CodeBlockWithCopy
                     code={jsonCode || "{\n  \"status\": \"idle\"\n}"}
@@ -186,64 +198,143 @@ export default function EndInterviewModal({
                   <CodeBlockWithCopy
                     code={pythonCode || "# Codice Python in attesa"}
                     language="python"
-                    title="🐍 Qiskit Python (HPC)"
+                    title={isQuantumScenario ? "🐍 Qiskit Python (Primitives V2)" : "🐍 Script Python (HPC / GPU / CPU)"}
                   />
                 </div>
-                <div className="flex flex-col gap-2 min-h-[200px]">
-                  <CodeBlockWithCopy
-                    code={qasmCode || "// Circuito OpenQASM in attesa"}
-                    language="qasm"
-                    title="⚛️ OpenQASM (Quantum)"
-                  />
-                </div>
+                {isQuantumScenario && (
+                  <div className="flex flex-col gap-2 min-h-[200px]">
+                    <CodeBlockWithCopy
+                      code={qasmCode || "// Circuito OpenQASM in attesa"}
+                      language="qasm"
+                      title="⚛️ OpenQASM 3.0 (Quantum)"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Grafici: Bloch & Istogramma */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center border-t border-white/10 pt-8">
-              <div className="flex flex-col items-center justify-center gap-4">
-                <h4 className="font-mono text-xs font-bold text-slate-300">Sfera di Bloch (Stato Quantistico)</h4>
-                <div className="p-4 bg-slate-900/50 border border-white/5 rounded-xl shadow-inner w-full flex justify-center">
-                  <BlochSphere theta={theta} phi={phi} targetAlgoritmo={targetAlgoritmo} />
+            {/* Grafici: Bloch & Istogramma (solo per scenari quantistici) */}
+            {isQuantumScenario ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center border-t border-white/10 pt-8">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <h4 className="font-mono text-xs font-bold text-slate-300">Sfera di Bloch (Stato Quantistico)</h4>
+                  <div className="p-4 bg-slate-900/50 border border-white/5 rounded-xl shadow-inner w-full flex justify-center">
+                    <BlochSphere theta={theta} phi={phi} targetAlgoritmo={targetAlgoritmo} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-4">
+                  <h4 className="font-mono text-xs font-bold text-slate-300">Distribuzione di Probabilità</h4>
+                  <IstogrammaQuantisticoUniversale theta_radianti={theta} settore={sector} />
                 </div>
               </div>
-              <div className="flex flex-col gap-4">
-                <h4 className="font-mono text-xs font-bold text-slate-300">Distribuzione di Probabilità</h4>
-                <IstogrammaQuantisticoUniversale theta_radianti={theta} settore={sector} />
+            ) : (
+              <div className="flex flex-col gap-4 border-t border-white/10 pt-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 bg-slate-900/60 border border-emerald-500/20 rounded-xl">
+                    <span className="text-[10px] text-slate-400 font-mono uppercase block">Stato Ottimizzazione</span>
+                    <span className="text-sm font-bold text-emerald-400 font-mono flex items-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      Convergenza (100%)
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">Ottimo locale/globale</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-900/60 border border-white/10 rounded-xl">
+                    <span className="text-[10px] text-slate-400 font-mono uppercase block">Infrastruttura Target</span>
+                    <span className="text-sm font-bold text-white font-mono mt-0.5 block">Cluster HPC / GPU</span>
+                    <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">CPU Multi-Core Vettorizzata</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-900/60 border border-white/10 rounded-xl">
+                    <span className="text-[10px] text-slate-400 font-mono uppercase block">Modello Matematico</span>
+                    <span className="text-sm font-bold text-cyan-400 font-mono mt-0.5 block">NumPy / SciPy / ML</span>
+                    <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">Matrice adiacenza & costi</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-900/60 border border-white/10 rounded-xl">
+                    <span className="text-[10px] text-slate-400 font-mono uppercase block">Rumore Computazionale</span>
+                    <span className="text-sm font-bold text-emerald-400 font-mono mt-0.5 block">0.00% (Deterministico)</span>
+                    <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">Zero decoerenza da Qubit</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl flex items-start gap-3">
+                  <Server className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1">
+                    <h4 className="font-mono text-xs font-bold text-emerald-400">Elaborazione Convenzionale HPC & Sintesi Output</h4>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Questo scenario opera con algoritmi convenzionali ad alte prestazioni. Il calcolo non richiede qubit, porte quantistiche né rappresentazioni sulla Sfera di Bloch.
+                      I pesi del File 1 sono stati trattati come vettori di priorità/costo, mentre la matrice del File 2 è stata elaborata come grafo delle connessioni o matrice di covarianza inter-risorsa.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Descrizione Semplice */}
-            <div className="flex flex-col gap-2 p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl">
-              <h4 className="font-mono text-xs font-bold text-emerald-400">Interpretazione dei Risultati</h4>
-              <p className="text-sm font-sans text-slate-300 leading-relaxed">
-                Il codice Qiskit Python ha calcolato i parametri basandosi sul {sector}. 
-                {targetAlgoritmo.startsWith('Qiskit_') 
-                  ? " L'algoritmo quantistico scelto mappa le correlazioni tramite entanglement."
-                  : " L'algoritmo classico simulerà lo scenario mediante HPC (High Performance Computing)."}
-                <br /><br />
-                L'angolo calcolato (Theta = {theta.toFixed(3)} rad) indica la propensione del sistema verso uno stato eccitato (|1⟩), rappresentando le probabilità ottimali per le scelte strategiche del tuo scenario.
-              </p>
+            <div className="flex flex-col gap-2 p-4 bg-slate-900/60 border border-white/10 rounded-xl">
+              <h4 className="font-mono text-xs font-bold text-cyan-400">Cosa ha ottenuto l'utente con questa elaborazione:</h4>
+              <div className="text-sm font-sans text-slate-300 leading-relaxed">
+                {isQuantumScenario ? (
+                  <p>
+                    Il codice Qiskit Python ha mappato i vincoli del settore <strong>{sector}</strong> sulle ampiezze di probabilità quantistiche. 
+                    L'angolo calcolato (Theta = {theta.toFixed(3)} rad) orienta il vettore di stato verso le combinazioni ottimali su QPU IBM.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2 list-disc list-inside text-xs text-slate-300 font-mono">
+                    <li>
+                      <strong className="text-white">Script Python HPC Pronto all'Uso:</strong> implementazione deterministica con NumPy, SciPy e librerie specialistiche pronte per l'esecuzione in locale o su cluster HPC.
+                    </li>
+                    <li>
+                      <strong className="text-white">Elaborazione Multi-File Correlata:</strong> integrazione del vettore delle risorse (File 1) con la matrice delle interdipendenze (File 2) per calcolare la convergenza ottimale.
+                    </li>
+                    <li>
+                      <strong className="text-white">Manifest JSON Strutturato:</strong> metadati completi dei parametri di input, strategia adottata e assenza di calcolo quantistico (per piena conformità con i workflow di produzione).
+                    </li>
+                    <li>
+                      <strong className="text-white">Zero Overhead Quantistico:</strong> nessun circuito QASM o simulazione di rumore quantistico, garantendo la massima efficienza su hardware convenzionale.
+                    </li>
+                  </ul>
+                )}
+              </div>
             </div>
 
-            {/* Domanda finale e Pulsante */}
-            <div className="flex flex-col items-center justify-center gap-6 mt-4 p-8 bg-slate-900/80 border border-amber-500/30 rounded-xl text-center">
-              <div className="flex flex-col gap-2 max-w-xl mx-auto">
-                <Cpu className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-                <h3 className="font-bold text-lg text-white font-mono">Simulazione su Hardware Reale</h3>
-                <p className="text-sm text-slate-400">
-                  Avendo già prodotto il codice OpenQASM, vuoi inviarlo al computer quantistico IBM per l'elaborazione su QPU reale?
-                </p>
+            {/* Domanda finale e Pulsante Condizionale */}
+            {isQuantumScenario ? (
+              <div className="flex flex-col items-center justify-center gap-6 mt-4 p-8 bg-slate-900/80 border border-amber-500/30 rounded-xl text-center">
+                <div className="flex flex-col gap-2 max-w-xl mx-auto">
+                  <Cpu className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+                  <h3 className="font-bold text-lg text-white font-mono">Esecuzione su Hardware Reale</h3>
+                  <p className="text-sm text-slate-400">
+                    Avendo prodotto il circuito OpenQASM 3.0, puoi inviarlo al computer quantistico IBM per l'elaborazione sulla QPU cloud.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={onSendToIBM}
+                  className="flex items-center gap-3 px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold font-mono rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+                >
+                  <Play className="w-5 h-5" />
+                  <span>SEND TO IBM QUANTUM</span>
+                </button>
               </div>
-              
-              <button 
-                onClick={onSendToIBM}
-                className="flex items-center gap-3 px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold font-mono rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-              >
-                <Play className="w-5 h-5" />
-                <span>SEND TO IBM QUANTUM</span>
-              </button>
-            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-4 mt-4 p-6 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                <div className="flex flex-col gap-1 max-w-xl mx-auto">
+                  <h3 className="font-bold text-base text-white font-mono">Calcolo Classico Completato con Successo</h3>
+                  <p className="text-xs text-slate-300">
+                    Il modello classico non richiede l'invio a una QPU IBM perché viene eseguito istantaneamente su cluster HPC convenzionali. Puoi copiare lo script Python generato per integrarlo nei tuoi sistemi.
+                  </p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="mt-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs rounded-lg transition-all"
+                >
+                  Chiudi Risultati
+                </button>
+              </div>
+            )}
 
           </div>
         </motion.div>

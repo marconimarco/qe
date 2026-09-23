@@ -10,7 +10,7 @@ import axios from 'axios';
 import aiStudioPrompt from '../promptText.txt?raw';
 import { getStoredApiKey } from '../services/apiKeyService';
 import { getDemoCsvBySector } from "../data/demoCsv";
-import { generateQiskitCode, generateQiskitPythonCode } from "../data/codeGenerators";
+import { generateQiskitCode, generateQiskitPythonCode, generateClassicalHpcPythonCode } from "../data/codeGenerators";
 import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfile } from "../data/taxonomicEngine";
 import { 
   CurrentUserSession, 
@@ -241,6 +241,11 @@ const SECTOR_DATA: Record<string, { icon: string; scenarios: SectorScenario[] }>
       { id: "log_q_7", name: "Ottimizzazione delle Scorte di Sicurezza Multi-Echelon", type: "quantum", modelCode: "Qiskit_QAE", focus: "Gestione Scorte", description: "Minimizzazione rischio stockout attraverso la supply chain a livelli" },
       { id: "log_q_8", name: "Valutazione Rischio di Interruzione della Catena di Fornitura", type: "quantum", modelCode: "Qiskit_SupplyRisk", focus: "Supply Risk", description: "Modellazione della resilienza contro blocchi doganali e geopolitici" },
       { id: "log_q_9", name: "Analisi Vulnerabilità della Rete di Distribuzione (Graph Theory)", type: "quantum", modelCode: "Qiskit_GraphTheory", focus: "Analisi Grafi", description: "Identificazione colli di bottiglia e nodi critici a rischio isolamento" },
+      { id: "log_q_10", name: "Magazzino: Orchestrazione Flussi Stoccaggio e Cross-Docking (QAOA)", type: "quantum", modelCode: "Qiskit_QAOA", focus: "Cross-Docking", description: "Sincronizzazione banchine di scarico/carico senza stazionamento a terra" },
+      { id: "log_q_11", name: "Commerciale: Previsione Domanda Prodotti Freschi (QML Anti-Spreco)", type: "quantum", modelCode: "Qiskit_QML", focus: "Quantum ML", description: "Previsione non lineare della deperibilità per azzerare lo scarto alimentare" },
+      { id: "log_q_12", name: "Pricing Dinamico e Markdown Ottimale per Prodotti a Scadenza", type: "quantum", modelCode: "Qiskit_QAE", focus: "Pricing Dinamico", description: "Curve di sconto temporali per massimizzare il recupero del margine residuo" },
+      { id: "log_q_13", name: "Spazio: Ottimizzazione Layout Scaffale e Allocazione Merci (Knapsack)", type: "quantum", modelCode: "Qiskit_Knapsack", focus: "Knapsack Spaziale", description: "Allocazione planogramma con vincoli di facciate visive, capienza e rotazione" },
+      { id: "log_q_14", name: "Marketing & CRM: Iper-Personalizzazione e Clustering Promozioni (Q-Means)", type: "quantum", modelCode: "Qiskit_QML", focus: "Clustering CRM", description: "Segmentazione quantistica dei panieri di spesa e offerte mirate in tempo reale" },
       { id: "log_c_1", name: "Previsione della Domanda di Vendita con Gradient Boosting (XGBoost)", type: "classical", modelCode: "Python_HPC_XGBoost", focus: "Machine Learning", description: "Stima dei volumi di riordino per magazzini regionali" },
       { id: "log_c_2", name: "Tracciamento Visivo Automatico Colli con Telecamere OCR (YOLO)", type: "classical", modelCode: "Python_HPC_YOLO", focus: "Computer Vision", description: "Riconoscimento e instradamento pacchi su nastro trasportatore" },
       { id: "log_c_3", name: "Monitoraggio Flotta GPS e Geofencing in Tempo Reale (GIS)", type: "classical", modelCode: "Python_HPC_GIS", focus: "Geolocalizzazione GIS", description: "Tracciamento coordinate e calcolo ETA dinamico con traffico" },
@@ -776,6 +781,26 @@ export default function TestPage({
     }
 
     if (phase === '3b_strat') {
+      const isClassicalScenario = selectedScenario?.type === 'classical';
+
+      if (isClassicalScenario) {
+        const algoTarget = 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline');
+        return `Strategia impostata: **${userInput}**.\n\n` +
+          `💻 **Infrastruttura Classica Rilevata:** Lo scenario selezionato (*${selectedScenario?.name}*) opera con modelli matematici convenzionali ad alte prestazioni (HPC/GPU).\n\n` +
+          `✅ *I vincoli di entanglement quantistico (Porte CX/CP) sono automaticamente esclusi poiché non pertinenti al calcolo classico.*\n\n` +
+          `*Elaborazione in corso... Compilazione pipeline classica ad alte prestazioni.*
+
+\`\`\`json
+{
+  "algoritmo_target": "${algoTarget}",
+  "macro_scenario": "${selectedScenario?.id || 'classico'}",
+  "vincolo_stile": "nessun_vincolo",
+  "periodo_target": "${selectedPeriod || '1 Trimestre'}",
+  "conferma_avvio": true
+}
+\`\`\``;
+      }
+
       const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
       let reply = `Strategia scelta: **${userInput}**.\n\n`;
 
@@ -875,10 +900,26 @@ export default function TestPage({
       nextPhase = '3b_strat';
     } else if (activePhase === '3b_strat') {
       setSelectedStrategy(userMessage);
-      setSelectedInfra('quantum'); // default to quantum since we output both
-      nextPhase = '4b_vinc';
+      const isClassical = selectedScenario?.type === 'classical';
+      if (isClassical) {
+        setSelectedInfra('classical');
+        setSelectedVincolo('nessun_vincolo');
+        setVincoloStile('nessun_vincolo');
+        nextPhase = '5_done';
+      } else {
+        setSelectedInfra('quantum');
+        nextPhase = '4b_vinc';
+      }
     } else if (activePhase === '4a_infra') {
-      nextPhase = '4b_vinc'; // Fallback just in case
+      if (userMessage.toLowerCase().includes('classico') || userMessage.toLowerCase().includes('hpc') || selectedInfra === 'classical') {
+        setSelectedInfra('classical');
+        setSelectedVincolo('nessun_vincolo');
+        setVincoloStile('nessun_vincolo');
+        nextPhase = '5_done';
+      } else {
+        setSelectedInfra('quantum');
+        nextPhase = '4b_vinc';
+      }
     } else if (activePhase === '4b_vinc') {
       const msgLower = userMessage.toLowerCase();
       let chosenStyle = 'legame_morbido';
@@ -1000,10 +1041,63 @@ export default function TestPage({
     const effectiveStrategy = selectedStrategy || 'Aggressiva';
     const effectiveSector = sector || selectedSector || 'Finanza e Mercati';
     const effectiveScenarioId = selectedScenario?.id || '';
+    const isClassicalScenario = selectedScenario?.type === 'classical' || selectedInfra === 'classical' || algo.startsWith('Python_HPC_');
 
     const { csv1: genCsv1, csv2: genCsv2 } = getDemoCsvBySector(effectiveSector, effectiveScenarioId, vincolo, effectiveStrategy);
     const sourceCsv1 = customCsv1Content || genCsv1;
     const sourceCsv2 = customCsv2Content || genCsv2;
+
+    if (isClassicalScenario) {
+      const classicalPyCode = generateClassicalHpcPythonCode(
+        effectiveSector,
+        effectiveScenarioId,
+        'HPC / Classical Optimization Engine',
+        sourceCsv1,
+        sourceCsv2,
+        effectiveStrategy
+      );
+      setFinalQasm("");
+      setFinalPython(classicalPyCode);
+      setTheta(0);
+      setPhi(0);
+
+      const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId);
+
+      const jsonObj = {
+        settore: taxSector.name,
+        scenario: selectedScenario?.name || 'Elaborazione Classica HPC',
+        infrastruttura: "HPC / GPU / CPU Multi-Core",
+        modello: selectedScenario?.modelCode || "Machine Learning / Pipeline Classica",
+        strategia: effectiveStrategy,
+        entanglement: "nessuno (calcolo convenzionale classico)",
+        calcolo_quantistico: false,
+        predisposizione_grafico: false
+      };
+
+      const jsonString = JSON.stringify(jsonObj, null, 2);
+      setFinalJson(jsonString);
+      setShowEndModal(true);
+
+      const summaryText = `🎉 **[COMPILAZIONE PIPELINE CLASSICA AD ALTE PRESTAZIONI COMPLETATA]**
+• **Settore:** ${taxSector.name}
+• **Scenario:** ${selectedScenario?.name || 'Elaborazione Classica HPC'} (Algoritmo: ${selectedScenario?.modelCode || 'HPC Pipeline'})
+• **Infrastruttura:** Cluster Classico HPC / GPU Accelerata (Nessun Qubit / Nessun invio a QPU IBM)
+• **Strategia Energetica / Ottimizzazione:** ${effectiveStrategy}
+• **Elaborazione Dati:** Matrice CSV elaborata con solver numerico vettorizzato ad alte prestazioni.
+
+💡 *Questo scenario opera interamente in modalità classica convenzionale. Lo script Python sottostante è pronto per l'esecuzione su sistemi HPC o localmente.*`;
+
+      return `${summaryText}
+
+\`\`\`json
+${jsonString}
+\`\`\`
+
+\`\`\`python
+${classicalPyCode}
+\`\`\``;
+    }
+
     setFinalQasm(generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy));
     setFinalPython(generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy));
     const qasmSnippet = generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
@@ -1447,9 +1541,18 @@ ${pythonSnippet}
                             <span className="font-semibold text-slate-100 group-hover:text-cyan-200 truncate">
                               {scen.name}
                             </span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shrink-0 font-medium">
-                              {scen.focus}
-                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium border ${
+                                scen.type === 'quantum'
+                                  ? 'bg-purple-950/70 text-purple-300 border-purple-500/40'
+                                  : 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
+                              }`}>
+                                {scen.type === 'quantum' ? '⚛️ QUANTUM (QPU)' : '💻 CLASSICO (HPC)'}
+                              </span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700/60 text-slate-300 border border-white/10 font-medium hidden sm:inline-block">
+                                {scen.focus}
+                              </span>
+                            </div>
                           </div>
                           <span className="text-[10px] text-slate-400 group-hover:text-slate-300 line-clamp-1 leading-relaxed">
                             {scen.description}
@@ -1969,8 +2072,11 @@ ${pythonSnippet}
       <EndInterviewModal
         isOpen={showEndModal}
         onClose={() => setShowEndModal(false)}
-        qasmCode={finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva')}
-        pythonCode={finalPython || generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva')}
+        scenarioType={selectedScenario?.type || (selectedInfra === 'classical' ? 'classical' : 'quantum')}
+        qasmCode={finalQasm || (selectedScenario?.type === 'classical' ? '' : generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva'))}
+        pythonCode={finalPython || (selectedScenario?.type === 'classical' 
+          ? generateClassicalHpcPythonCode(assetSector || selectedSector || 'Finanza e Mercati', selectedScenario?.name || selectedScenario?.id || 'Scenario Classico', selectedScenario?.id || 'HPC-Model', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedStrategy || 'Aggressiva')
+          : generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva'))}
         jsonCode={finalJson || JSON.stringify({
           settore: assetSector || selectedSector || 'Finanza e Mercati',
           scenario: selectedScenario?.name || 'Ottimizzazione',
@@ -1978,11 +2084,11 @@ ${pythonSnippet}
           entanglement: selectedVincolo === 'nessun_vincolo' ? 'none' : (selectedVincolo === 'blocco_rigido' ? 'cx' : 'cp'),
           theta_radianti: parseFloat(radTheta.toFixed(4)),
           phi_radianti: (phi * Math.PI) / 180,
-          predisposizione_grafico: true
+          predisposizione_grafico: selectedScenario?.type !== 'classical'
         }, null, 2)}
         theta={theta}
         phi={phi}
-        targetAlgoritmo={targetAlgoritmo !== 'IDLE' ? targetAlgoritmo : 'Qiskit_QAOA'}
+        targetAlgoritmo={targetAlgoritmo !== 'IDLE' ? targetAlgoritmo : (selectedScenario?.type === 'classical' ? 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline') : 'Qiskit_QAOA')}
         sector={assetSector || selectedSector || 'Finanza e Mercati'}
         onSendToIBM={() => {
           setShowEndModal(false);
