@@ -121,6 +121,36 @@
   animation: ledDotPulseRed 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* =========================================================================
+   EFFETTI DI LUCE SCORREVOLE LUNGO IL BORDO (BORDER BEAM FLOW)
+   Fascio di luce continua che circola lungo il contorno della scheda
+   ========================================================================= */
+
+@keyframes borderBeamSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-beam-spin-red {
+  animation: borderBeamSpin 2.4s linear infinite;
+}
+
+.animate-beam-spin-orange {
+  animation: borderBeamSpin 3.2s linear infinite;
+}
+
+.animate-beam-spin-green {
+  animation: borderBeamSpin 4.2s linear infinite;
+}
+
+.animate-beam-spin-cyan {
+  animation: borderBeamSpin 3.5s linear infinite;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

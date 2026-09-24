@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { ArrowLeft, ChevronRight, Activity, Heart, Camera, Watch, AlertTriangle, Phone, TrendingUp, TrendingDown, Minus, Info, X, Zap, FileText, Download, CheckCircle, Sparkles, FolderOpen, Database, Cpu, BookOpen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronRight, Activity, Heart, Camera, Watch, AlertTriangle, Phone, TrendingUp, TrendingDown, Minus, Info, X, Zap, FileText, Download, CheckCircle, Sparkles, FolderOpen, Database, Cpu, BookOpen, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import scanVitali from "../assets/images/vitali_apparatus_1789665810171.jpg";
 import scanMetabolici from "../assets/images/metabolici_apparatus_1789665827446.jpg";
 import scanOrgano from "../assets/images/organo_apparatus_1789665844161.jpg";
 import scanInfiammatorio from "../assets/images/infiammatorio_apparatus_1789665860505.jpg";
 import DominoModal from './DominoModal';
-import CrossParameterAnalysis from './CrossParameterAnalysis';
+import CrossParameterAnalysis, { checkIsProblemCritical, getProblemSeverity } from './CrossParameterAnalysis';
 import AcquiredReportsModal, { AcquiredReport } from './AcquiredReportsModal';
 import QuantumHealth13QubitModal from './QuantumHealth13QubitModal';
 import DocumentationModal from './DocumentationModal';
-import WearableWorkloadDashboard from './WearableWorkloadDashboard';
 import WearableMetricsInputModal from './WearableMetricsInputModal';
 import { WearableWorkloadMetrics, DEFAULT_WEARABLE_METRICS, valutaEffettiDominoWearable } from '../types/wearable';
 import { HealthPageReport, elaboraPaginaHealth, estraiDatiFascicoloPerQubit } from '../lib/quantumHealthEngine';
-import { CATEGORY_DETAILS_ENRICHED } from '../data/medicalCategoriesData';
+import { CATEGORY_DETAILS_ENRICHED, CROSS_PARAMETER_PROBLEMS } from '../data/medicalCategoriesData';
 import { generateMedicalReportPdf } from '../lib/generateMedicalReportPdf';
 import { CurrentUserSession, getCurrentSession } from '../services/authService';
 
@@ -136,9 +135,9 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
     return null;
   });
   const [selectedPart, setSelectedPart] = useState<BodyPart | null>(null);
-  const [activeCategory, setActiveCategory] = useState<number | null>(null);
+  const [activeCategory, setActiveCategory] = useState<number | null>(0);
   const [showTimeline, setShowTimeline] = useState(false);
-  const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
+  const [showChainReactionModal, setShowChainReactionModal] = useState(false);
   const [showAcquiredReportsModal, setShowAcquiredReportsModal] = useState(false);
   const [acquiredReports, setAcquiredReports] = useState<AcquiredReport[]>(() => {
     const saved = localStorage.getItem('quantum_medical_acquired_files');
@@ -1426,10 +1425,10 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
               )}
 
               {/* CARD RIASSUNTIVA STATO CLINICO & WELLNESS SCORE */}
-              <div className={`w-full max-w-4xl mt-2 p-4 sm:p-5 rounded-2xl bg-[#111317] border shadow-[0_0_30px_rgba(0,0,0,0.6)] flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${
+              <div className={`w-full max-w-[1400px] mt-2 p-4 sm:p-5 rounded-2xl bg-[#111317] border shadow-[0_0_30px_rgba(0,0,0,0.6)] flex flex-col xl:flex-row items-center justify-between gap-4 transition-all ${
                 result.score < 50 ? 'border-2 border-red-500/70 led-pulse-red' : 'border-white/10'
               }`}>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
+                <div className="flex items-center gap-4 w-full xl:w-auto">
                   <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0 border ${
                     result.score >= 70
                       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
@@ -1456,48 +1455,167 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-white/10 pt-3 sm:pt-0 sm:pl-4 font-mono text-[11px]">
-                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
-                    result.vitali.status === 'Idoneo' 
-                      ? 'bg-white/[0.02] border-white/5' 
-                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
-                  }`}>
-                    <span className="text-[9px] text-slate-500 uppercase">Vitali</span>
-                    <span className={result.vitali.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
-                      {result.vitali.status}
-                    </span>
-                  </div>
-                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
-                    result.metabolici.status === 'Idoneo' 
-                      ? 'bg-white/[0.02] border-white/5' 
-                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
-                  }`}>
-                    <span className="text-[9px] text-slate-500 uppercase">Metabolici</span>
-                    <span className={result.metabolici.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
-                      {result.metabolici.status}
-                    </span>
-                  </div>
-                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
-                    result.organo.status === 'Idoneo' 
-                      ? 'bg-white/[0.02] border-white/5' 
-                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
-                  }`}>
-                    <span className="text-[9px] text-slate-500 uppercase">Organi</span>
-                    <span className={result.organo.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
-                      {result.organo.status}
-                    </span>
-                  </div>
-                  <div className={`flex flex-col p-2 rounded-lg border transition-all ${
-                    result.infiammatorio.status === 'Idoneo' 
-                      ? 'bg-white/[0.02] border-white/5' 
-                      : 'bg-red-950/30 border-2 border-red-500 led-pulse-badge-red'
-                  }`}>
-                    <span className="text-[9px] text-slate-500 uppercase">Flogosi</span>
-                    <span className={result.infiammatorio.status === 'Idoneo' ? 'text-emerald-400 font-bold' : 'text-red-300 font-bold'}>
-                      {result.infiammatorio.status}
-                    </span>
-                  </div>
-                </div>
+                {/* 4 PULSANTI MODULI INTERATTIVI + PULSANTE EFFETTO DOMINO DI FIANCO A FLOGOSI */}
+                {(() => {
+                  const nonGreenDominoCount = CROSS_PARAMETER_PROBLEMS.filter(p => {
+                    const sev = getProblemSeverity(p, result);
+                    return sev === 'red' || sev === 'orange';
+                  }).length;
+                  const isDominoStable = nonGreenDominoCount === 0;
+                  const activeIdx = activeCategory !== null && activeCategory >= 0 && activeCategory < 4 ? activeCategory : 0;
+
+                  return (
+                    <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto border-t xl:border-t-0 xl:border-l border-white/10 pt-3 xl:pt-0 xl:pl-4 font-mono text-[11px]">
+                      {/* 1. Vitali */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveCategory(0)}
+                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                          activeIdx === 0
+                            ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
+                            : result.vitali.status === 'Idoneo'
+                            ? 'bg-white/[0.02] border-white/10 hover:border-white/25 hover:bg-white/5'
+                            : 'bg-red-950/30 border-2 border-red-500/70 led-pulse-badge-red hover:border-red-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[9px] text-slate-400 uppercase font-semibold">Vitali</span>
+                          {activeIdx === 0 && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]" />}
+                        </div>
+                        <span className={`font-bold text-xs truncate ${result.vitali.status === 'Idoneo' ? 'text-emerald-400' : 'text-red-300'}`}>
+                          {result.vitali.status}
+                        </span>
+                      </button>
+
+                      {/* 2. Metabolici */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveCategory(1)}
+                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                          activeIdx === 1
+                            ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
+                            : result.metabolici.status === 'Idoneo'
+                            ? 'bg-white/[0.02] border-white/10 hover:border-white/25 hover:bg-white/5'
+                            : 'bg-red-950/30 border-2 border-red-500/70 led-pulse-badge-red hover:border-red-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[9px] text-slate-400 uppercase font-semibold">Metabolici</span>
+                          {activeIdx === 1 && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]" />}
+                        </div>
+                        <span className={`font-bold text-xs truncate ${result.metabolici.status === 'Idoneo' ? 'text-emerald-400' : 'text-red-300'}`}>
+                          {result.metabolici.status}
+                        </span>
+                      </button>
+
+                      {/* 3. Organi */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveCategory(2)}
+                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                          activeIdx === 2
+                            ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
+                            : result.organo.status === 'Idoneo'
+                            ? 'bg-white/[0.02] border-white/10 hover:border-white/25 hover:bg-white/5'
+                            : 'bg-red-950/30 border-2 border-red-500/70 led-pulse-badge-red hover:border-red-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[9px] text-slate-400 uppercase font-semibold">Organi</span>
+                          {activeIdx === 2 && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]" />}
+                        </div>
+                        <span className={`font-bold text-xs truncate ${result.organo.status === 'Idoneo' ? 'text-emerald-400' : 'text-red-300'}`}>
+                          {result.organo.status}
+                        </span>
+                      </button>
+
+                      {/* 4. Flogosi */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveCategory(3)}
+                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                          activeIdx === 3
+                            ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
+                            : result.infiammatorio.status === 'Idoneo'
+                            ? 'bg-white/[0.02] border-white/10 hover:border-white/25 hover:bg-white/5'
+                            : 'bg-red-950/30 border-2 border-red-500/70 led-pulse-badge-red hover:border-red-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[9px] text-slate-400 uppercase font-semibold">Flogosi</span>
+                          {activeIdx === 3 && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]" />}
+                        </div>
+                        <span className={`font-bold text-xs truncate ${result.infiammatorio.status === 'Idoneo' ? 'text-emerald-400' : 'text-red-300'}`}>
+                          {result.infiammatorio.status}
+                        </span>
+                      </button>
+
+                      {/* 5. EFFETTO DOMINO SULLA SALUTE (CLICCABILE SOLO SE CI SONO QUADRANTI ROSSI O ARANCIONI) */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isDominoStable) {
+                            setShowChainReactionModal(true);
+                          }
+                        }}
+                        disabled={isDominoStable}
+                        className={`group relative overflow-hidden rounded-xl p-[1.5px] text-left select-none transition-all duration-300 min-w-[230px] sm:min-w-[260px] flex-1 sm:flex-initial ${
+                          isDominoStable
+                            ? 'cursor-not-allowed opacity-90'
+                            : 'cursor-pointer hover:shadow-[0_0_25px_rgba(239,68,68,0.4)]'
+                        }`}
+                        title={
+                          isDominoStable
+                            ? 'Tutti i parametri e le reazioni sono stabili (verdi): nessun effetto domino da visualizzare'
+                            : 'Apri Mappa delle Reazioni a Catena della Salute (Anomalie Rilevate)'
+                        }
+                      >
+                        {/* Fascio di luce rotante sul bordo */}
+                        <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                          <div
+                            className={`absolute -inset-[150%] ${!isDominoStable ? 'animate-beam-spin-red' : 'animate-beam-spin-green'}`}
+                            style={{
+                              background: !isDominoStable
+                                ? 'conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 270deg, rgba(239, 68, 68, 0.4) 300deg, #ff1744 335deg, #ffffff 355deg, transparent 360deg)'
+                                : 'conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 270deg, rgba(16, 185, 129, 0.4) 300deg, #10b981 335deg, #ffffff 355deg, transparent 360deg)',
+                            }}
+                          />
+                        </div>
+
+                        <div className={`relative w-full h-full rounded-[9.5px] px-3.5 py-2.5 bg-gradient-to-br from-[#12131a] to-[#0c0d12] flex flex-col justify-between border z-10 transition-colors ${
+                          !isDominoStable
+                            ? 'border-red-500/40 group-hover:border-red-400'
+                            : 'border-emerald-500/30'
+                        }`}>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-[10px] uppercase font-bold flex items-center gap-1.5 whitespace-nowrap tracking-wide text-cyan-300">
+                              <Zap className={`w-3 h-3 shrink-0 ${!isDominoStable ? 'text-red-400' : 'text-emerald-400'}`} />
+                              Effetto Domino sulla Salute
+                            </span>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${!isDominoStable ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#ef4444]' : 'bg-emerald-400 shadow-[0_0_8px_#10b981]'}`} />
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`font-bold text-xs truncate ${!isDominoStable ? 'text-red-300' : 'text-emerald-400'}`}>
+                              {isDominoStable ? '● Stabile (Tutti Verdi)' : `⚠️ Non Stabile (${nonGreenDominoCount} Allerte)`}
+                            </span>
+                            <div className="flex items-center gap-1 text-[9px]">
+                              {!isDominoStable ? (
+                                <span className="text-red-300 flex items-center gap-1 group-hover:text-red-200 transition-colors">
+                                  <span>Apri mappa</span>
+                                  <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-light">
+                                  Nessuna allerta
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
 
               {history.length > 0 && showTimeline && (
@@ -1556,241 +1674,541 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                 )}
             </div>
 
-            <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
-              
-              {/* ISTRUZIONE */}
-              <div className="text-center w-full max-w-lg mx-auto">
-                <p className="text-sm font-light text-slate-300 font-mono">
-                  Seleziona uno dei 4 moduli.
-                </p>
-              </div>
+            {/* SEZIONE DEI 4 MODULI CLINICI CON APERTURA ORIZZONTALE VERSO DESTRA */}
+            {(() => {
+              const fourModules = [result.vitali, result.metabolici, result.organo, result.infiammatorio];
+              const selectedIdx = activeCategory !== null && activeCategory >= 0 && activeCategory < 4 ? activeCategory : 0;
+              const selectedCat = fourModules[selectedIdx] || fourModules[0];
+              const selectedDetails = CATEGORY_DETAILS_ENRICHED[selectedIdx] || CATEGORY_DETAILS_ENRICHED[0];
+              const effectiveWm = result.wearableMetrics || wearableMetrics;
+              const activeChainCount = CROSS_PARAMETER_PROBLEMS.filter(p => checkIsProblemCritical(p.id, result)).length;
 
-              {/* I 4 MODULI AD ACCORDION */}
-              <div className="w-full flex flex-col gap-4">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-mono uppercase tracking-widest px-1">
-                  <span>Moduli Clinici di Valutazione</span>
-                  <span className="text-[11px] text-slate-400">Clicca su un modulo per espanderlo</span>
-                </div>
+              return (
+                <div className="flex flex-col gap-5 w-full max-w-[1400px] mx-auto">
+                  {/* HEADER MODULO ATTIVO */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-1">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                      <h3 className="text-base sm:text-lg font-light text-white tracking-wide">
+                        {selectedCat.title}
+                      </h3>
+                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-semibold">
+                        MOD #{selectedIdx + 1}
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-slate-400">
+                      Usa i pulsanti in alto (Vitali, Metabolici, Organi, Flogosi, Domino) per navigare tra i moduli
+                    </div>
+                  </div>
 
-                <div className="flex flex-col gap-3 pb-4 pt-1 px-1">
-                  {[result.vitali, result.metabolici, result.organo, result.infiammatorio, result.wearableLoad].filter(Boolean).map((cat, idx) => {
-                    const details = CATEGORY_DETAILS_ENRICHED[idx] || CATEGORY_DETAILS_ENRICHED[0];
-                    const isExpanded = expandedCategory === idx;
-                    const isCriticalOrAlert = cat.status !== 'Idoneo';
-                    
-                    return (
-                      <div 
-                        key={idx} 
-                        className={`bg-[#121212] border rounded-2xl relative overflow-hidden transition-all duration-300 w-full shrink-0 ${
-                          isExpanded 
-                            ? isCriticalOrAlert
-                              ? 'border-2 border-red-500 led-pulse-red bg-red-950/15 shadow-[0_0_30px_rgba(239,68,68,0.3)]'
-                              : 'border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.05)] bg-white/[0.03]'
-                            : isCriticalOrAlert
-                              ? 'border-2 border-red-500/80 led-pulse-red hover:border-red-400 bg-red-950/10 cursor-pointer'
-                              : 'border-white/5 hover:border-white/20 hover:bg-white/[0.01] cursor-pointer'
-                        }`}
-                      >
-                        <div className="absolute top-0 left-0 w-1.5 h-full transition-all" style={{ backgroundColor: cat.chartColor }} />
-                        
-                        {/* Header Cliccabile */}
-                        <div 
-                          className="p-4 pl-5 flex items-center justify-between"
-                          onClick={() => {
-                            if (!isExpanded) {
-                              setActiveCategory(idx);
-                              setExpandedCategory(idx);
-                            } else {
-                              setExpandedCategory(null);
-                              setActiveCategory(null);
-                            }
-                          }}
-                        >
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">MOD #{idx + 1}</span>
-                              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: cat.chartColor }} />
-                              <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border ${details.urgenzaBadgeColor}`}>
-                                {details.urgenzaTag}
-                              </span>
-                            </div>
-                            <h3 className={`font-medium transition-colors ${isExpanded ? 'text-lg text-white' : 'text-sm text-slate-200'}`}>
-                              {cat.title}
-                            </h3>
-                            {isExpanded && (
-                              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400">{cat.subtitle}</p>
-                            )}
+                  {/* CONTENUTO DEL MODULO A TUTTA LARGHEZZA */}
+                  <div className="w-full bg-[#0e1017] border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl relative flex flex-col gap-6 animate-in fade-in duration-300">
+                      
+                      {/* Header Modulo Selezionato */}
+                      <div className="flex flex-col gap-2 pb-4 border-b border-white/10">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">MOD #{selectedIdx + 1}</span>
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedCat.chartColor }} />
+                            <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${selectedDetails.urgenzaBadgeColor}`}>
+                              {selectedDetails.urgenzaTag}
+                            </span>
                           </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <div className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-widest uppercase flex-shrink-0 transition-all ${
-                              cat.status === 'Idoneo'
-                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-badge-red'
-                            }`}>
-                              {cat.status}
-                            </div>
-                            <button className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
-                              {isExpanded ? <X className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                            </button>
+
+                          <div className={`px-3 py-1 rounded-full border text-[10px] font-bold tracking-widest uppercase transition-all ${
+                            selectedCat.status === 'Idoneo'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                              : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-badge-red'
+                          }`}>
+                            {selectedCat.status}: {selectedCat.statusText}
                           </div>
                         </div>
 
-                        {/* Contenuto Espanso */}
-                        {isExpanded && (
-                          <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-white/5 animate-in slide-in-from-top-2 duration-300 cursor-default flex flex-col md:flex-row gap-5 md:gap-6" onClick={(e) => e.stopPropagation()}>
-                            
-                            {/* Image Scansione */}
-                            <div className="w-full md:w-[220px] max-w-[260px] mx-auto md:mx-0 shrink-0">
-                                <div className="w-full flex items-center justify-between mb-2">
-                                  <h4 className="text-[10px] font-mono uppercase tracking-widest text-slate-400">Scansione Olografica</h4>
-                                </div>
-                                <div className="relative w-full aspect-[3/4] md:aspect-[9/16] rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.4)] bg-black">
-                                  {idx === 0 && <img src={scanVitali} alt="Parametri Vitali" className="w-full h-full object-cover" />}
-                                  {idx === 1 && <img src={scanMetabolici} alt="Parametri Metabolici" className="w-full h-full object-cover" />}
-                                  {idx === 2 && <img src={scanOrgano} alt="Funzionalità d'Organo" className="w-full h-full object-cover" />}
-                                  {idx === 3 && <img src={scanInfiammatorio} alt="Stato Infiammatorio" className="w-full h-full object-cover" />}
-                                  
-                                  <div className="absolute inset-0 border border-white/5 pointer-events-none rounded-2xl mix-blend-overlay" />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 pointer-events-none" />
-                                </div>
-                            </div>
-                            
-                            {/* Detailed Info */}
-                            <div className="flex-1 flex flex-col min-w-0 gap-4">
-                              {/* Status Row */}
-                              <div className="flex flex-col gap-2 pb-3 border-b border-white/5">
-                                <div className={`px-3 py-1.5 rounded-full border text-[10px] font-bold tracking-widest uppercase shrink-0 w-fit transition-all ${
-                                  cat.status === 'Idoneo'
-                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                    : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-badge-red'
-                                }`}>
-                                  {cat.status}: {cat.statusText}
-                                </div>
-                                <div className="text-xs text-slate-300 leading-relaxed font-light">{cat.description}</div>
-                              </div>
-                              
-                              {/* 3 Box: Allarmi, Cause, Consigli */}
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold text-red-400">
-                                    <div className="w-2 h-2 rounded-full bg-red-500 shrink-0"></div>
-                                    Campanelli d'allarme
-                                  </div>
-                                  <p className="text-[10px] text-red-200/80 leading-relaxed font-light">{details.allarmi}</p>
-                                </div>
-                                <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
-                                    <AlertTriangle className="w-3.5 h-3.5" />
-                                    Cause Frequenti
-                                  </div>
-                                  <p className="text-[10px] text-amber-200/80 leading-relaxed font-light">{details.cause}</p>
-                                </div>
-                                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold">
-                                    <div className="w-1.5 h-1.5 rounded-sm bg-emerald-500"></div>
-                                    Consigli Pratici
-                                  </div>
-                                  <p className="text-[10px] text-emerald-200/80 leading-relaxed font-light">{details.consigli}</p>
-                                </div>
-                              </div>
+                        <h3 className="text-xl sm:text-2xl font-normal text-white tracking-wide mt-1">
+                          {selectedCat.title}
+                        </h3>
+                        <p className="text-sm text-slate-300 leading-relaxed font-light">
+                          {selectedCat.description}
+                        </p>
+                      </div>
 
-                              {/* Box Interconnessione */}
-                              <div className="bg-gradient-to-r from-white/[0.03] via-white/[0.01] to-transparent border border-white/10 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                                <div className="flex items-start gap-2">
-                                  <span className="text-amber-400 text-sm shrink-0">💡</span>
-                                  <p className="text-[11px] text-slate-300 leading-relaxed font-light max-w-xl">
-                                    {details.interconnessione}
+                      {/* Box Integrazione Telemetria Wearable (Smartwatch & IMU) nel Modulo */}
+                      <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-cyan-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                            <Watch className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold block">
+                              Parametri Wearable & Sensori IMU Integrati nel Modulo
+                            </span>
+                            <span className="text-xs sm:text-[13px] text-slate-300 font-light">
+                              {selectedIdx === 0 && `Rapporto Acuto/Cronico ACWR: ${effectiveWm.acwr.toFixed(2)} • Passi: ${effectiveWm.steps.toLocaleString('it-IT')} • Distanza: ${effectiveWm.distance} km`}
+                              {selectedIdx === 1 && `Carico Cumulativo: ${effectiveWm.cumulativeWorkload} AU • Carico Meccanico: ${effectiveWm.mechanicalLoad} kJ • Omeostasi glucidica integrata`}
+                              {selectedIdx === 2 && `Impatti Tibia: ${effectiveWm.impactsTibia}g • Accelerometro: ${effectiveWm.accelerometerPeak}g • Monitoraggio renale da mioglobina`}
+                              {selectedIdx === 3 && `Segnale Sentinella: ${effectiveWm.sentinelSignal.toUpperCase()} • Indice Fatica: ${effectiveWm.fatigueIndex}% • Asimmetria: ${effectiveWm.biomechanicAlterations}%`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/30 whitespace-nowrap">
+                          {selectedIdx === 0 && (effectiveWm.acwr > 1.45 ? '⚠️ Allerta Carico Cardiovascolare' : '✓ Carico Emodinamico Fisiologico')}
+                          {selectedIdx === 1 && (effectiveWm.cumulativeWorkload > 1200 ? '⚠️ Elevata Spesa Metabolica' : '✓ Resilienza Metabolica Ottimale')}
+                          {selectedIdx === 2 && (effectiveWm.steps > 18000 && effectiveWm.mechanicalLoad > 60 ? '⚠️ Allerta Clearance Renale' : '✓ Filtri d\'Organo Protetti')}
+                          {selectedIdx === 3 && (effectiveWm.sentinelSignal !== 'verde' || effectiveWm.fatigueIndex >= 60 ? '⚠️ Rischio Flogosi Tissutale' : '✓ Infiammazione Tissutale Bassa')}
+                        </div>
+                      </div>
+
+                      {/* Scansione Olografica Compatta + 3 Box Clinici Ingranditi */}
+                      <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-start">
+                        {/* Immagine Scansione Molto Più Piccola ma Chiaramente Identificativa */}
+                        <div className="w-[110px] sm:w-[125px] shrink-0 mx-auto md:mx-0 flex flex-col items-center">
+                          <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)] bg-black group">
+                            {selectedIdx === 0 && <img src={scanVitali} alt="Parametri Vitali" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                            {selectedIdx === 1 && <img src={scanMetabolici} alt="Parametri Metabolici" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                            {selectedIdx === 2 && <img src={scanOrgano} alt="Funzionalità d'Organo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                            {selectedIdx === 3 && <img src={scanInfiammatorio} alt="Stato Infiammatorio" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                            
+                            <div className="absolute inset-0 border border-white/10 pointer-events-none rounded-xl" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                            <div className="absolute bottom-1 left-1 right-1 text-center">
+                              <span className="text-[8px] font-mono uppercase tracking-widest text-cyan-300 font-bold bg-black/70 px-1 py-0.5 rounded backdrop-blur-xs">
+                                Modulo #{selectedIdx + 1}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 mt-1.5 text-center">
+                            Scansione 3D
+                          </span>
+                        </div>
+
+                        {/* Box Dettagli Clinici & Biomarcatori: Triage Intelligente Progressivo */}
+                        <div className="flex-1 flex flex-col gap-3.5 min-w-0 w-full">
+                          {/* 1. SE IL MODULO È IDONEO: Card rassicurante di Stabilità Fisiologica (nessun pulsante, nessuna scheda tecnica) */}
+                          {selectedCat.status === 'Idoneo' && (
+                            <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 transition-all">
+                              <div className="flex items-start sm:items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/35 flex items-center justify-center text-emerald-400 shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+                                  <ShieldCheck className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-bold">
+                                      Assetto Fisiologico Ottimale
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[10px] font-mono border border-emerald-500/25">
+                                      Nessun Allarme Attivo
+                                    </span>
+                                  </div>
+                                  <p className="text-xs sm:text-[13px] text-slate-300 font-light mt-0.5">
+                                    {selectedIdx === 0 && "Pressione arteriosa, frequenza cardiaca ed emostasi risultano stabili. Nessun sovraccarico cardio-vascolare acuto."}
+                                    {selectedIdx === 1 && "Assetto glicometabolico, profilo lipidico ed equilibrio neuro-ormonale bilanciati nei limiti di sicurezza fisiologica."}
+                                    {selectedIdx === 2 && "Clearance renale e funzionalità epatobiliare ottimali. Conservata la piena riserva omeostatica parenchimale."}
+                                    {selectedIdx === 3 && "Assenza di flogosi attiva sistemica o citochinica. Risposta immunitaria nei range di protezione fisiologica."}
                                   </p>
                                 </div>
                               </div>
+                            </div>
+                          )}
 
-                              {/* Dettaglio Biomarcatori & Valutazione Clinica (Micro-Categorie) */}
-                              {details.punti && details.punti.length > 0 && (
-                                <div className="flex flex-col gap-2 pt-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-semibold">
-                                      Biomarcatori di Precisione del Modulo ({details.punti.length})
+                          {/* 2. SE IL MODULO È NON IDONEO: Avviso di Anomalia Attiva con scheda tecnica e SOLO biomarcatori problematici */}
+                          {selectedCat.status !== 'Idoneo' && (() => {
+                            // Estrazione valori clinici per identificare solo i biomarcatori fuori soglia
+                            let pSys = 122;
+                            let pBpm = 64;
+                            let pGlicemia = 104;
+                            let pLdl = 142;
+                            let pHsPcr = 2.8;
+                            let pCreatinina = 0.95;
+                            let pEmoglobina = 14.8;
+                            let pAltAst = 24;
+
+                            result.vitali?.metrics?.forEach(m => {
+                              if (m.label.toLowerCase().includes('pressione')) {
+                                const match = m.value.match(/(\d+)/);
+                                if (match) pSys = parseInt(match[1]);
+                              }
+                              if (m.label.toLowerCase().includes('bpm') || m.label.toLowerCase().includes('riposo')) {
+                                const match = m.value.match(/(\d+)/);
+                                if (match) pBpm = parseInt(match[1]);
+                              }
+                            });
+
+                            result.metabolici?.metrics?.forEach(m => {
+                              if (m.label.toLowerCase().includes('glicemia')) {
+                                const match = m.value.match(/(\d+)/);
+                                if (match) pGlicemia = parseInt(match[1]);
+                              }
+                              if (m.label.toLowerCase().includes('ldl') || m.label.toLowerCase().includes('colesterolo')) {
+                                const match = m.value.match(/(\d+)/);
+                                if (match) pLdl = parseInt(match[1]);
+                              }
+                            });
+
+                            result.organo?.metrics?.forEach(m => {
+                              if (m.label.toLowerCase().includes('creatinina')) {
+                                const match = m.value.match(/([\d.]+)/);
+                                if (match) pCreatinina = parseFloat(match[1]);
+                              }
+                              if (m.label.toLowerCase().includes('emoglobina')) {
+                                const match = m.value.match(/([\d.]+)/);
+                                if (match) pEmoglobina = parseFloat(match[1]);
+                              }
+                            });
+
+                            result.infiammatorio?.metrics?.forEach(m => {
+                              if (m.label.toLowerCase().includes('pcr')) {
+                                const match = m.value.match(/([\d.]+)/);
+                                if (match) pHsPcr = parseFloat(match[1]);
+                              }
+                            });
+
+                            // Filtraggio rigoroso: includi SOLO i biomarcatori inerenti alle problematiche
+                            const problematicBiomarkers: { punto: typeof selectedDetails.punti[0]; alterazione: string; valoreRilevato?: string }[] = [];
+
+                            selectedDetails.punti.forEach(punto => {
+                              if (!punto.seAlti && !punto.seBassi) return; // Esclude test strumentali/visite
+                              const tLower = punto.t.toLowerCase();
+
+                              if (selectedIdx === 0) {
+                                if (tLower.includes('emodinamico') || tLower.includes('pressione')) {
+                                  if (pSys >= 130) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Pressione sistolica superiore alla soglia di sicurezza.',
+                                      valoreRilevato: `${pSys} mmHg (Soglia max: 129 mmHg)`
+                                    });
+                                  } else if (pSys < 90) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seBassi || 'Ipotensione acuta.',
+                                      valoreRilevato: `${pSys} mmHg (Soglia min: 90 mmHg)`
+                                    });
+                                  }
+                                } else if (tLower.includes('cronotropismo') || tLower.includes('miocardico') || tLower.includes('frequenza')) {
+                                  if (pBpm >= 85) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Tachicardia o ridotta riserva cronotropa.',
+                                      valoreRilevato: `${pBpm} BPM (Soglia max: 84 BPM)`
+                                    });
+                                  } else if (pBpm < 50) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seBassi || 'Bradicardia sintomatica.',
+                                      valoreRilevato: `${pBpm} BPM (Soglia min: 50 BPM)`
+                                    });
+                                  } else if (effectiveWm.acwr > 1.45) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: 'Sovraccarico emodinamico da rapporto ACWR elevato.',
+                                      valoreRilevato: `ACWR: ${effectiveWm.acwr.toFixed(2)}`
+                                    });
+                                  }
+                                } else if (tLower.includes('coagulazione') || tLower.includes('emostatico')) {
+                                  if (result.score < 60 || pSys >= 140) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Attivazione emostatica sotto stress pressorio/vascolare.',
+                                      valoreRilevato: 'Stress emostatico periferico'
+                                    });
+                                  }
+                                } else if (tLower.includes('sovraccarico ventricolare') || tLower.includes('bnp')) {
+                                  if (result.heartRisk === 'high' || pSys >= 145 || pBpm >= 95) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Sovraccarico tensivo delle camere cardiache.',
+                                      valoreRilevato: 'Allerta ventricolare ad alta priorità'
+                                    });
+                                  }
+                                }
+                              } else if (selectedIdx === 1) {
+                                if (tLower.includes('glucidico') || tLower.includes('glicemia')) {
+                                  if (pGlicemia >= 100) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Iperglicemia a digiuno o alterata tolleranza ai glucidi.',
+                                      valoreRilevato: `${pGlicemia} mg/dL (Soglia fisiologica: < 100 mg/dL)`
+                                    });
+                                  } else if (pGlicemia < 70) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seBassi || 'Ipoglicemia.',
+                                      valoreRilevato: `${pGlicemia} mg/dL (Soglia min: 70 mg/dL)`
+                                    });
+                                  }
+                                } else if (tLower.includes('lipidico') || tLower.includes('colesterolo') || tLower.includes('ldl')) {
+                                  if (pLdl >= 115) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Colesterolo LDL aterogeno fuori range di sicurezza.',
+                                      valoreRilevato: `${pLdl} mg/dL (Target ottimale: < 115 mg/dL)`
+                                    });
+                                  }
+                                } else if (tLower.includes('genetici') || tLower.includes('apob') || tLower.includes('lipoproteina')) {
+                                  if (pLdl >= 130 || result.score < 65) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Particelle aterogene ApoB e lipoproteina(a) a rischio.',
+                                      valoreRilevato: 'Fattori aterogeni circolanti a rischio'
+                                    });
+                                  }
+                                } else if (tLower.includes('tiroideo') || tLower.includes('tsh')) {
+                                  if (result.score < 55) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Rallentamento del metabolismo basale tiroideo.',
+                                      valoreRilevato: 'Disregolazione tiroidea borderline'
+                                    });
+                                  }
+                                } else if (tLower.includes('stress') || tLower.includes('surrene') || tLower.includes('cortisolo')) {
+                                  if (effectiveWm.fatigueIndex >= 60 || effectiveWm.sentinelSignal !== 'verde' || result.score < 60) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Iperattivazione asse ipotalamo-surrene da stress biologico.',
+                                      valoreRilevato: `Indice Fatica: ${effectiveWm.fatigueIndex}% • Segnale: ${effectiveWm.sentinelSignal.toUpperCase()}`
+                                    });
+                                  }
+                                }
+                              } else if (selectedIdx === 2) {
+                                if (tLower.includes('glomerulare') || tLower.includes('creatinina') || tLower.includes('egfr')) {
+                                  if (pCreatinina >= 1.15) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Clearance renale ridotta o ritenzione di cataboliti azotati.',
+                                      valoreRilevato: `${pCreatinina} mg/dL (Soglia max: 1.10 mg/dL)`
+                                    });
+                                  }
+                                } else if (tLower.includes('epatocellulare') || tLower.includes('alt') || tLower.includes('ast')) {
+                                  if (pAltAst >= 35 || result.score < 60) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Sovraccarico citolitico o epatobiliare attivo.',
+                                      valoreRilevato: `${pAltAst} U/L (Target fisiologico: < 35 U/L)`
+                                    });
+                                  }
+                                } else if (tLower.includes('pancreas') || tLower.includes('lipasi')) {
+                                  if (result.score < 55) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Stress enzimatico digestivo pancreatico.',
+                                      valoreRilevato: 'Enzimi litici sotto stress'
+                                    });
+                                  }
+                                } else if (tLower.includes('rossa') || tLower.includes('emoglobina')) {
+                                  if (pEmoglobina < 13.5) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seBassi || 'Capacità di trasporto di ossigeno ridotta (stato sub-anemico).',
+                                      valoreRilevato: `${pEmoglobina} g/dL (Soglia fisiologica: > 13.5 g/dL)`
+                                    });
+                                  } else if (pEmoglobina > 17.5) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Iperviscosità ematica da poliglobulia.',
+                                      valoreRilevato: `${pEmoglobina} g/dL (Soglia max: 17.5 g/dL)`
+                                    });
+                                  }
+                                } else if (tLower.includes('marziale') || tLower.includes('ferro') || tLower.includes('ferritina')) {
+                                  if (pEmoglobina < 14.0 || result.score < 60) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seBassi || 'Riserva marziale in depauperamento o sequestro infiammatorio.',
+                                      valoreRilevato: 'Depositi epato-midollari di ferro da verificare'
+                                    });
+                                  }
+                                } else if (tLower.includes('piastrinica') || tLower.includes('piastrine')) {
+                                  if (result.score < 50) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Turnover piastrinico alterato sotto stress sistemico.',
+                                      valoreRilevato: 'Emostasi primaria a rischio'
+                                    });
+                                  }
+                                }
+                              } else if (selectedIdx === 3) {
+                                if (tLower.includes('flogosi') || tLower.includes('pcr') || tLower.includes('ves')) {
+                                  if (pHsPcr >= 1.0) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Infiammazione silente attiva (hs-PCR elevata).',
+                                      valoreRilevato: `${pHsPcr} mg/L (Target ottimale: < 1.0 mg/L)`
+                                    });
+                                  }
+                                } else if (tLower.includes('leucocitaria') || tLower.includes('wbc')) {
+                                  if (pHsPcr >= 2.0 || result.score < 60) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Reattività leucocitaria aumentata in risposta a trigger infiammatorio.',
+                                      valoreRilevato: 'Allerta formula leucocitaria'
+                                    });
+                                  }
+                                } else if (tLower.includes('autoimmunità') || tLower.includes('ana')) {
+                                  if (result.score < 50) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Sospetta iperreattività autoimmune sistemica.',
+                                      valoreRilevato: 'Marcatori autoimmuni raccomandati'
+                                    });
+                                  }
+                                } else if (tLower.includes('immunoglobuline') || tLower.includes('ige')) {
+                                  if (result.score < 45) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Sbilanciamento immunitario umorale o atopia reattiva.',
+                                      valoreRilevato: 'Risposta anticorpale disregolata'
+                                    });
+                                  }
+                                } else if (tLower.includes('onco-biologia') || tLower.includes('tumorali')) {
+                                  if (result.score < 40) {
+                                    problematicBiomarkers.push({
+                                      punto,
+                                      alterazione: punto.seAlti || 'Attenzione su biomarcatori di proliferazione d\'organo.',
+                                      valoreRilevato: 'Approfondimento specialistico raccomandato'
+                                    });
+                                  }
+                                }
+                              }
+                            });
+
+                            return (
+                              <div className="flex flex-col gap-3.5 animate-in fade-in duration-300">
+                                <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-3.5 flex items-center gap-3 text-xs text-red-200 led-pulse-red">
+                                  <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+                                  <div className="min-w-0">
+                                    <span className="font-bold text-red-300 uppercase tracking-wide block font-mono text-[11px]">
+                                      Attenzione Clinica: Biomarcatori Fuori Soglia Rilevati
                                     </span>
-                                    <span className="text-[9px] font-mono text-cyan-400">
-                                      Mappati nei Qubit Qiskit
-                                    </span>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                    {details.punti.map((punto, pIdx) => (
-                                      <div key={pIdx} className="bg-white/[0.02] border border-white/5 hover:border-white/15 rounded-xl p-3 flex flex-col gap-1 transition-all">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-sm">{punto.icon}</span>
-                                          <span className="text-xs font-medium text-white tracking-wide">{punto.t}</span>
-                                        </div>
-                                        <p className="text-[10.5px] text-slate-400 font-light leading-relaxed pl-5">
-                                          {punto.d}
-                                        </p>
-                                        {(punto.seAlti || punto.seBassi) && (
-                                          <div className="mt-1 pt-1.5 border-t border-white/5 pl-5 flex flex-col gap-1 text-[9.5px] font-mono text-slate-400">
-                                            {punto.seAlti && (
-                                              <div className="leading-tight">
-                                                <strong className="text-red-400/80 font-medium">Se alterato:</strong> {punto.seAlti}
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
+                                    <p className="text-slate-300 text-[11px] font-light mt-0.5">
+                                      Visualizzazione della scheda tecnica e dei soli biomarcatori che presentano irregolarità attive.
+                                    </p>
                                   </div>
                                 </div>
-                              )}
 
-                              {/* Grafico */}
-                              <div className="h-[200px] w-full bg-white/[0.01] border border-white/5 rounded-xl p-4 relative">
-                                <div className="absolute top-3 left-4 z-10 text-[10px] font-mono text-slate-500 uppercase tracking-widest">{cat.chartLabel} (Andamento Storico)</div>
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <LineChart data={cat.chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                    <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
-                                    <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
-                                    <Tooltip 
-                                      content={({ active, payload }) => {
-                                        if (active && payload && payload.length) {
-                                          return (
-                                            <div className="bg-black/90 border border-white/10 px-3 py-2 rounded-lg text-xs backdrop-blur-md shadow-xl flex flex-col gap-1">
-                                              <span className="text-white/60 font-mono text-[9px] uppercase">{payload[0].payload.time}</span>
-                                              <span className="text-white font-mono font-bold" style={{ color: cat.chartColor }}>{payload[0].value} {cat.chartLabel.split(' ')[0]}</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3.5 flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-bold text-red-400">
+                                      <div className="w-2 h-2 rounded-full bg-red-500 shrink-0"></div>
+                                      Campanelli d'allarme
+                                    </div>
+                                    <p className="text-xs sm:text-[13px] text-red-200/90 leading-relaxed font-normal">{selectedDetails.allarmi}</p>
+                                  </div>
+                                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5 flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-bold text-amber-400">
+                                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                                      Cause Frequenti
+                                    </div>
+                                    <p className="text-xs sm:text-[13px] text-amber-200/90 leading-relaxed font-normal">{selectedDetails.cause}</p>
+                                  </div>
+                                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3.5 flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-bold text-emerald-400">
+                                      <div className="w-2 h-2 rounded-sm bg-emerald-500 shrink-0"></div>
+                                      Consigli Pratici
+                                    </div>
+                                    <p className="text-xs sm:text-[13px] text-emerald-200/90 leading-relaxed font-normal">{selectedDetails.consigli}</p>
+                                  </div>
+                                </div>
+
+                                <div className="bg-gradient-to-r from-white/[0.04] via-white/[0.02] to-transparent border border-white/10 rounded-xl p-3.5 flex items-start gap-3">
+                                  <span className="text-amber-400 text-base shrink-0">💡</span>
+                                  <div className="min-w-0">
+                                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold block mb-0.5">
+                                      Interconnessione Sistemica
+                                    </span>
+                                    <p className="text-xs sm:text-[13px] text-slate-200 leading-relaxed font-normal">
+                                      {selectedDetails.interconnessione}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Biomarcatori di Precisione del Modulo: Mostra ESCLUSIVAMENTE quelli inerenti alle problematiche */}
+                                {problematicBiomarkers.length > 0 && (
+                                  <div className="flex flex-col gap-2 pt-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] font-mono uppercase tracking-widest text-red-300 font-semibold flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                                        Biomarcatori con Irregolarità Rilevate ({problematicBiomarkers.length})
+                                      </span>
+                                      <span className="text-[10px] font-mono text-slate-500">
+                                        Biomarcatori stabili esclusi
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                      {problematicBiomarkers.map((item, pIdx) => (
+                                        <div key={pIdx} className="bg-red-500/5 border border-red-500/30 hover:border-red-500/50 rounded-xl p-3 flex flex-col gap-1.5 transition-all">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                              <span className="text-base shrink-0">{item.punto.icon}</span>
+                                              <span className="text-xs sm:text-[13px] font-semibold text-white tracking-wide truncate">{item.punto.t}</span>
                                             </div>
-                                          );
-                                        }
-                                        return null;
-                                      }}
-                                    />
-                                    <Line 
-                                      type="monotone" 
-                                      dataKey={cat.chartKey} 
-                                      stroke={cat.chartColor} 
-                                      strokeWidth={3} 
-                                      dot={{ fill: '#000', stroke: cat.chartColor, strokeWidth: 2, r: 3 }}
-                                      activeDot={{ r: 6, fill: '#000', stroke: cat.chartColor, strokeWidth: 2 }}
-                                    />
-                                  </LineChart>
-                                </ResponsiveContainer>
+                                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40 uppercase shrink-0">
+                                              Fuori Soglia
+                                            </span>
+                                          </div>
+                                          {item.valoreRilevato && (
+                                            <div className="text-[11px] font-mono text-amber-300 pl-6 flex items-center gap-1">
+                                              <span className="text-slate-400">Valore:</span>
+                                              <span className="font-bold">{item.valoreRilevato}</span>
+                                            </div>
+                                          )}
+                                          <p className="text-xs text-slate-300 font-light leading-relaxed pl-6">
+                                            {item.punto.d}
+                                          </p>
+                                          <div className="mt-1 pt-1.5 border-t border-red-500/20 pl-6 text-[11px] font-mono text-red-200/90 leading-snug">
+                                            <strong className="text-red-400 font-medium">Anomalia:</strong> {item.alterazione}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          </div>
-                        )}
+                            );
+                          })()}
+                        </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Grafico Andamento */}
+                      <div className="h-[200px] w-full bg-white/[0.01] border border-white/5 rounded-xl p-4 relative mt-2">
+                        <div className="absolute top-3 left-4 z-10 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+                          {selectedCat.chartLabel} (Andamento Storico)
+                        </div>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={selectedCat.chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                            <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
+                            <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
+                            <Tooltip 
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  return (
+                                    <div className="bg-black/90 border border-white/10 px-3 py-2 rounded-lg text-xs backdrop-blur-md shadow-xl flex flex-col gap-1">
+                                      <span className="text-white/60 font-mono text-[9px] uppercase">{payload[0].payload.time}</span>
+                                      <span className="text-white font-mono font-bold" style={{ color: selectedCat.chartColor }}>
+                                        {payload[0].value} {selectedCat.chartLabel.split(' ')[0]}
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey={selectedCat.chartKey} 
+                              stroke={selectedCat.chartColor} 
+                              strokeWidth={3} 
+                              dot={{ fill: '#000', stroke: selectedCat.chartColor, strokeWidth: 2, r: 3 }}
+                              activeDot={{ r: 6, fill: '#000', stroke: selectedCat.chartColor, strokeWidth: 2 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                    </div>
                 </div>
-              </div>
-            </div>
-
-            {/* DASHBOARD TELEMETRIA WEARABLE (SMARTWATCH & IMU) */}
-            <WearableWorkloadDashboard 
-              metrics={result.wearableMetrics || wearableMetrics} 
-              onEdit={() => setShowWearableModal(true)} 
-            />
-
-            {/* SEZIONE EFFETTO DOMINO GLOBALE & PROBLEMATICHE DOVUTE AGLI INCROCI DEI PARAMETRI (TUTTO INLINE) */}
-            <CrossParameterAnalysis result={result} />
+              );
+            })()}
 
             <div className="flex justify-center mt-8">
               <button 
@@ -1808,6 +2226,24 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           </div>
         )}
       </div>
+
+      {/* MODALE POP-UP MAPPA DELLE REAZIONI A CATENA DELLA SALUTE */}
+      {showChainReactionModal && result && (
+        <div 
+          className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
+          onClick={() => setShowChainReactionModal(false)}
+        >
+          <div 
+            className="bg-[#0b0c10] border border-cyan-500/30 rounded-3xl w-full max-w-6xl max-h-[92vh] overflow-y-auto relative shadow-[0_0_80px_rgba(6,182,212,0.15)] flex flex-col p-4 sm:p-7"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CrossParameterAnalysis 
+              result={result} 
+              onClose={() => setShowChainReactionModal(false)} 
+            />
+          </div>
+        </div>
+      )}
 
       {/* MODALE SCHEDA TECNICA METRICHE WEARABLE & SMARTWATCH */}
       <WearableMetricsInputModal
