@@ -231,13 +231,13 @@ export default function CrossParameterAnalysis({ result, onClose }: CrossParamet
         </div>
       </div>
 
-      {/* GUIDA SINTETICA COMPATTA */}
-      <div className="mb-4 p-3 sm:p-3.5 rounded-xl bg-[#0c0d12] border border-cyan-500/30 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0 text-cyan-400">
+      {/* GUIDA SINTETICA COMPATTA CON IMPATTO CLINICO A LUNGO TERMINE */}
+      <div className="mb-4 p-3.5 sm:p-4 rounded-xl bg-[#0c0d12] border border-cyan-500/30 flex items-start sm:items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0 text-cyan-400 mt-0.5 sm:mt-0">
           <Layers className="w-4 h-4" />
         </div>
         <p className="text-xs text-slate-300 font-light leading-relaxed">
-          <strong className="text-white font-medium">Reazioni a Catena Attive:</strong> Sono visualizzati esclusivamente i quadranti che richiedono attenzione clinica, prioritizzati partendo dallo stato <strong className="text-red-400">Rosso (Critico)</strong> e proseguendo con <strong className="text-amber-400">Arancione (Attenzione)</strong>. I quadranti verdi (stabili) sono esclusi. Clicca su un quadrante per analizzarne la cascata domino.
+          <strong className="text-white font-medium">Reazioni a Catena Attive:</strong> Anche se i 4 moduli risultano temporaneamente idonei (verdi), la persistenza a lungo termine di quadranti <strong className="text-amber-400">Arancioni (attrito sub-clinico/compensato)</strong> o <strong className="text-red-400">Rossi (stress d'organo critico)</strong> logora progressivamente l'omeostasi sistemica, rischiando di far crollare i moduli verso la non-idoneità conclamata. Sono visualizzati solo i quadranti alterati (prima Rossi, poi Arancioni). Clicca su un quadrante per analizzarne la cascata.
         </p>
       </div>
 

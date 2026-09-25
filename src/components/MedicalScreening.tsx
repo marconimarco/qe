@@ -11,6 +11,7 @@ import AcquiredReportsModal, { AcquiredReport } from './AcquiredReportsModal';
 import QuantumHealth13QubitModal from './QuantumHealth13QubitModal';
 import DocumentationModal from './DocumentationModal';
 import WearableMetricsInputModal from './WearableMetricsInputModal';
+import { PreventionGuidanceModal } from './PreventionGuidanceModal';
 import { WearableWorkloadMetrics, DEFAULT_WEARABLE_METRICS, valutaEffettiDominoWearable } from '../types/wearable';
 import { HealthPageReport, elaboraPaginaHealth, estraiDatiFascicoloPerQubit } from '../lib/quantumHealthEngine';
 import { CATEGORY_DETAILS_ENRICHED, CROSS_PARAMETER_PROBLEMS } from '../data/medicalCategoriesData';
@@ -163,6 +164,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
   const [showDominoModal, setShowDominoModal] = useState(false);
   const [show13QubitModal, setShow13QubitModal] = useState(false);
   const [showDocumentationModal, setShowDocumentationModal] = useState(false);
+  const [showPreventionModal, setShowPreventionModal] = useState(false);
   const [latestQuantumReport, setLatestQuantumReport] = useState<HealthPageReport | null>(() => {
     const savedQ = localStorage.getItem('quantum_medical_active_quantum_report');
     if (savedQ) {
@@ -1415,6 +1417,39 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                   <FileText className="w-4 h-4 shrink-0" />
                   Scarica Report Clinico Completo (PDF)
                 </button>
+
+                {/* PULSANTE ROTONDO SCREENING & PREVENZIONE ANNUALE IN TESTATA */}
+                <div className="relative group flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreventionModal(true)}
+                    className="relative w-11 h-11 rounded-full p-[2px] overflow-hidden flex items-center justify-center transition-transform duration-300 hover:scale-110 cursor-pointer shadow-[0_0_22px_rgba(6,182,212,0.5)] focus:outline-none"
+                    aria-label="Piano Screening Annuale & Controlli Consigliati"
+                  >
+                    <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
+                      <div
+                        className="absolute -inset-[150%] animate-beam-spin-cyan"
+                        style={{
+                          background: 'conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 270deg, rgba(6, 182, 212, 0.4) 300deg, #00f2ff 335deg, #ffffff 355deg, transparent 360deg)',
+                        }}
+                      />
+                    </div>
+                    <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[#0a1120] via-[#070b14] to-[#02050a] border border-cyan-400/50 flex flex-col items-center justify-center text-cyan-300 z-10 group-hover:border-cyan-300 group-hover:text-white transition-colors">
+                      <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                      <span className="text-[7px] font-bold tracking-tighter uppercase leading-none mt-0.5 text-cyan-200">
+                        Screen
+                      </span>
+                    </div>
+                  </button>
+
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3.5 py-2 rounded-xl bg-black/95 border border-cyan-400/40 text-[11px] font-sans text-slate-200 shadow-[0_0_25px_rgba(0,0,0,0.85)] backdrop-blur-md opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 w-64 z-[999] text-center leading-relaxed">
+                    <span className="text-cyan-300 font-bold block text-[10px] font-mono uppercase tracking-wider mb-0.5">
+                      Piano Screening & Prevenzione
+                    </span>
+                    Consigli degli esami da fare durante l'anno: sia la routine per genere ed età che i controlli mirati generati dall'effetto domino.
+                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-black/95 border-t border-l border-cyan-400/40 rotate-45" />
+                  </div>
+                </div>
               </div>
 
               {pdfDownloadedNotice && (
@@ -1684,528 +1719,500 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
               const activeChainCount = CROSS_PARAMETER_PROBLEMS.filter(p => checkIsProblemCritical(p.id, result)).length;
 
               return (
-                <div className="flex flex-col gap-5 w-full max-w-[1400px] mx-auto">
-                  {/* HEADER MODULO ATTIVO */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-1">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                      <h3 className="text-base sm:text-lg font-light text-white tracking-wide">
+                <div className="w-full max-w-[1400px] mx-auto bg-[#0e1017] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl relative flex flex-col gap-3.5 animate-in fade-in duration-300">
+                  {/* Header Modulo Selezionato Compatto */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: selectedCat.chartColor }} />
+                      <h3 className="text-base sm:text-lg font-semibold text-white tracking-wide">
                         {selectedCat.title}
                       </h3>
-                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-semibold">
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-semibold">
                         MOD #{selectedIdx + 1}
                       </span>
+                      <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${selectedDetails.urgenzaBadgeColor}`}>
+                        {selectedDetails.urgenzaTag}
+                      </span>
                     </div>
-                    <div className="text-xs font-mono text-slate-400">
-                      Usa i pulsanti in alto (Vitali, Metabolici, Organi, Flogosi, Domino) per navigare tra i moduli
+
+                    <div className={`px-2.5 py-0.5 rounded-full border text-[9px] sm:text-[10px] font-bold tracking-widest uppercase transition-all ${
+                      selectedCat.status === 'Idoneo'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-badge-red'
+                    }`}>
+                      {selectedCat.status}: {selectedCat.statusText}
                     </div>
                   </div>
 
-                  {/* CONTENUTO DEL MODULO A TUTTA LARGHEZZA */}
-                  <div className="w-full bg-[#0e1017] border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl relative flex flex-col gap-6 animate-in fade-in duration-300">
-                      
-                      {/* Header Modulo Selezionato */}
-                      <div className="flex flex-col gap-2 pb-4 border-b border-white/10">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">MOD #{selectedIdx + 1}</span>
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedCat.chartColor }} />
-                            <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${selectedDetails.urgenzaBadgeColor}`}>
-                              {selectedDetails.urgenzaTag}
-                            </span>
-                          </div>
+                  <p className="text-xs text-slate-300 leading-normal font-light -mt-1">
+                    {selectedCat.description}
+                  </p>
 
-                          <div className={`px-3 py-1 rounded-full border text-[10px] font-bold tracking-widest uppercase transition-all ${
-                            selectedCat.status === 'Idoneo'
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                              : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-badge-red'
-                          }`}>
-                            {selectedCat.status}: {selectedCat.statusText}
-                          </div>
-                        </div>
-
-                        <h3 className="text-xl sm:text-2xl font-normal text-white tracking-wide mt-1">
-                          {selectedCat.title}
-                        </h3>
-                        <p className="text-sm text-slate-300 leading-relaxed font-light">
-                          {selectedCat.description}
-                        </p>
+                  {/* Box Integrazione Telemetria Wearable Compatto */}
+                  <div className="py-2 px-3 rounded-xl bg-white/[0.02] border border-cyan-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-6 h-6 rounded-md bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                        <Watch className="w-3.5 h-3.5" />
                       </div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold shrink-0">
+                        Wearable:
+                      </span>
+                      <span className="text-xs text-slate-300 font-light truncate">
+                        {selectedIdx === 0 && `ACWR: ${effectiveWm.acwr.toFixed(2)} • Passi: ${effectiveWm.steps.toLocaleString('it-IT')} • Distanza: ${effectiveWm.distance} km`}
+                        {selectedIdx === 1 && `Carico: ${effectiveWm.cumulativeWorkload} AU • Meccanico: ${effectiveWm.mechanicalLoad} kJ • Omeostasi glucidica`}
+                        {selectedIdx === 2 && `Impatti: ${effectiveWm.impactsTibia}g • Accelerometro: ${effectiveWm.accelerometerPeak}g • Filtri d'organo`}
+                        {selectedIdx === 3 && `Sentinella: ${effectiveWm.sentinelSignal.toUpperCase()} • Fatica: ${effectiveWm.fatigueIndex}% • Asimmetria: ${effectiveWm.biomechanicAlterations}%`}
+                      </span>
+                    </div>
 
-                      {/* Box Integrazione Telemetria Wearable (Smartwatch & IMU) nel Modulo */}
-                      <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-cyan-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-                            <Watch className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold block">
-                              Parametri Wearable & Sensori IMU Integrati nel Modulo
-                            </span>
-                            <span className="text-xs sm:text-[13px] text-slate-300 font-light">
-                              {selectedIdx === 0 && `Rapporto Acuto/Cronico ACWR: ${effectiveWm.acwr.toFixed(2)} • Passi: ${effectiveWm.steps.toLocaleString('it-IT')} • Distanza: ${effectiveWm.distance} km`}
-                              {selectedIdx === 1 && `Carico Cumulativo: ${effectiveWm.cumulativeWorkload} AU • Carico Meccanico: ${effectiveWm.mechanicalLoad} kJ • Omeostasi glucidica integrata`}
-                              {selectedIdx === 2 && `Impatti Tibia: ${effectiveWm.impactsTibia}g • Accelerometro: ${effectiveWm.accelerometerPeak}g • Monitoraggio renale da mioglobina`}
-                              {selectedIdx === 3 && `Segnale Sentinella: ${effectiveWm.sentinelSignal.toUpperCase()} • Indice Fatica: ${effectiveWm.fatigueIndex}% • Asimmetria: ${effectiveWm.biomechanicAlterations}%`}
-                            </span>
-                          </div>
-                        </div>
+                    <div className="text-[9px] font-mono text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30 whitespace-nowrap shrink-0">
+                      {selectedIdx === 0 && (effectiveWm.acwr > 1.45 ? '⚠️ Allerta Carico' : '✓ Fisiologico')}
+                      {selectedIdx === 1 && (effectiveWm.cumulativeWorkload > 1200 ? '⚠️ Elevata Spesa' : '✓ Resilienza Ottimale')}
+                      {selectedIdx === 2 && (effectiveWm.steps > 18000 && effectiveWm.mechanicalLoad > 60 ? '⚠️ Allerta Clearance' : '✓ Filtri Protetti')}
+                      {selectedIdx === 3 && (effectiveWm.sentinelSignal !== 'verde' || effectiveWm.fatigueIndex >= 60 ? '⚠️ Rischio Flogosi' : '✓ Infiammazione Bassa')}
+                    </div>
+                  </div>
 
-                        <div className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/30 whitespace-nowrap">
-                          {selectedIdx === 0 && (effectiveWm.acwr > 1.45 ? '⚠️ Allerta Carico Cardiovascolare' : '✓ Carico Emodinamico Fisiologico')}
-                          {selectedIdx === 1 && (effectiveWm.cumulativeWorkload > 1200 ? '⚠️ Elevata Spesa Metabolica' : '✓ Resilienza Metabolica Ottimale')}
-                          {selectedIdx === 2 && (effectiveWm.steps > 18000 && effectiveWm.mechanicalLoad > 60 ? '⚠️ Allerta Clearance Renale' : '✓ Filtri d\'Organo Protetti')}
-                          {selectedIdx === 3 && (effectiveWm.sentinelSignal !== 'verde' || effectiveWm.fatigueIndex >= 60 ? '⚠️ Rischio Flogosi Tissutale' : '✓ Infiammazione Tissutale Bassa')}
-                        </div>
-                      </div>
-
-                      {/* Scansione Olografica Compatta + 3 Box Clinici Ingranditi */}
-                      <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-start">
-                        {/* Immagine Scansione Molto Più Piccola ma Chiaramente Identificativa */}
-                        <div className="w-[110px] sm:w-[125px] shrink-0 mx-auto md:mx-0 flex flex-col items-center">
-                          <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden border-2 border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)] bg-black group">
-                            {selectedIdx === 0 && <img src={scanVitali} alt="Parametri Vitali" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
-                            {selectedIdx === 1 && <img src={scanMetabolici} alt="Parametri Metabolici" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
-                            {selectedIdx === 2 && <img src={scanOrgano} alt="Funzionalità d'Organo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
-                            {selectedIdx === 3 && <img src={scanInfiammatorio} alt="Stato Infiammatorio" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
-                            
-                            <div className="absolute inset-0 border border-white/10 pointer-events-none rounded-xl" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                            <div className="absolute bottom-1 left-1 right-1 text-center">
-                              <span className="text-[8px] font-mono uppercase tracking-widest text-cyan-300 font-bold bg-black/70 px-1 py-0.5 rounded backdrop-blur-xs">
-                                Modulo #{selectedIdx + 1}
-                              </span>
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 mt-1.5 text-center">
-                            Scansione 3D
+                  {/* Scansione Olografica Compatta + Box Clinici */}
+                  <div className="flex flex-col md:flex-row gap-3 sm:gap-4 items-start">
+                    {/* Immagine Scansione Compatta */}
+                    <div className="w-[75px] sm:w-[85px] shrink-0 mx-auto md:mx-0 flex flex-col items-center">
+                      <div className="relative w-full h-[95px] sm:h-[105px] rounded-lg overflow-hidden border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] bg-black group">
+                        {selectedIdx === 0 && <img src={scanVitali} alt="Parametri Vitali" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                        {selectedIdx === 1 && <img src={scanMetabolici} alt="Parametri Metabolici" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                        {selectedIdx === 2 && <img src={scanOrgano} alt="Funzionalità d'Organo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                        {selectedIdx === 3 && <img src={scanInfiammatorio} alt="Stato Infiammatorio" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
+                        
+                        <div className="absolute inset-0 border border-white/10 pointer-events-none rounded-lg" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                        <div className="absolute bottom-1 left-0.5 right-0.5 text-center">
+                          <span className="text-[7.5px] font-mono uppercase tracking-widest text-cyan-300 font-bold bg-black/70 px-1 py-0.5 rounded backdrop-blur-xs">
+                            MOD #{selectedIdx + 1}
                           </span>
                         </div>
+                      </div>
+                      <span className="text-[8px] font-mono uppercase tracking-wider text-slate-400 mt-1 text-center">
+                        Scan 3D
+                      </span>
+                    </div>
 
-                        {/* Box Dettagli Clinici & Biomarcatori: Triage Intelligente Progressivo */}
-                        <div className="flex-1 flex flex-col gap-3.5 min-w-0 w-full">
-                          {/* 1. SE IL MODULO È IDONEO: Card rassicurante di Stabilità Fisiologica (nessun pulsante, nessuna scheda tecnica) */}
-                          {selectedCat.status === 'Idoneo' && (
-                            <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 transition-all">
-                              <div className="flex items-start sm:items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/35 flex items-center justify-center text-emerald-400 shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
-                                  <ShieldCheck className="w-5 h-5" />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-bold">
-                                      Assetto Fisiologico Ottimale
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[10px] font-mono border border-emerald-500/25">
-                                      Nessun Allarme Attivo
-                                    </span>
-                                  </div>
-                                  <p className="text-xs sm:text-[13px] text-slate-300 font-light mt-0.5">
-                                    {selectedIdx === 0 && "Pressione arteriosa, frequenza cardiaca ed emostasi risultano stabili. Nessun sovraccarico cardio-vascolare acuto."}
-                                    {selectedIdx === 1 && "Assetto glicometabolico, profilo lipidico ed equilibrio neuro-ormonale bilanciati nei limiti di sicurezza fisiologica."}
-                                    {selectedIdx === 2 && "Clearance renale e funzionalità epatobiliare ottimali. Conservata la piena riserva omeostatica parenchimale."}
-                                    {selectedIdx === 3 && "Assenza di flogosi attiva sistemica o citochinica. Risposta immunitaria nei range di protezione fisiologica."}
-                                  </p>
-                                </div>
+                    {/* Box Dettagli Clinici & Biomarcatori */}
+                    <div className="flex-1 flex flex-col gap-2.5 min-w-0 w-full">
+                      {/* 1. SE IL MODULO È IDONEO: Card Compatta */}
+                      {selectedCat.status === 'Idoneo' && (
+                        <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3 sm:p-3.5 flex items-center gap-3 transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/35 flex items-center justify-center text-emerald-400 shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+                            <ShieldCheck className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-bold">
+                                Assetto Fisiologico Ottimale
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[9px] font-mono border border-emerald-500/25">
+                                Nessun Allarme
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-300 font-light mt-0.5 leading-snug">
+                              {selectedIdx === 0 && "Pressione arteriosa, frequenza ed emostasi stabili. Nessun sovraccarico cardio-vascolare acuto."}
+                              {selectedIdx === 1 && "Assetto glicometabolico, lipidico ed equilibrio neuro-ormonale nei range di sicurezza fisiologica."}
+                              {selectedIdx === 2 && "Clearance renale ed epatobiliare ottimali. Conservata la piena riserva omeostatica parenchimale."}
+                              {selectedIdx === 3 && "Assenza di flogosi sistemica attiva. Risposta immunitaria nei range di protezione fisiologica."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 2. SE IL MODULO È NON IDONEO: Dettagli compatti con scroll se necessario */}
+                      {selectedCat.status !== 'Idoneo' && (() => {
+                        let pSys = 122;
+                        let pBpm = 64;
+                        let pGlicemia = 104;
+                        let pLdl = 142;
+                        let pHsPcr = 2.8;
+                        let pCreatinina = 0.95;
+                        let pEmoglobina = 14.8;
+                        let pAltAst = 24;
+
+                        result.vitali?.metrics?.forEach(m => {
+                          if (m.label.toLowerCase().includes('pressione')) {
+                            const match = m.value.match(/(\d+)/);
+                            if (match) pSys = parseInt(match[1]);
+                          }
+                          if (m.label.toLowerCase().includes('bpm') || m.label.toLowerCase().includes('riposo')) {
+                            const match = m.value.match(/(\d+)/);
+                            if (match) pBpm = parseInt(match[1]);
+                          }
+                        });
+
+                        result.metabolici?.metrics?.forEach(m => {
+                          if (m.label.toLowerCase().includes('glicemia')) {
+                            const match = m.value.match(/(\d+)/);
+                            if (match) pGlicemia = parseInt(match[1]);
+                          }
+                          if (m.label.toLowerCase().includes('ldl') || m.label.toLowerCase().includes('colesterolo')) {
+                            const match = m.value.match(/(\d+)/);
+                            if (match) pLdl = parseInt(match[1]);
+                          }
+                        });
+
+                        result.organo?.metrics?.forEach(m => {
+                          if (m.label.toLowerCase().includes('creatinina')) {
+                            const match = m.value.match(/([\d.]+)/);
+                            if (match) pCreatinina = parseFloat(match[1]);
+                          }
+                          if (m.label.toLowerCase().includes('emoglobina')) {
+                            const match = m.value.match(/([\d.]+)/);
+                            if (match) pEmoglobina = parseFloat(match[1]);
+                          }
+                        });
+
+                        result.infiammatorio?.metrics?.forEach(m => {
+                          if (m.label.toLowerCase().includes('pcr')) {
+                            const match = m.value.match(/([\d.]+)/);
+                            if (match) pHsPcr = parseFloat(match[1]);
+                          }
+                        });
+
+                        const problematicBiomarkers: { punto: typeof selectedDetails.punti[0]; alterazione: string; valoreRilevato?: string }[] = [];
+
+                        selectedDetails.punti.forEach(punto => {
+                          if (!punto.seAlti && !punto.seBassi) return;
+                          const tLower = punto.t.toLowerCase();
+
+                          if (selectedIdx === 0) {
+                            if (tLower.includes('emodinamico') || tLower.includes('pressione')) {
+                              if (pSys >= 130) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Pressione sistolica superiore alla soglia di sicurezza.',
+                                  valoreRilevato: `${pSys} mmHg (Max: 129)`
+                                });
+                              } else if (pSys < 90) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seBassi || 'Ipotensione acuta.',
+                                  valoreRilevato: `${pSys} mmHg (Min: 90)`
+                                });
+                              }
+                            } else if (tLower.includes('cronotropismo') || tLower.includes('miocardico') || tLower.includes('frequenza')) {
+                              if (pBpm >= 85) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Tachicardia o ridotta riserva cronotropa.',
+                                  valoreRilevato: `${pBpm} BPM (Max: 84)`
+                                });
+                              } else if (pBpm < 50) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seBassi || 'Bradicardia sintomatica.',
+                                  valoreRilevato: `${pBpm} BPM (Min: 50)`
+                                });
+                              } else if (effectiveWm.acwr > 1.45) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: 'Sovraccarico emodinamico da rapporto ACWR elevato.',
+                                  valoreRilevato: `ACWR: ${effectiveWm.acwr.toFixed(2)}`
+                                });
+                              }
+                            } else if (tLower.includes('coagulazione') || tLower.includes('emostatico')) {
+                              if (result.score < 60 || pSys >= 140) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Attivazione emostatica sotto stress pressorio/vascolare.',
+                                  valoreRilevato: 'Stress emostatico periferico'
+                                });
+                              }
+                            } else if (tLower.includes('sovraccarico ventricolare') || tLower.includes('bnp')) {
+                              if (result.heartRisk === 'high' || pSys >= 145 || pBpm >= 95) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Sovraccarico tensivo delle camere cardiache.',
+                                  valoreRilevato: 'Allerta ventricolare ad alta priorità'
+                                });
+                              }
+                            }
+                          } else if (selectedIdx === 1) {
+                            if (tLower.includes('glucidico') || tLower.includes('glicemia')) {
+                              if (pGlicemia >= 100) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Iperglicemia a digiuno o alterata tolleranza ai glucidi.',
+                                  valoreRilevato: `${pGlicemia} mg/dL (Max: < 100)`
+                                });
+                              } else if (pGlicemia < 70) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seBassi || 'Ipoglicemia.',
+                                  valoreRilevato: `${pGlicemia} mg/dL (Min: 70)`
+                                });
+                              }
+                            } else if (tLower.includes('lipidico') || tLower.includes('colesterolo') || tLower.includes('ldl')) {
+                              if (pLdl >= 115) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Colesterolo LDL aterogeno fuori range di sicurezza.',
+                                  valoreRilevato: `${pLdl} mg/dL (Target: < 115)`
+                                });
+                              }
+                            } else if (tLower.includes('genetici') || tLower.includes('apob') || tLower.includes('lipoproteina')) {
+                              if (pLdl >= 130 || result.score < 65) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Particelle aterogene ApoB e lipoproteina(a) a rischio.',
+                                  valoreRilevato: 'Fattori aterogeni circolanti a rischio'
+                                });
+                              }
+                            } else if (tLower.includes('tiroideo') || tLower.includes('tsh')) {
+                              if (result.score < 55) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Rallentamento del metabolismo basale tiroideo.',
+                                  valoreRilevato: 'Disregolazione tiroidea borderline'
+                                });
+                              }
+                            } else if (tLower.includes('stress') || tLower.includes('surrene') || tLower.includes('cortisolo')) {
+                              if (effectiveWm.fatigueIndex >= 60 || effectiveWm.sentinelSignal !== 'verde' || result.score < 60) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Iperattivazione asse ipotalamo-surrene da stress biologico.',
+                                  valoreRilevato: `Fatica: ${effectiveWm.fatigueIndex}% • Segnale: ${effectiveWm.sentinelSignal.toUpperCase()}`
+                                });
+                              }
+                            }
+                          } else if (selectedIdx === 2) {
+                            if (tLower.includes('glomerulare') || tLower.includes('creatinina') || tLower.includes('egfr')) {
+                              if (pCreatinina >= 1.15) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Clearance renale ridotta o ritenzione di cataboliti azotati.',
+                                  valoreRilevato: `${pCreatinina} mg/dL (Max: 1.10)`
+                                });
+                              }
+                            } else if (tLower.includes('epatocellulare') || tLower.includes('alt') || tLower.includes('ast')) {
+                              if (pAltAst >= 35 || result.score < 60) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Sovraccarico citolitico o epatobiliare attivo.',
+                                  valoreRilevato: `${pAltAst} U/L (Target: < 35)`
+                                });
+                              }
+                            } else if (tLower.includes('pancreas') || tLower.includes('lipasi')) {
+                              if (result.score < 55) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Stress enzimatico digestivo pancreatico.',
+                                  valoreRilevato: 'Enzimi litici sotto stress'
+                                });
+                              }
+                            } else if (tLower.includes('rossa') || tLower.includes('emoglobina')) {
+                              if (pEmoglobina < 13.5) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seBassi || 'Capacità di trasporto di ossigeno ridotta (stato sub-anemico).',
+                                  valoreRilevato: `${pEmoglobina} g/dL (Min: 13.5)`
+                                });
+                              } else if (pEmoglobina > 17.5) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Iperviscosità ematica da poliglobulia.',
+                                  valoreRilevato: `${pEmoglobina} g/dL (Max: 17.5)`
+                                });
+                              }
+                            } else if (tLower.includes('marziale') || tLower.includes('ferro') || tLower.includes('ferritina')) {
+                              if (pEmoglobina < 14.0 || result.score < 60) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seBassi || 'Riserva marziale in depauperamento o sequestro infiammatorio.',
+                                  valoreRilevato: 'Depositi marziali da verificare'
+                                });
+                              }
+                            } else if (tLower.includes('piastrinica') || tLower.includes('piastrine')) {
+                              if (result.score < 50) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Turnover piastrinico alterato sotto stress sistemico.',
+                                  valoreRilevato: 'Emostasi primaria a rischio'
+                                });
+                              }
+                            }
+                          } else if (selectedIdx === 3) {
+                            if (tLower.includes('flogosi') || tLower.includes('pcr') || tLower.includes('ves')) {
+                              if (pHsPcr >= 1.0) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Infiammazione silente attiva (hs-PCR elevata).',
+                                  valoreRilevato: `${pHsPcr} mg/L (Target: < 1.0)`
+                                });
+                              }
+                            } else if (tLower.includes('leucocitaria') || tLower.includes('wbc')) {
+                              if (pHsPcr >= 2.0 || result.score < 60) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Reattività leucocitaria aumentata in risposta a trigger infiammatorio.',
+                                  valoreRilevato: 'Allerta formula leucocitaria'
+                                });
+                              }
+                            } else if (tLower.includes('autoimmunità') || tLower.includes('ana')) {
+                              if (result.score < 50) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Sospetta iperreattività autoimmune sistemica.',
+                                  valoreRilevato: 'Marcatori autoimmuni raccomandati'
+                                });
+                              }
+                            } else if (tLower.includes('immunoglobuline') || tLower.includes('ige')) {
+                              if (result.score < 45) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Sbilanciamento immunitario umorale o atopia reattiva.',
+                                  valoreRilevato: 'Risposta anticorpale disregolata'
+                                });
+                              }
+                            } else if (tLower.includes('onco-biologia') || tLower.includes('tumorali')) {
+                              if (result.score < 40) {
+                                problematicBiomarkers.push({
+                                  punto,
+                                  alterazione: punto.seAlti || 'Attenzione su biomarcatori di proliferazione d\'organo.',
+                                  valoreRilevato: 'Approfondimento specialistico raccomandato'
+                                });
+                              }
+                            }
+                          }
+                        });
+
+                        return (
+                          <div className="flex flex-col gap-2.5 animate-in fade-in duration-300">
+                            <div className="bg-red-500/10 border border-red-500/40 rounded-lg p-2.5 flex items-center gap-2.5 text-xs text-red-200 led-pulse-red">
+                              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                              <div className="min-w-0">
+                                <span className="font-bold text-red-300 uppercase tracking-wide block font-mono text-[10.5px]">
+                                  Attenzione Clinica: Biomarcatori Fuori Soglia Rilevati
+                                </span>
+                                <p className="text-slate-300 text-[10.5px] font-light">
+                                  Visualizzazione mirata delle anomalie attive e delle contromisure fisiologiche.
+                                </p>
                               </div>
                             </div>
-                          )}
 
-                          {/* 2. SE IL MODULO È NON IDONEO: Avviso di Anomalia Attiva con scheda tecnica e SOLO biomarcatori problematici */}
-                          {selectedCat.status !== 'Idoneo' && (() => {
-                            // Estrazione valori clinici per identificare solo i biomarcatori fuori soglia
-                            let pSys = 122;
-                            let pBpm = 64;
-                            let pGlicemia = 104;
-                            let pLdl = 142;
-                            let pHsPcr = 2.8;
-                            let pCreatinina = 0.95;
-                            let pEmoglobina = 14.8;
-                            let pAltAst = 24;
-
-                            result.vitali?.metrics?.forEach(m => {
-                              if (m.label.toLowerCase().includes('pressione')) {
-                                const match = m.value.match(/(\d+)/);
-                                if (match) pSys = parseInt(match[1]);
-                              }
-                              if (m.label.toLowerCase().includes('bpm') || m.label.toLowerCase().includes('riposo')) {
-                                const match = m.value.match(/(\d+)/);
-                                if (match) pBpm = parseInt(match[1]);
-                              }
-                            });
-
-                            result.metabolici?.metrics?.forEach(m => {
-                              if (m.label.toLowerCase().includes('glicemia')) {
-                                const match = m.value.match(/(\d+)/);
-                                if (match) pGlicemia = parseInt(match[1]);
-                              }
-                              if (m.label.toLowerCase().includes('ldl') || m.label.toLowerCase().includes('colesterolo')) {
-                                const match = m.value.match(/(\d+)/);
-                                if (match) pLdl = parseInt(match[1]);
-                              }
-                            });
-
-                            result.organo?.metrics?.forEach(m => {
-                              if (m.label.toLowerCase().includes('creatinina')) {
-                                const match = m.value.match(/([\d.]+)/);
-                                if (match) pCreatinina = parseFloat(match[1]);
-                              }
-                              if (m.label.toLowerCase().includes('emoglobina')) {
-                                const match = m.value.match(/([\d.]+)/);
-                                if (match) pEmoglobina = parseFloat(match[1]);
-                              }
-                            });
-
-                            result.infiammatorio?.metrics?.forEach(m => {
-                              if (m.label.toLowerCase().includes('pcr')) {
-                                const match = m.value.match(/([\d.]+)/);
-                                if (match) pHsPcr = parseFloat(match[1]);
-                              }
-                            });
-
-                            // Filtraggio rigoroso: includi SOLO i biomarcatori inerenti alle problematiche
-                            const problematicBiomarkers: { punto: typeof selectedDetails.punti[0]; alterazione: string; valoreRilevato?: string }[] = [];
-
-                            selectedDetails.punti.forEach(punto => {
-                              if (!punto.seAlti && !punto.seBassi) return; // Esclude test strumentali/visite
-                              const tLower = punto.t.toLowerCase();
-
-                              if (selectedIdx === 0) {
-                                if (tLower.includes('emodinamico') || tLower.includes('pressione')) {
-                                  if (pSys >= 130) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Pressione sistolica superiore alla soglia di sicurezza.',
-                                      valoreRilevato: `${pSys} mmHg (Soglia max: 129 mmHg)`
-                                    });
-                                  } else if (pSys < 90) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seBassi || 'Ipotensione acuta.',
-                                      valoreRilevato: `${pSys} mmHg (Soglia min: 90 mmHg)`
-                                    });
-                                  }
-                                } else if (tLower.includes('cronotropismo') || tLower.includes('miocardico') || tLower.includes('frequenza')) {
-                                  if (pBpm >= 85) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Tachicardia o ridotta riserva cronotropa.',
-                                      valoreRilevato: `${pBpm} BPM (Soglia max: 84 BPM)`
-                                    });
-                                  } else if (pBpm < 50) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seBassi || 'Bradicardia sintomatica.',
-                                      valoreRilevato: `${pBpm} BPM (Soglia min: 50 BPM)`
-                                    });
-                                  } else if (effectiveWm.acwr > 1.45) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: 'Sovraccarico emodinamico da rapporto ACWR elevato.',
-                                      valoreRilevato: `ACWR: ${effectiveWm.acwr.toFixed(2)}`
-                                    });
-                                  }
-                                } else if (tLower.includes('coagulazione') || tLower.includes('emostatico')) {
-                                  if (result.score < 60 || pSys >= 140) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Attivazione emostatica sotto stress pressorio/vascolare.',
-                                      valoreRilevato: 'Stress emostatico periferico'
-                                    });
-                                  }
-                                } else if (tLower.includes('sovraccarico ventricolare') || tLower.includes('bnp')) {
-                                  if (result.heartRisk === 'high' || pSys >= 145 || pBpm >= 95) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Sovraccarico tensivo delle camere cardiache.',
-                                      valoreRilevato: 'Allerta ventricolare ad alta priorità'
-                                    });
-                                  }
-                                }
-                              } else if (selectedIdx === 1) {
-                                if (tLower.includes('glucidico') || tLower.includes('glicemia')) {
-                                  if (pGlicemia >= 100) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Iperglicemia a digiuno o alterata tolleranza ai glucidi.',
-                                      valoreRilevato: `${pGlicemia} mg/dL (Soglia fisiologica: < 100 mg/dL)`
-                                    });
-                                  } else if (pGlicemia < 70) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seBassi || 'Ipoglicemia.',
-                                      valoreRilevato: `${pGlicemia} mg/dL (Soglia min: 70 mg/dL)`
-                                    });
-                                  }
-                                } else if (tLower.includes('lipidico') || tLower.includes('colesterolo') || tLower.includes('ldl')) {
-                                  if (pLdl >= 115) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Colesterolo LDL aterogeno fuori range di sicurezza.',
-                                      valoreRilevato: `${pLdl} mg/dL (Target ottimale: < 115 mg/dL)`
-                                    });
-                                  }
-                                } else if (tLower.includes('genetici') || tLower.includes('apob') || tLower.includes('lipoproteina')) {
-                                  if (pLdl >= 130 || result.score < 65) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Particelle aterogene ApoB e lipoproteina(a) a rischio.',
-                                      valoreRilevato: 'Fattori aterogeni circolanti a rischio'
-                                    });
-                                  }
-                                } else if (tLower.includes('tiroideo') || tLower.includes('tsh')) {
-                                  if (result.score < 55) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Rallentamento del metabolismo basale tiroideo.',
-                                      valoreRilevato: 'Disregolazione tiroidea borderline'
-                                    });
-                                  }
-                                } else if (tLower.includes('stress') || tLower.includes('surrene') || tLower.includes('cortisolo')) {
-                                  if (effectiveWm.fatigueIndex >= 60 || effectiveWm.sentinelSignal !== 'verde' || result.score < 60) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Iperattivazione asse ipotalamo-surrene da stress biologico.',
-                                      valoreRilevato: `Indice Fatica: ${effectiveWm.fatigueIndex}% • Segnale: ${effectiveWm.sentinelSignal.toUpperCase()}`
-                                    });
-                                  }
-                                }
-                              } else if (selectedIdx === 2) {
-                                if (tLower.includes('glomerulare') || tLower.includes('creatinina') || tLower.includes('egfr')) {
-                                  if (pCreatinina >= 1.15) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Clearance renale ridotta o ritenzione di cataboliti azotati.',
-                                      valoreRilevato: `${pCreatinina} mg/dL (Soglia max: 1.10 mg/dL)`
-                                    });
-                                  }
-                                } else if (tLower.includes('epatocellulare') || tLower.includes('alt') || tLower.includes('ast')) {
-                                  if (pAltAst >= 35 || result.score < 60) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Sovraccarico citolitico o epatobiliare attivo.',
-                                      valoreRilevato: `${pAltAst} U/L (Target fisiologico: < 35 U/L)`
-                                    });
-                                  }
-                                } else if (tLower.includes('pancreas') || tLower.includes('lipasi')) {
-                                  if (result.score < 55) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Stress enzimatico digestivo pancreatico.',
-                                      valoreRilevato: 'Enzimi litici sotto stress'
-                                    });
-                                  }
-                                } else if (tLower.includes('rossa') || tLower.includes('emoglobina')) {
-                                  if (pEmoglobina < 13.5) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seBassi || 'Capacità di trasporto di ossigeno ridotta (stato sub-anemico).',
-                                      valoreRilevato: `${pEmoglobina} g/dL (Soglia fisiologica: > 13.5 g/dL)`
-                                    });
-                                  } else if (pEmoglobina > 17.5) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Iperviscosità ematica da poliglobulia.',
-                                      valoreRilevato: `${pEmoglobina} g/dL (Soglia max: 17.5 g/dL)`
-                                    });
-                                  }
-                                } else if (tLower.includes('marziale') || tLower.includes('ferro') || tLower.includes('ferritina')) {
-                                  if (pEmoglobina < 14.0 || result.score < 60) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seBassi || 'Riserva marziale in depauperamento o sequestro infiammatorio.',
-                                      valoreRilevato: 'Depositi epato-midollari di ferro da verificare'
-                                    });
-                                  }
-                                } else if (tLower.includes('piastrinica') || tLower.includes('piastrine')) {
-                                  if (result.score < 50) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Turnover piastrinico alterato sotto stress sistemico.',
-                                      valoreRilevato: 'Emostasi primaria a rischio'
-                                    });
-                                  }
-                                }
-                              } else if (selectedIdx === 3) {
-                                if (tLower.includes('flogosi') || tLower.includes('pcr') || tLower.includes('ves')) {
-                                  if (pHsPcr >= 1.0) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Infiammazione silente attiva (hs-PCR elevata).',
-                                      valoreRilevato: `${pHsPcr} mg/L (Target ottimale: < 1.0 mg/L)`
-                                    });
-                                  }
-                                } else if (tLower.includes('leucocitaria') || tLower.includes('wbc')) {
-                                  if (pHsPcr >= 2.0 || result.score < 60) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Reattività leucocitaria aumentata in risposta a trigger infiammatorio.',
-                                      valoreRilevato: 'Allerta formula leucocitaria'
-                                    });
-                                  }
-                                } else if (tLower.includes('autoimmunità') || tLower.includes('ana')) {
-                                  if (result.score < 50) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Sospetta iperreattività autoimmune sistemica.',
-                                      valoreRilevato: 'Marcatori autoimmuni raccomandati'
-                                    });
-                                  }
-                                } else if (tLower.includes('immunoglobuline') || tLower.includes('ige')) {
-                                  if (result.score < 45) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Sbilanciamento immunitario umorale o atopia reattiva.',
-                                      valoreRilevato: 'Risposta anticorpale disregolata'
-                                    });
-                                  }
-                                } else if (tLower.includes('onco-biologia') || tLower.includes('tumorali')) {
-                                  if (result.score < 40) {
-                                    problematicBiomarkers.push({
-                                      punto,
-                                      alterazione: punto.seAlti || 'Attenzione su biomarcatori di proliferazione d\'organo.',
-                                      valoreRilevato: 'Approfondimento specialistico raccomandato'
-                                    });
-                                  }
-                                }
-                              }
-                            });
-
-                            return (
-                              <div className="flex flex-col gap-3.5 animate-in fade-in duration-300">
-                                <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-3.5 flex items-center gap-3 text-xs text-red-200 led-pulse-red">
-                                  <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-                                  <div className="min-w-0">
-                                    <span className="font-bold text-red-300 uppercase tracking-wide block font-mono text-[11px]">
-                                      Attenzione Clinica: Biomarcatori Fuori Soglia Rilevati
-                                    </span>
-                                    <p className="text-slate-300 text-[11px] font-light mt-0.5">
-                                      Visualizzazione della scheda tecnica e dei soli biomarcatori che presentano irregolarità attive.
-                                    </p>
-                                  </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                              <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-2.5 flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-red-400">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></div>
+                                  Campanelli d'allarme
                                 </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                  <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3.5 flex flex-col gap-1.5">
-                                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-bold text-red-400">
-                                      <div className="w-2 h-2 rounded-full bg-red-500 shrink-0"></div>
-                                      Campanelli d'allarme
-                                    </div>
-                                    <p className="text-xs sm:text-[13px] text-red-200/90 leading-relaxed font-normal">{selectedDetails.allarmi}</p>
-                                  </div>
-                                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5 flex flex-col gap-1.5">
-                                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-bold text-amber-400">
-                                      <AlertTriangle className="w-4 h-4 shrink-0" />
-                                      Cause Frequenti
-                                    </div>
-                                    <p className="text-xs sm:text-[13px] text-amber-200/90 leading-relaxed font-normal">{selectedDetails.cause}</p>
-                                  </div>
-                                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3.5 flex flex-col gap-1.5">
-                                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-bold text-emerald-400">
-                                      <div className="w-2 h-2 rounded-sm bg-emerald-500 shrink-0"></div>
-                                      Consigli Pratici
-                                    </div>
-                                    <p className="text-xs sm:text-[13px] text-emerald-200/90 leading-relaxed font-normal">{selectedDetails.consigli}</p>
-                                  </div>
-                                </div>
-
-                                <div className="bg-gradient-to-r from-white/[0.04] via-white/[0.02] to-transparent border border-white/10 rounded-xl p-3.5 flex items-start gap-3">
-                                  <span className="text-amber-400 text-base shrink-0">💡</span>
-                                  <div className="min-w-0">
-                                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold block mb-0.5">
-                                      Interconnessione Sistemica
-                                    </span>
-                                    <p className="text-xs sm:text-[13px] text-slate-200 leading-relaxed font-normal">
-                                      {selectedDetails.interconnessione}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* Biomarcatori di Precisione del Modulo: Mostra ESCLUSIVAMENTE quelli inerenti alle problematiche */}
-                                {problematicBiomarkers.length > 0 && (
-                                  <div className="flex flex-col gap-2 pt-1">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[11px] font-mono uppercase tracking-widest text-red-300 font-semibold flex items-center gap-1.5">
-                                        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                                        Biomarcatori con Irregolarità Rilevate ({problematicBiomarkers.length})
-                                      </span>
-                                      <span className="text-[10px] font-mono text-slate-500">
-                                        Biomarcatori stabili esclusi
-                                      </span>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                      {problematicBiomarkers.map((item, pIdx) => (
-                                        <div key={pIdx} className="bg-red-500/5 border border-red-500/30 hover:border-red-500/50 rounded-xl p-3 flex flex-col gap-1.5 transition-all">
-                                          <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                              <span className="text-base shrink-0">{item.punto.icon}</span>
-                                              <span className="text-xs sm:text-[13px] font-semibold text-white tracking-wide truncate">{item.punto.t}</span>
-                                            </div>
-                                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40 uppercase shrink-0">
-                                              Fuori Soglia
-                                            </span>
-                                          </div>
-                                          {item.valoreRilevato && (
-                                            <div className="text-[11px] font-mono text-amber-300 pl-6 flex items-center gap-1">
-                                              <span className="text-slate-400">Valore:</span>
-                                              <span className="font-bold">{item.valoreRilevato}</span>
-                                            </div>
-                                          )}
-                                          <p className="text-xs text-slate-300 font-light leading-relaxed pl-6">
-                                            {item.punto.d}
-                                          </p>
-                                          <div className="mt-1 pt-1.5 border-t border-red-500/20 pl-6 text-[11px] font-mono text-red-200/90 leading-snug">
-                                            <strong className="text-red-400 font-medium">Anomalia:</strong> {item.alterazione}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                <p className="text-xs text-red-200/90 leading-snug font-normal">{selectedDetails.allarmi}</p>
                               </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
+                              <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-2.5 flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-amber-400">
+                                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                  Cause Frequenti
+                                </div>
+                                <p className="text-xs text-amber-200/90 leading-snug font-normal">{selectedDetails.cause}</p>
+                              </div>
+                              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-2.5 flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-emerald-400">
+                                  <div className="w-1.5 h-1.5 rounded-sm bg-emerald-500 shrink-0"></div>
+                                  Consigli Pratici
+                                </div>
+                                <p className="text-xs text-emerald-200/90 leading-snug font-normal">{selectedDetails.consigli}</p>
+                              </div>
+                            </div>
 
-                      {/* Grafico Andamento */}
-                      <div className="h-[200px] w-full bg-white/[0.01] border border-white/5 rounded-xl p-4 relative mt-2">
-                        <div className="absolute top-3 left-4 z-10 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
-                          {selectedCat.chartLabel} (Andamento Storico)
-                        </div>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={selectedCat.chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                            <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
-                            <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
-                            <Tooltip 
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  return (
-                                    <div className="bg-black/90 border border-white/10 px-3 py-2 rounded-lg text-xs backdrop-blur-md shadow-xl flex flex-col gap-1">
-                                      <span className="text-white/60 font-mono text-[9px] uppercase">{payload[0].payload.time}</span>
-                                      <span className="text-white font-mono font-bold" style={{ color: selectedCat.chartColor }}>
-                                        {payload[0].value} {selectedCat.chartLabel.split(' ')[0]}
-                                      </span>
+                            <div className="bg-gradient-to-r from-white/[0.04] via-white/[0.02] to-transparent border border-white/10 rounded-lg p-2.5 flex items-start gap-2.5">
+                              <span className="text-amber-400 text-sm shrink-0">💡</span>
+                              <div className="min-w-0">
+                                <span className="text-[9.5px] font-mono uppercase tracking-wider text-amber-300 font-bold block mb-0.5">
+                                  Interconnessione Sistemica
+                                </span>
+                                <p className="text-xs text-slate-200 leading-snug font-normal">
+                                  {selectedDetails.interconnessione}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Biomarcatori di Precisione con scroll compatto se numerosi */}
+                            {problematicBiomarkers.length > 0 && (
+                              <div className="flex flex-col gap-1.5 pt-0.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-mono uppercase tracking-widest text-red-300 font-semibold flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                                    Biomarcatori con Irregolarità Rilevate ({problematicBiomarkers.length})
+                                  </span>
+                                  <span className="text-[9px] font-mono text-slate-500">
+                                    Biomarcatori stabili esclusi
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[175px] overflow-y-auto pr-1">
+                                  {problematicBiomarkers.map((item, pIdx) => (
+                                    <div key={pIdx} className="bg-red-500/5 border border-red-500/30 hover:border-red-500/50 rounded-lg p-2.5 flex flex-col gap-1 transition-all">
+                                      <div className="flex items-center justify-between gap-1.5">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          <span className="text-sm shrink-0">{item.punto.icon}</span>
+                                          <span className="text-xs font-semibold text-white tracking-wide truncate">{item.punto.t}</span>
+                                        </div>
+                                        <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40 uppercase shrink-0">
+                                          Fuori Soglia
+                                        </span>
+                                      </div>
+                                      {item.valoreRilevato && (
+                                        <div className="text-[10px] font-mono text-amber-300 pl-5 flex items-center gap-1">
+                                          <span className="text-slate-400">Valore:</span>
+                                          <span className="font-bold">{item.valoreRilevato}</span>
+                                        </div>
+                                      )}
+                                      <p className="text-[11px] text-slate-300 font-light leading-snug pl-5 line-clamp-2">
+                                        {item.punto.d}
+                                      </p>
+                                      <div className="mt-0.5 pt-1 border-t border-red-500/20 pl-5 text-[10px] font-mono text-red-200/90 leading-tight">
+                                        <strong className="text-red-400 font-medium">Anomalia:</strong> {item.alterazione}
+                                      </div>
                                     </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Line 
-                              type="monotone" 
-                              dataKey={selectedCat.chartKey} 
-                              stroke={selectedCat.chartColor} 
-                              strokeWidth={3} 
-                              dot={{ fill: '#000', stroke: selectedCat.chartColor, strokeWidth: 2, r: 3 }}
-                              activeDot={{ r: 6, fill: '#000', stroke: selectedCat.chartColor, strokeWidth: 2 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
+                  </div>
+
+                  {/* Grafico Andamento Compatto */}
+                  <div className="h-[125px] w-full bg-white/[0.01] border border-white/5 rounded-xl p-2.5 relative">
+                    <div className="absolute top-2 left-3 z-10 text-[9px] font-mono text-slate-500 uppercase tracking-widest">
+                      {selectedCat.chartLabel} (Andamento Storico)
+                    </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={selectedCat.chartData} margin={{ top: 18, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={9} tickMargin={5} />
+                        <YAxis stroke="rgba(255,255,255,0.2)" fontSize={9} tickMargin={5} />
+                        <Tooltip 
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-black/90 border border-white/10 px-2.5 py-1.5 rounded-lg text-xs backdrop-blur-md shadow-xl flex flex-col gap-0.5">
+                                  <span className="text-white/60 font-mono text-[8.5px] uppercase">{payload[0].payload.time}</span>
+                                  <span className="text-white font-mono font-bold text-xs" style={{ color: selectedCat.chartColor }}>
+                                    {payload[0].value} {selectedCat.chartLabel.split(' ')[0]}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey={selectedCat.chartKey} 
+                          stroke={selectedCat.chartColor} 
+                          strokeWidth={2} 
+                          dot={{ fill: '#000', stroke: selectedCat.chartColor, strokeWidth: 1.5, r: 2.5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               );
             })()}
@@ -2304,6 +2311,15 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
         isOpen={show13QubitModal}
         onClose={() => setShow13QubitModal(false)}
         onApplyToScreening={handleApplyQuantumReport}
+      />
+
+      {/* MODALE PIANO DI PREVENZIONE E SCREENING ANNUALE */}
+      <PreventionGuidanceModal
+        isOpen={showPreventionModal}
+        onClose={() => setShowPreventionModal(false)}
+        result={result}
+        patientGender={gender === 'F' ? 'FEMALE' : 'MALE'}
+        patientDob={localStorage.getItem('quantum_medical_dob') || undefined}
       />
 
       {/* MODALE GUIDA TECNICA E CODICE QUANTISTICO */}
