@@ -924,43 +924,43 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
 
   return (
     <div className="flex-1 flex flex-col w-full h-full bg-[#0a0a0a] text-slate-200 overflow-y-auto">
-      {/* Top Bar */}
-      <div className="sticky top-0 z-50 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-3 sm:p-6 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/5">
-        <div className="flex items-center gap-2 sm:gap-3">
+      {/* Top Bar (Responsive for smartphones) */}
+      <div className="sticky top-0 z-50 flex items-center justify-between gap-2 p-2.5 sm:p-5 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/5 overflow-x-hidden">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-[10px] sm:text-xs font-mono uppercase tracking-widest transition-all cursor-pointer group min-h-[38px]"
+            className="flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-[10px] sm:text-xs font-mono uppercase tracking-widest transition-all cursor-pointer group min-h-[34px] sm:min-h-[38px]"
           >
-            <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full border border-white/20 flex items-center justify-center group-hover:border-white/60 transition-colors">
-              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-white/20 flex items-center justify-center group-hover:border-white/60 transition-colors">
+              <ArrowLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </div>
             <span className="inline text-[9px] sm:text-xs">Home</span>
           </button>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 shrink-0" />
-            <h1 className="text-xs sm:text-base font-bold uppercase tracking-[0.1em] sm:tracking-[0.2em] text-white">Quantum Medical</h1>
+            <h1 className="text-[11px] sm:text-base font-bold uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white truncate max-w-[110px] min-[400px]:max-w-[160px] sm:max-w-none">Quantum Medical</h1>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* 14 QUBIT QISKIT: non cliccabile per utente normale, attivo solo per admin */}
           {isAdmin ? (
             <button
               onClick={() => setShow13QubitModal(true)}
-              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.15)] min-h-[38px]"
+              className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.15)] min-h-[34px] sm:min-h-[38px]"
               title="Esegui il calcolo 14 Qubit Qiskit 1.x in tempo reale (Modalità Amministratore)"
             >
-              <Cpu className="w-3.5 h-3.5 text-purple-400" />
+              <Cpu className="w-3.5 h-3.5 text-purple-400 shrink-0" />
               <span className="hidden sm:inline">14 Qubit Qiskit</span>
-              <span className="inline sm:hidden">14 Qubit</span>
+              <span className="inline sm:hidden">14Q</span>
             </button>
           ) : (
             <div
-              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-purple-500/15 bg-purple-500/5 text-purple-400/60 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 min-h-[38px] cursor-not-allowed select-none opacity-70"
+              className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-purple-500/15 bg-purple-500/5 text-purple-400/60 text-[10px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 min-h-[34px] sm:min-h-[38px] cursor-not-allowed select-none opacity-70"
               title="Funzione riservata all'infrastruttura di calcolo quantistico (non accessibile per utente standard)"
             >
-              <Cpu className="w-3.5 h-3.5 text-purple-400/50" />
+              <Cpu className="w-3.5 h-3.5 text-purple-400/50 shrink-0" />
               <span className="hidden sm:inline">14 Qubit Qiskit</span>
-              <span className="inline sm:hidden">14 Qubit</span>
+              <span className="inline sm:hidden">14Q</span>
             </div>
           )}
 
@@ -968,19 +968,19 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           {isAdmin ? (
             <button
               onClick={() => setShowDocumentationModal(true)}
-              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.1)] min-h-[38px]"
+              className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.1)] min-h-[34px] sm:min-h-[38px]"
               title="Apri la guida completa e il codice Qiskit con pulsante di copia e download (Modalità Amministratore)"
             >
-              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <BookOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span className="hidden sm:inline">Guida & Codice</span>
               <span className="inline sm:hidden">Guida</span>
             </button>
           ) : (
             <div
-              className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-amber-500/15 bg-amber-500/5 text-amber-400/60 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 min-h-[38px] cursor-not-allowed select-none opacity-70"
+              className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-amber-500/15 bg-amber-500/5 text-amber-400/60 text-[10px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 min-h-[34px] sm:min-h-[38px] cursor-not-allowed select-none opacity-70"
               title="Documentazione tecnica e codice sorgente quantistico riservati all'amministratore"
             >
-              <BookOpen className="w-3.5 h-3.5 text-amber-400/50" />
+              <BookOpen className="w-3.5 h-3.5 text-amber-400/50 shrink-0" />
               <span className="hidden sm:inline">Guida & Codice</span>
               <span className="inline sm:hidden">Guida</span>
             </div>
@@ -988,12 +988,12 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
 
           <button
             onClick={() => setShowAcquiredReportsModal(true)}
-            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-[10px] sm:text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.1)] min-h-[38px]"
+            className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-[10px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.1)] min-h-[34px] sm:min-h-[38px]"
             title="Visualizza tutti i referti o dati acquisiti"
           >
-            <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+            <FolderOpen className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <span className="hidden md:inline">Referti</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/30 text-cyan-200 text-[10px] font-bold">
+            <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/30 text-cyan-200 text-[9px] sm:text-[10px] font-bold">
               {acquiredReports.length}
             </span>
           </button>
@@ -1087,24 +1087,28 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
               {/* Nuova Rilevazione (Mini) */}
               <div className="bg-[#121212] border border-white/5 rounded-3xl p-6 sm:p-8">
                 <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-6">Nuova Rilevazione Veloce</h3>
-                <div className="flex flex-wrap gap-4 mb-8">
-                  <button onClick={() => setInputMethod('manual')} className={`px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 ${inputMethod === 'manual' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
-                    <Activity className="w-3 h-3" /> Manuale (BPM/Press)
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5 sm:gap-4 mb-6 sm:mb-8">
+                  <button onClick={() => setInputMethod('manual')} className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-mono transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${inputMethod === 'manual' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
+                    <Activity className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Manuale (BPM)</span>
                   </button>
-                  <button onClick={() => setInputMethod('smartwatch')} className={`px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 ${inputMethod === 'smartwatch' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
-                    <Watch className="w-3 h-3" /> Smartwatch Sync
+                  <button onClick={() => setInputMethod('smartwatch')} className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-mono transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${inputMethod === 'smartwatch' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
+                    <Watch className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Smartwatch Sync</span>
                   </button>
                   
                   <div className="relative">
-                    <button className={`px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 ${inputMethod === 'photo' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
-                      <Camera className="w-3 h-3" /> Scansione Esami Sangue
+                    <button className={`w-full px-3 sm:px-4 py-2 rounded-xl text-xs font-mono transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${inputMethod === 'photo' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
+                      <Camera className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Esami Sangue</span>
                     </button>
                     <input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => { setInputMethod('photo'); handlePhotoUpload(e, 'photo'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Carica Esami del Sangue" />
                   </div>
 
                   <div className="relative">
-                    <button className={`px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 ${inputMethod === 'mix' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
-                      <Camera className="w-3 h-3" /> Scansione Referti Mix
+                    <button className={`w-full px-3 sm:px-4 py-2 rounded-xl text-xs font-mono transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${inputMethod === 'mix' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent hover:border-white/10'}`}>
+                      <Camera className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Referti TAC/Mix</span>
                     </button>
                     <input type="file" accept="image/*,application/pdf" multiple onChange={(e) => { setInputMethod('mix'); handlePhotoUpload(e, 'mix'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Carica Risonanze, TAC, Raggi (Foto o PDF)" />
                   </div>
@@ -1112,28 +1116,28 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                   <button
                     type="button"
                     onClick={() => setShowAcquiredReportsModal(true)}
-                    className="px-4 py-2 rounded-lg text-xs font-mono transition-all flex items-center gap-2 bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 shadow-sm cursor-pointer"
+                    className="col-span-2 sm:col-span-1 px-3 sm:px-4 py-2 rounded-xl text-xs font-mono transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 shadow-sm cursor-pointer"
                     title="Visualizza l'elenco di tutti i file e referti acquisiti"
                   >
-                    <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Referti o dati acquisiti</span>
+                    <FolderOpen className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span>Referti acquisiti</span>
                     <span className="ml-1 px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-bold">
                       {acquiredReports.length}
                     </span>
                   </button>
                 </div>
 
-                <div className="min-h-[80px] flex items-center bg-black/20 rounded-xl p-4 border border-white/5">
-                  {inputMethod === 'none' && <div className="text-sm text-slate-500 font-light">Seleziona un metodo di input per procedere.</div>}
+                <div className="min-h-[80px] flex items-center bg-black/20 rounded-xl p-3 sm:p-4 border border-white/5">
+                  {inputMethod === 'none' && <div className="text-xs sm:text-sm text-slate-500 font-light">Seleziona un metodo di input per procedere.</div>}
                   {inputMethod === 'manual' && (
-                    <div className="flex flex-wrap items-end gap-4 animate-in fade-in">
-                      <div className="flex flex-col gap-1">
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 w-full animate-in fade-in">
+                      <div className="flex flex-col gap-1 w-full sm:w-auto">
                         <label className="text-[10px] text-slate-500 uppercase tracking-wider pl-1">BPM a Riposo</label>
-                        <input type="number" placeholder="Es. 65" value={bpm} onChange={(e) => setBpm(e.target.value)} className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 w-32 text-sm text-white focus:outline-none focus:border-cyan-500" />
+                        <input type="number" placeholder="Es. 65" value={bpm} onChange={(e) => setBpm(e.target.value)} className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 w-full sm:w-32 text-sm text-white focus:outline-none focus:border-cyan-500" />
                       </div>
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1 w-full sm:w-auto">
                         <label className="text-[10px] text-slate-500 uppercase tracking-wider pl-1">Pressione Max</label>
-                        <input type="number" placeholder="Es. 120" value={pressure} onChange={(e) => setPressure(e.target.value)} className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 w-32 text-sm text-white focus:outline-none focus:border-cyan-500" />
+                        <input type="number" placeholder="Es. 120" value={pressure} onChange={(e) => setPressure(e.target.value)} className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 w-full sm:w-32 text-sm text-white focus:outline-none focus:border-cyan-500" />
                       </div>
                     </div>
                   )}
@@ -1398,13 +1402,13 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           // FASE 2: RISULTATI (2 Colonne)
           <div className="flex flex-col gap-8 animate-in fade-in zoom-in-95 duration-500">
             
-            {/* AZIONI GLOBALI TOP CENTER */}
-            <div className="flex flex-col items-center justify-center relative z-50 gap-3 mb-2 w-full px-2">
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            {/* AZIONI GLOBALI TOP CENTER (Fully smartphone responsive) */}
+            <div className="flex flex-col items-center justify-center relative z-50 gap-3 mb-2 w-full px-1 sm:px-2">
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                 {history.length > 0 && (
                   <button 
                     onClick={() => setShowTimeline(!showTimeline)}
-                    className="w-full sm:w-auto px-5 py-3 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-mono uppercase tracking-widest text-slate-300 transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                    className="w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-mono uppercase tracking-widest text-slate-300 transition-all flex items-center justify-center gap-2 min-h-[40px] sm:min-h-[44px]"
                   >
                     Storico Longevità
                   </button>
@@ -1412,10 +1416,10 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                 
                 <button
                   onClick={handleDownloadPdf}
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-gradient-to-r from-cyan-400 via-cyan-500 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-black text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(6,182,212,0.35)] hover:scale-102 transition-all cursor-pointer min-h-[44px]"
+                  className="w-full sm:w-auto px-5 sm:px-6 py-3 sm:py-3.5 rounded-full bg-gradient-to-r from-cyan-400 via-cyan-500 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-black text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(6,182,212,0.35)] hover:scale-102 transition-all cursor-pointer min-h-[40px] sm:min-h-[44px]"
                 >
                   <FileText className="w-4 h-4 shrink-0" />
-                  Scarica Report Clinico Completo (PDF)
+                  <span>Scarica Report Clinico Completo (PDF)</span>
                 </button>
 
                 {/* PULSANTE ROTONDO SCREENING & PREVENZIONE ANNUALE IN TESTATA */}
@@ -1460,37 +1464,37 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
               )}
 
               {/* CARD RIASSUNTIVA STATO CLINICO & WELLNESS SCORE */}
-              <div className={`w-full max-w-[1400px] mt-2 p-4 sm:p-5 rounded-2xl bg-[#111317] border shadow-[0_0_30px_rgba(0,0,0,0.6)] flex flex-col xl:flex-row items-center justify-between gap-4 transition-all ${
+              <div className={`w-full max-w-[1400px] mt-2 p-3.5 sm:p-5 rounded-2xl bg-[#111317] border shadow-[0_0_30px_rgba(0,0,0,0.6)] flex flex-col xl:flex-row items-center justify-between gap-4 transition-all ${
                 result.score < 50 ? 'border-2 border-red-500/70 led-pulse-red' : 'border-white/10'
               }`}>
-                <div className="flex items-center gap-4 w-full xl:w-auto">
-                  <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0 border ${
+                <div className="flex items-center gap-3.5 sm:gap-4 w-full xl:w-auto">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center shrink-0 border ${
                     result.score >= 70
                       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
                       : result.score >= 50
                       ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
                       : 'bg-red-500/20 border-2 border-red-500 text-red-300 led-pulse-red'
                   }`}>
-                    <span className="text-2xl font-bold font-mono leading-none">{result.score}%</span>
-                    <span className="text-[8px] font-mono uppercase tracking-widest text-slate-400 mt-1">Score</span>
+                    <span className="text-xl sm:text-2xl font-bold font-mono leading-none">{result.score}%</span>
+                    <span className="text-[7.5px] sm:text-[8px] font-mono uppercase tracking-widest text-slate-400 mt-0.5 sm:mt-1">Score</span>
                   </div>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono uppercase tracking-widest text-slate-400">Referto Quantistico Attivo</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-cyan-300">
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-slate-400">Referto Attivo</span>
+                      <span className="text-[9px] sm:text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-white/5 border border-white/10 text-cyan-300">
                         {result.id.startsWith('QM-') ? result.id : `QM-${result.id.slice(-6)}`}
                       </span>
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-white mt-0.5">
+                    <h3 className="text-sm sm:text-lg font-semibold text-white mt-0.5 truncate sm:whitespace-normal">
                       {result.score >= 70 ? 'Assetto Clinico Stabile ed Omeostatico' : result.score >= 50 ? 'Stabilità Funzionale con Limitazioni' : 'Instabilità Emodinamica / Allerta Clinica'}
                     </h3>
-                    <p className="text-xs text-slate-400 font-light">
+                    <p className="text-[11px] sm:text-xs text-slate-400 font-light truncate sm:whitespace-normal">
                       Paziente: <span className="text-slate-200 font-medium">{result.patientName || currentUser?.name || 'Mario Rossi'}</span> • Rilevazione del {result.date}
                     </p>
                   </div>
                 </div>
 
-                {/* 4 PULSANTI MODULI INTERATTIVI + PULSANTE EFFETTO DOMINO DI FIANCO A FLOGOSI */}
+                {/* 4 PULSANTI MODULI INTERATTIVI + PULSANTE EFFETTO DOMINO DI FIANCO A FLOGOSI (Grid 2x2 on mobile) */}
                 {(() => {
                   const nonGreenDominoCount = CROSS_PARAMETER_PROBLEMS.filter(p => {
                     const sev = getProblemSeverity(p, result);
@@ -1500,12 +1504,12 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                   const activeIdx = activeCategory !== null && activeCategory >= 0 && activeCategory < 4 ? activeCategory : 0;
 
                   return (
-                    <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto border-t xl:border-t-0 xl:border-l border-white/10 pt-3 xl:pt-0 xl:pl-4 font-mono text-[11px]">
+                    <div className="grid grid-cols-2 min-[500px]:grid-cols-4 xl:flex items-center gap-2 sm:gap-2.5 w-full xl:w-auto border-t xl:border-t-0 xl:border-l border-white/10 pt-3 xl:pt-0 xl:pl-4 font-mono text-[11px]">
                       {/* 1. Vitali */}
                       <button
                         type="button"
                         onClick={() => setActiveCategory(0)}
-                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                        className={`flex flex-col p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-0 xl:min-w-[90px] ${
                           activeIdx === 0
                             ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
                             : result.vitali.status === 'Idoneo'
@@ -1526,7 +1530,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                       <button
                         type="button"
                         onClick={() => setActiveCategory(1)}
-                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                        className={`flex flex-col p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-0 xl:min-w-[90px] ${
                           activeIdx === 1
                             ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
                             : result.metabolici.status === 'Idoneo'
@@ -1547,7 +1551,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                       <button
                         type="button"
                         onClick={() => setActiveCategory(2)}
-                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                        className={`flex flex-col p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-0 xl:min-w-[90px] ${
                           activeIdx === 2
                             ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
                             : result.organo.status === 'Idoneo'
@@ -1568,7 +1572,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                       <button
                         type="button"
                         onClick={() => setActiveCategory(3)}
-                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-[90px] flex-1 sm:flex-initial ${
+                        className={`flex flex-col p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none relative overflow-hidden min-w-0 xl:min-w-[90px] ${
                           activeIdx === 3
                             ? 'border-2 border-cyan-400 bg-cyan-950/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/50'
                             : result.infiammatorio.status === 'Idoneo'
@@ -1585,7 +1589,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                         </span>
                       </button>
 
-                      {/* 5. EFFETTO DOMINO SULLA SALUTE (CLICCABILE SOLO SE CI SONO QUADRANTI ROSSI O ARANCIONI) */}
+                      {/* 5. EFFETTO DOMINO SULLA SALUTE (Full width on mobile below the 4 buttons) */}
                       <button
                         type="button"
                         onClick={() => {
@@ -1594,7 +1598,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                           }
                         }}
                         disabled={isDominoStable}
-                        className={`group relative overflow-hidden rounded-xl p-[1.5px] text-left select-none transition-all duration-300 min-w-[230px] sm:min-w-[260px] flex-1 sm:flex-initial ${
+                        className={`group relative overflow-hidden rounded-xl p-[1.5px] text-left select-none transition-all duration-300 col-span-2 min-[500px]:col-span-4 xl:w-auto w-full min-w-0 xl:min-w-[260px] ${
                           isDominoStable
                             ? 'cursor-not-allowed opacity-90'
                             : 'cursor-pointer hover:shadow-[0_0_25px_rgba(239,68,68,0.4)]'
@@ -1617,7 +1621,7 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                           />
                         </div>
 
-                        <div className={`relative w-full h-full rounded-[9.5px] px-3.5 py-2.5 bg-gradient-to-br from-[#12131a] to-[#0c0d12] flex flex-col justify-between border z-10 transition-colors ${
+                        <div className={`relative w-full h-full rounded-[9.5px] px-3 sm:px-3.5 py-2.5 bg-gradient-to-br from-[#12131a] to-[#0c0d12] flex flex-col justify-between border z-10 transition-colors ${
                           !isDominoStable
                             ? 'border-red-500/40 group-hover:border-red-400'
                             : 'border-emerald-500/30'

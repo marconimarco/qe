@@ -386,69 +386,69 @@ def calcola_backend_pagina_salute(payload: dict) -> str:
   const incroci = report.incroci_clinici_fisiologici;
 
   return (
-    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-[#0b0c10] border border-cyan-500/30 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-[0_0_60px_rgba(6,182,212,0.15)] overflow-hidden">
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/85 backdrop-blur-md p-1.5 sm:p-6 animate-in fade-in duration-200">
+      <div className="bg-[#0b0c10] border border-cyan-500/30 rounded-2xl sm:rounded-3xl w-full max-w-5xl h-[95vh] sm:h-[92vh] flex flex-col shadow-[0_0_60px_rgba(6,182,212,0.15)] overflow-hidden">
         
         {/* Top Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-              <Cpu className="w-5 h-5" />
+        <div className="p-3 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)] shrink-0">
+              <Cpu className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">
-                  Motore Quantistico 14 Qubit (Qiskit 1.x Live)
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h2 className="text-xs sm:text-base font-bold text-white tracking-wide truncate">
+                  Motore Quantistico 14 Qubit (Qiskit 1.x)
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-mono border border-cyan-500/30">
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[9px] sm:text-[10px] font-mono border border-cyan-500/30 shrink-0">
                   Hadamard + CX
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Calcolo probabilistico su matrici di densità ridotte, sovrapposizione Hadamard ed entropia distrettuale a 14 Qubit.
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate hidden min-[480px]:block">
+                Calcolo probabilistico su matrici di densità ridotte ed entropia distrettuale a 14 Qubit.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
             {/* Tabs */}
-            <div className="flex rounded-xl bg-white/5 p-1 border border-white/10 text-xs font-mono">
+            <div className="flex rounded-xl bg-white/5 p-1 border border-white/10 text-xs font-mono overflow-x-auto max-w-[calc(100vw-65px)] sm:max-w-none no-scrollbar">
               <button
                 onClick={() => setActiveTab('visual')}
-                className={`px-3 py-1 rounded-lg transition-all ${activeTab === 'visual' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all shrink-0 ${activeTab === 'visual' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                Vista 5 Livelli
+                5 Livelli
               </button>
               <button
                 onClick={() => setActiveTab('fascicolo')}
-                className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'fascicolo' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 ${activeTab === 'fascicolo' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                <FolderUp className="w-3.5 h-3.5" />
-                <span>Fascicolo FSE 2.0</span>
+                <FolderUp className="w-3 h-3" />
+                <span>FSE 2.0</span>
               </button>
               <button
                 onClick={() => setActiveTab('inputs')}
-                className={`px-3 py-1 rounded-lg transition-all ${activeTab === 'inputs' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all shrink-0 ${activeTab === 'inputs' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                Esami & Qubit
+                Esami
               </button>
               <button
                 onClick={() => setActiveTab('json')}
-                className={`px-3 py-1 rounded-lg transition-all ${activeTab === 'json' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all shrink-0 ${activeTab === 'json' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                JSON Qiskit
+                JSON
               </button>
               <button
                 onClick={() => setActiveTab('python')}
-                className={`px-3 py-1 rounded-lg transition-all ${activeTab === 'python' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all shrink-0 ${activeTab === 'python' ? 'bg-cyan-500 text-black font-semibold shadow' : 'text-slate-400 hover:text-white'}`}
               >
-                Codice Python
+                Python
               </button>
             </div>
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer ml-1"
+              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer ml-1 shrink-0"
               title="Chiudi"
             >
               <X className="w-4 h-4" />

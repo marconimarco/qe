@@ -68,25 +68,25 @@ export default function AcquiredReportsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-[#0f0f11] border border-white/10 rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-[0_0_60px_rgba(0,0,0,0.9)] overflow-hidden">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-1.5 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-[#0f0f11] border border-white/10 rounded-2xl sm:rounded-3xl w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-[0_0_60px_rgba(0,0,0,0.9)] overflow-hidden">
         
         {/* Header Modale */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
-              <Database className="w-5 h-5" />
+        <div className="p-3.5 sm:p-6 border-b border-white/10 flex items-center justify-between gap-3 bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)] shrink-0">
+              <Database className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h2 className="text-sm sm:text-lg font-bold text-white tracking-wide truncate">
                   Referti e Dati Acquisiti
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  {reports.length} Documenti
+                <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shrink-0">
+                  {reports.length} Doc
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-light">
+              <p className="text-[10.5px] sm:text-xs text-slate-400 font-light truncate hidden sm:block">
                 Registro temporale dei referti ematochimici, tracciati IoT e file processati nel circuito quantistico.
               </p>
             </div>
@@ -94,7 +94,7 @@ export default function AcquiredReportsModal({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
             title="Chiudi"
           >
             <X className="w-4 h-4" />
@@ -102,12 +102,12 @@ export default function AcquiredReportsModal({
         </div>
 
         {/* Barra di Ricerca, Filtri e Caricamento Veloce */}
-        <div className="p-4 sm:p-6 border-b border-white/5 bg-black/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="flex-1 flex items-center gap-2 bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-xs focus-within:border-cyan-500/60 transition-colors">
+        <div className="p-3 sm:p-6 border-b border-white/5 bg-black/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4 shrink-0">
+          <div className="flex-1 flex items-center gap-2 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs focus-within:border-cyan-500/60 transition-colors">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
             <input
               type="text"
-              placeholder="Cerca referto, esame (es. Glicemia, Ferritina, PCR)..."
+              placeholder="Cerca referto, esame (Glicemia, PCR)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent text-white focus:outline-none placeholder:text-slate-500 text-xs"
@@ -119,37 +119,38 @@ export default function AcquiredReportsModal({
             )}
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            <div className="flex items-center gap-1 bg-black/40 border border-white/10 p-1 rounded-xl text-[11px] font-mono">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+            <div className="flex items-center gap-1 bg-black/40 border border-white/10 p-1 rounded-xl text-[10.5px] sm:text-[11px] font-mono shrink-0">
               <button
                 onClick={() => setFilterType('all')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${filterType === 'all' ? 'bg-white/15 text-white font-medium' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all ${filterType === 'all' ? 'bg-white/15 text-white font-medium' : 'text-slate-400 hover:text-white'}`}
               >
                 Tutti ({reports.length})
               </button>
               <button
                 onClick={() => setFilterType('pdf')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${filterType === 'pdf' ? 'bg-rose-500/20 text-rose-300 font-medium' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all ${filterType === 'pdf' ? 'bg-rose-500/20 text-rose-300 font-medium' : 'text-slate-400 hover:text-white'}`}
               >
                 PDF
               </button>
               <button
                 onClick={() => setFilterType('csv')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${filterType === 'csv' ? 'bg-emerald-500/20 text-emerald-300 font-medium' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all ${filterType === 'csv' ? 'bg-emerald-500/20 text-emerald-300 font-medium' : 'text-slate-400 hover:text-white'}`}
               >
                 CSV / Watch
               </button>
               <button
                 onClick={() => setFilterType('photo')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${filterType === 'photo' ? 'bg-purple-500/20 text-purple-300 font-medium' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all ${filterType === 'photo' ? 'bg-purple-500/20 text-purple-300 font-medium' : 'text-slate-400 hover:text-white'}`}
               >
                 Foto OCR
               </button>
             </div>
 
-            <label className="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-cyan-600/20 border border-cyan-500/40 hover:border-cyan-400/60 text-cyan-300 hover:text-white text-xs font-mono flex items-center gap-2 transition-all cursor-pointer shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
-              <Upload className="w-3.5 h-3.5" />
+            <label className="px-2.5 sm:px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-cyan-600/20 border border-cyan-500/40 hover:border-cyan-400/60 text-cyan-300 hover:text-white text-xs font-mono flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.15)] min-h-[34px]">
+              <Upload className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden md:inline">Carica Altro Referto</span>
+              <span className="inline md:hidden text-[11px]">Carica</span>
               <input
                 type="file"
                 accept="application/pdf,image/*,.csv"

@@ -225,10 +225,10 @@ export default function SectorSelector({
       </motion.div>
 
       {/* Centered layout for the orbital hub or active lists */}
-      <div className="flex items-center justify-center w-full max-w-7xl px-4 z-10 my-4">
+      <div className="flex items-center justify-center w-full max-w-7xl px-2 sm:px-4 z-10 my-2 sm:my-4 overflow-x-hidden">
         
-        {/* Container with better responsive sizing */}
-        <div className="relative w-[90vmin] h-[90vmin] sm:w-[75vmin] sm:h-[75vmin] max-w-[550px] max-h-[550px] flex items-center justify-center mb-6 xl:mb-0 shrink-0">
+        {/* Container with responsive smartphone sizing */}
+        <div className="relative w-[94vw] h-[94vw] max-w-[350px] max-h-[350px] sm:w-[75vmin] sm:h-[75vmin] sm:max-w-[550px] sm:max-h-[550px] flex items-center justify-center mb-4 xl:mb-0 shrink-0">
         {/* Satellite Buttons / Button List for sub-menu */}
         <AnimatePresence mode="wait">
           {!isSubActive ? (
@@ -237,7 +237,7 @@ export default function SectorSelector({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center"
+              className="absolute inset-0 flex items-center justify-center overflow-visible"
             >
               {/* Solar System Orbiting Frame */}
               <motion.div
@@ -249,7 +249,7 @@ export default function SectorSelector({
                   const Icon = ICON_MAP[sector.icon] || Cpu;
                   const total = displayedSectors.length;
                   const angle = (index / total) * 360;
-                  const radius = 42; // Percentage radius
+                  const radius = 39.5; // Optimized percentage radius to prevent mobile viewport overflow
                   const isAllowed = isIconAllowedForUser(currentUser, sector.id);
                   
                   return (
@@ -275,19 +275,19 @@ export default function SectorSelector({
                       >
                         {/* Opposite rotation wrapper to keep content perfectly upright */}
                         <motion.div
-                          className="flex flex-col items-center select-none text-center relative"
+                          className="flex flex-col items-center select-none text-center relative max-w-[80px] sm:max-w-[120px]"
                           animate={{ rotate: -360 }}
                           transition={{ repeat: Infinity, duration: 45, ease: "linear" }}
                         >
                           {!isAllowed && (
                             <div 
-                              className="absolute -top-1 -right-1 p-1 bg-red-600 border border-red-300 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.9)] z-30 animate-pulse"
+                              className="absolute -top-1 -right-1 p-0.5 sm:p-1 bg-red-600 border border-red-300 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.9)] z-30 animate-pulse"
                               title="Accesso Negato dall'Amministratore"
                             >
-                              <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
+                              <Lock className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
                             </div>
                           )}
-                          <div className={`w-[12vmin] h-[12vmin] max-w-[55px] max-h-[55px] md:w-20 md:h-20 rounded-full border flex items-center justify-center mb-1 sm:mb-2 transition-all relative overflow-hidden ${
+                          <div className={`w-[11vmin] h-[11vmin] max-w-[46px] max-h-[46px] sm:max-w-[55px] sm:max-h-[55px] md:w-20 md:h-20 rounded-full border flex items-center justify-center mb-0.5 sm:mb-1.5 transition-all relative overflow-hidden ${
                             !isAllowed
                               ? 'bg-red-950/40 border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.35)] opacity-80 group-hover:border-red-400 group-hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]'
                             : sector.id === 'send_to_ibm'
@@ -303,12 +303,12 @@ export default function SectorSelector({
                             <div className={`absolute inset-0 transition-colors ${
                               !isAllowed ? 'bg-red-500/10' : sector.id === 'send_to_ibm' ? 'bg-cyan-500/10' : sector.id === 'pqc_group' ? 'bg-emerald-500/10' : sector.id === 'realq' ? 'bg-red-500/10' : sector.id === 'mitigation' ? 'bg-amber-500/10' : 'bg-quantum-primary/0 group-hover:bg-quantum-primary/10'
                             }`} />
-                            <Icon className={`w-[5vmin] h-[5vmin] max-w-[24px] max-h-[24px] md:w-8 md:h-8 transition-transform group-hover:scale-110 ${
+                            <Icon className={`w-[5vmin] h-[5vmin] max-w-[20px] max-h-[20px] sm:max-w-[24px] sm:max-h-[24px] md:w-8 md:h-8 transition-transform group-hover:scale-110 ${
                               !isAllowed ? 'text-red-400' : sector.id === 'send_to_ibm' ? 'text-cyan-400 animate-pulse' : sector.id === 'pqc_group' ? 'text-emerald-400' : sector.id === 'realq' ? 'text-red-500' : sector.id === 'mitigation' ? 'text-amber-500' : 'text-quantum-primary'
                             }`} />
                           </div>
-                          <span className={`text-[6px] min-[400px]:text-[8px] md:text-xs font-mono font-bold uppercase tracking-tighter sm:tracking-widest bg-black/60 px-1 py-0.5 md:py-1 rounded border border-white/5 backdrop-blur-sm transition-colors whitespace-nowrap overflow-hidden ${
-                            !isAllowed ? 'text-red-300 border-red-500/40 bg-red-950/40' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
+                          <span className={`text-[6px] min-[400px]:text-[7.5px] md:text-xs font-mono font-bold uppercase tracking-tighter sm:tracking-widest bg-black/75 px-1 py-0.5 rounded border border-white/5 backdrop-blur-sm transition-colors truncate max-w-[65px] min-[400px]:max-w-[85px] sm:max-w-none block ${
+                              !isAllowed ? 'text-red-300 border-red-500/40 bg-red-950/40' : sector.id === 'send_to_ibm' ? 'text-cyan-400 border-cyan-500/30' : sector.id === 'pqc_group' ? 'text-emerald-400 border-emerald-500/30' : sector.id === 'realq' ? 'text-red-500 border-red-500/30' : sector.id === 'mitigation' ? 'text-amber-500 border-amber-500/30' : 'text-white group-hover:text-quantum-primary'
                           }`}>
                             {t(`s_${sector.id}_name`)}
                           </span>

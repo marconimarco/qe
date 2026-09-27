@@ -288,27 +288,26 @@ function AppContent({
         </div>
       )}
 
-      {/* Elegant glassmorphism Top Header bar */}
-      <header className="relative z-50 w-full px-3 sm:px-6 py-2.5 sm:py-3.5 mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2 border-b border-white/5 bg-black/40 backdrop-blur-md">
-        <div className="flex items-center gap-2">
+      {/* Elegant glassmorphism Top Header bar (fully smartphone responsive) */}
+      <header className="relative z-50 w-full px-3 sm:px-6 py-2 sm:py-3.5 mx-auto max-w-7xl flex items-center justify-between gap-2 border-b border-white/5 bg-black/50 backdrop-blur-md overflow-x-hidden">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-quantum-primary animate-pulse shrink-0" />
-          <span className="font-display font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[11px] sm:text-sm bg-gradient-to-r from-white via-gray-300 to-quantum-primary bg-clip-text text-transparent">
+          <span className="font-display font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-[10px] sm:text-sm bg-gradient-to-r from-white via-gray-300 to-quantum-primary bg-clip-text text-transparent truncate max-w-[120px] min-[400px]:max-w-[170px] sm:max-w-none">
             {t('quantum_systems')}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2.5">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Admin User Management Button */}
           {currentUser.role === 'admin' && (
             <button
               id="header-admin-users-btn"
               onClick={() => setIsAdminUsersModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl border border-quantum-primary/30 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary text-[10px] sm:text-xs font-mono transition-all cursor-pointer shadow-[0_0_10px_rgba(0,242,255,0.15)]"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl border border-quantum-primary/30 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary text-[10px] sm:text-xs font-mono transition-all cursor-pointer shadow-[0_0_10px_rgba(0,242,255,0.15)] min-h-[32px] sm:min-h-[36px]"
               title="Apri pannello di controllo e gestione utenti"
             >
               <Users className="w-3.5 h-3.5 shrink-0" />
               <span className="font-bold hidden md:inline">{t('user_management')}</span>
-              <span className="font-bold md:hidden">{t('user_management')}</span>
             </button>
           )}
 
@@ -317,12 +316,11 @@ function AppContent({
             <button
               id="header-admin-disclaimer-btn"
               onClick={() => setIsDisclaimerModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono transition-all cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.15)]"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono transition-all cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.15)] min-h-[32px] sm:min-h-[36px]"
               title="Visualizza e modifica il General Disclaimer (88 Articoli)"
             >
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span className="font-bold hidden sm:inline">{t('disclaimer')}</span>
-              <span className="font-bold sm:hidden">{t('disclaimer')}</span>
             </button>
           )}
 
@@ -335,7 +333,7 @@ function AppContent({
               }
               setIsApiKeyModalOpen(true);
             }}
-            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-[10px] sm:text-xs font-mono transition-all cursor-pointer"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-[10px] sm:text-xs font-mono transition-all cursor-pointer min-h-[32px] sm:min-h-[36px]"
             title="Configura Google API Key"
           >
             <Key className="w-3.5 h-3.5 text-quantum-primary shrink-0" />
@@ -348,16 +346,16 @@ function AppContent({
           </button>
 
           {/* Logged in User Profile badge */}
-          <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-white/[0.03] border border-white/10 rounded-xl text-[10px] sm:text-xs font-mono">
+          <div className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 bg-white/[0.03] border border-white/10 rounded-xl text-[10px] sm:text-xs font-mono min-h-[32px] sm:min-h-[36px]">
             {currentUser.role === 'admin' ? (
-              <Crown className="w-3.5 h-3.5 text-quantum-primary shrink-0" />
+              <Crown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-quantum-primary shrink-0" />
             ) : (
-              <User className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+              <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-cyan-300 shrink-0" />
             )}
-            <span className="text-white font-bold max-w-[80px] sm:max-w-[120px] truncate">
+            <span className="text-white font-bold max-w-[55px] min-[400px]:max-w-[80px] sm:max-w-[120px] truncate">
               {currentUser.username === 'admin' ? t('role_chief_officer') : currentUser.name.split(' ')[0]}
             </span>
-            <span className={`px-1 py-0.2 text-[8px] sm:text-[9px] uppercase font-bold rounded ${
+            <span className={`px-1 py-0.2 text-[7.5px] sm:text-[9px] uppercase font-bold rounded ${
               currentUser.role === 'admin' 
                 ? 'bg-quantum-primary/20 text-quantum-primary border border-quantum-primary/40' 
                 : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
@@ -376,11 +374,11 @@ function AppContent({
           <button
             id="logout-btn"
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 active:bg-red-500/35 text-red-300 border border-red-500/40 hover:border-red-500/60 text-xs font-mono font-bold transition-all cursor-pointer shadow-[0_0_12px_rgba(239,68,68,0.15)]"
+            className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 active:bg-red-500/35 text-red-300 border border-red-500/40 hover:border-red-500/60 text-xs font-mono font-bold transition-all cursor-pointer shadow-[0_0_12px_rgba(239,68,68,0.15)] min-h-[32px] sm:min-h-[36px]"
             title="Sign out of session"
           >
             <LogOut className="w-3.5 h-3.5 text-red-400 shrink-0" />
-            <span>{t('logout')}</span>
+            <span className="hidden sm:inline">{t('logout')}</span>
           </button>
         </div>
       </header>

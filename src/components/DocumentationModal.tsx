@@ -271,52 +271,52 @@ export default function DocumentationModal({ isOpen, onClose }: DocumentationMod
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-[#0b0c10] border border-amber-500/30 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-[0_0_60px_rgba(245,158,11,0.15)] overflow-hidden">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/85 backdrop-blur-md p-1.5 sm:p-6 animate-in fade-in duration-200">
+      <div className="bg-[#0b0c10] border border-amber-500/30 rounded-2xl sm:rounded-3xl w-full max-w-5xl h-[95vh] sm:h-[92vh] flex flex-col shadow-[0_0_60px_rgba(245,158,11,0.15)] overflow-hidden">
         
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-              <BookOpen className="w-5 h-5" />
+        <div className="p-3 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)] shrink-0">
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">
-                  Documentazione Tecnica & Codice Qiskit (13 Qubit)
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h2 className="text-xs sm:text-base font-bold text-white tracking-wide truncate">
+                  Guida & Codice Qiskit (13 Qubit)
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono border border-amber-500/30">
-                  Health Engine
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[9px] sm:text-[10px] font-mono border border-amber-500/30 shrink-0">
+                  Engine
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate hidden sm:block">
                 Guida completa all'architettura a 5 livelli, mapping quantistico e script Python Qiskit 1.x.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={handleCopy}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl border text-[11px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer min-h-[32px] sm:min-h-[36px] ${
                 copied ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300 hover:text-white'
               }`}
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-400" />}
-              <span>{copied ? 'Copiato!' : 'Copia Tutto'}</span>
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Copy className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+              <span>{copied ? 'Copiato!' : 'Copia'}</span>
             </button>
 
             <button
               onClick={handleDownload}
-              className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[11px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer min-h-[32px] sm:min-h-[36px]"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Scarica .txt</span>
+              <Download className="w-3.5 h-3.5 shrink-0" />
+              <span>Scarica</span>
             </button>
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer ml-1"
+              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer ml-0.5 shrink-0"
               title="Chiudi"
             >
               <X className="w-4 h-4" />

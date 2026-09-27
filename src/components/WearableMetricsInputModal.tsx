@@ -141,66 +141,66 @@ export default function WearableMetricsInputModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#0b0c12] border border-cyan-500/30 rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.15)] relative max-h-[92vh] flex flex-col my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="bg-[#0b0c12] border border-cyan-500/30 rounded-2xl sm:rounded-3xl max-w-4xl w-full p-4 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.15)] relative max-h-[96vh] sm:max-h-[92vh] flex flex-col my-auto overflow-hidden">
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-              <Watch className="w-5 h-5" />
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/10 shrink-0 gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <Watch className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold">
-                Scheda Tecnica Parametri & Metriche Wearable
+            <div className="min-w-0">
+              <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold block truncate">
+                Scheda Metriche Wearable
               </span>
-              <h2 className="text-base sm:text-lg font-bold text-white">
-                Monitoraggio Carico di Lavoro, Sensori IMU & Sintesi AI
+              <h2 className="text-xs sm:text-lg font-bold text-white truncate">
+                Carico di Lavoro, Sensori IMU & Sintesi
               </h2>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
         {/* Presets selector */}
-        <div className="py-3 shrink-0">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-2">
+        <div className="py-2.5 sm:py-3 shrink-0">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1.5">
             Profili Rapidi di Test (Smartwatch Simulator):
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             <button
               onClick={() => loadPreset('ottimale')}
-              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all"
+              className="text-[11px] sm:text-xs font-mono px-2.5 sm:px-3 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all cursor-pointer"
             >
-              🏃 Ottimale (ACWR 1.05)
+              🏃 Ottimale (1.05)
             </button>
             <button
               onClick={() => loadPreset('sentinella')}
-              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all"
+              className="text-[11px] sm:text-xs font-mono px-2.5 sm:px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all cursor-pointer"
             >
-              🟡 Luce Gialla (Sentinella)
+              🟡 Gialla (Sentinella)
             </button>
             <button
               onClick={() => loadPreset('spike')}
-              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-all"
+              className="text-[11px] sm:text-xs font-mono px-2.5 sm:px-3 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-all cursor-pointer"
             >
-              🔴 Spike ACWR & Tibia
+              🔴 Spike ACWR
             </button>
             <button
               onClick={() => loadPreset('lca')}
-              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 transition-all"
+              className="text-[11px] sm:text-xs font-mono px-2.5 sm:px-3 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 transition-all cursor-pointer"
             >
-              ⚡ Fatica & Rischio LCA
+              ⚡ Rischio LCA
             </button>
             <button
               onClick={() => loadPreset('maratona')}
-              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all"
+              className="text-[11px] sm:text-xs font-mono px-2.5 sm:px-3 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer"
             >
-              🏔️ Carico Meccanico 92kJ
+              🏔️ Meccanico 92kJ
             </button>
           </div>
         </div>
@@ -498,23 +498,24 @@ export default function WearableMetricsInputModal({
           )}
         </div>
 
-        {/* Modal Bottom Actions */}
-        <div className="pt-4 border-t border-white/10 flex items-center justify-between shrink-0">
-          <span className="text-[10px] text-slate-400 font-mono">
+        {/* Modal Bottom Actions (Smartphone responsive) */}
+        <div className="pt-3 sm:pt-4 border-t border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+          <span className="text-[10px] text-slate-400 font-mono text-center sm:text-left">
             Parametri salvati localmente e sincronizzati con il motore quantistico.
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-end gap-2 sm:gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-mono text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs font-mono text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors text-center"
             >
               Annulla
             </button>
             <button
               onClick={handleSave}
-              className="px-6 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider text-black bg-cyan-400 hover:bg-cyan-300 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+              className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider text-black bg-cyan-400 hover:bg-cyan-300 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
             >
-              <Check className="w-4 h-4" /> Applica e Calibra Metriche
+              <Check className="w-4 h-4 shrink-0" />
+              <span>Applica e Calibra</span>
             </button>
           </div>
         </div>
