@@ -58,6 +58,10 @@ REGOLA 3. ASSEGNAZIONE RIGIDA DELLE CASELLE DI LINGUAGGIO E CALCOLO:
      Per i vincoli di "Blocco Rigido", la soglia rigida dei vincoli è >= 0.60. Applica la porta CX (qc.cx / cx q[c], q[t]) ESCLUSIVAMENTE sulle relazioni con peso di connessione critico maggiore o uguale a 0.60 (peso >= 0.60).
      Le relazioni con peso < 0.60 o pari a 0.00 NON devono generare porte CX in modalità Blocco Rigido.
    - Per i vincoli di "Legame Morbido" (Continuous Phase): usa cp o qc.rzz(np.pi / 2 * {valore_peso}, q[{id_controllo}], q[{id_target}]).
+   - REGOLA BOUNDED DYNAMIC QUBIT ALLOCATION & FRENO DI EMERGENZA A 127 QUBIT:
+     Il numero di qubit del circuito quantistico deve essere ricavato dinamicamente da `const numQubits = file1Data.length;` (con fallback su 4 solo se il file è vuoto).
+     I registri quantistici e classici (`QuantumRegister`, `ClassicalRegister`), le porte `ry`, i vincoli `cx`/`cp` e le misurazioni `measure` devono essere generati sequenzialmente tramite cicli per tutti i qubit da `0` a `numQubits - 1`, eliminando ogni blocco di codice fisso a 4 qubit.
+     Se `numQubits` supera il freno di emergenza di 127 (pari alla capacità fisica dei processori IBM Quantum Utility-scale, es. chip Eagle/Heron), l'applicazione DEVE bloccare la compilazione quantistica, sollevare un'eccezione esplicita e suggerire all'utente di ridurre le righe o passare allo Scenario Classico (HPC), che elabora migliaia di record senza alcun vincolo di qubit.
 
 2. MATEMATICA DEGLI SCENARI CLASSICI (HPC NUMPY / SCIPY) & OBBLIGO FILE 2:
    - ISOLAMENTO E DINAMICITÀ DEI DATI HPC CLASSICI:

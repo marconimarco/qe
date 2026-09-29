@@ -756,7 +756,10 @@ export default function TestPage({
       reply += `Per procedere servono 2 file CSV:\n`;
       reply += `• **File 1 (Anagrafica Risorse):** Elenco risorse, pesi e costi.\n`;
       reply += `• **File 2 (Matrice Vincoli):** Matrice di correlazioni, conflitti o sinergie tra risorse.\n\n`;
-      reply += `💡 *Puoi caricare i tuoi file personali, oppure scaricare i dataset modello pre-compilati per questo scenario.*`;
+      reply += `⚖️ **Capacità Hardware & Freno di Emergenza Qubit:**\n`;
+      reply += `• ⚛️ **Scenario Quantistico (Qiskit / OpenQASM):** Il File 1 può contenere un numero variabile di risorse, ma è impostato un **freno di emergenza massimo a 127 righe**, pari alla capacità fisica dei processori **IBM Quantum Utility-scale (es. chip Eagle / Heron)**. Lo script quantistico allocherà su misura solo i qubit strettamente necessari alle righe caricate, ottimizzando lo spazio di Hilbert e codificando scenari e percentuali di probabilità ($p=|1\\rangle$ e $p=|0\\rangle$) su ciascun qubit tramite rotazioni RY.\n`;
+      reply += `• 💻 **Scenario Classico (HPC NumPy / SciPy):** Nessun vincolo sui qubit: sei libero di caricare file con **migliaia o decine di migliaia di righe** senza alcuna restrizione hardware.\n\n`;
+      reply += `💡 *Puoi caricare i tuoi file personali (fino a 127 righe per il quantistico, illimitati per l'HPC classico), oppure scaricare i dataset modello pre-compilati per questo scenario.*`;
       return reply;
     }
 
@@ -1600,6 +1603,22 @@ ${pythonSnippet}
                     <Download className="w-4 h-4 text-cyan-400 animate-bounce" />
                     <span>Dataset Demo (Scarica e Testa)</span>
                   </button>
+                </div>
+
+                {/* Card Informativa Freno di Emergenza Qubit vs HPC */}
+                <div className="p-3 bg-gradient-to-r from-cyan-950/40 to-slate-900/60 border border-cyan-500/40 rounded-lg text-xs font-mono flex flex-col gap-1.5 shadow-sm">
+                  <div className="flex items-center gap-1.5 text-cyan-300 font-semibold">
+                    <Cpu className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span>Allocazione Dinamica & Specifiche Hardware:</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 leading-relaxed space-y-0.5">
+                    <div>
+                      • <strong className="text-cyan-200">Scenario Quantistico:</strong> Freno di emergenza a <strong className="text-amber-300">max 127 righe / qubit</strong> (Processori fisici IBM Quantum Utility-scale Eagle/Heron). Registri generati su misura per il tuo File 1 con ottimizzazione dello spazio di Hilbert tramite rotazioni RY ($p=|1\rangle$).
+                    </div>
+                    <div>
+                      • <strong className="text-emerald-300">Scenario Classico (HPC):</strong> Nessun limite hardware sui qubit — elaborazione libera per file con migliaia di righe.
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-900/90 border border-white/10 rounded-lg text-[11px] text-slate-300">

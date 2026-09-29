@@ -158,6 +158,12 @@ function parseCsv2Deterministic(csv2: string, mappaQubit: Map<string, number>): 
   return activeRelations;
 }
 
+/**
+ * Limite massimo di sicurezza per processori quantistici fisici IBM Quantum Utility-scale (es. chip Eagle / Heron).
+ * Freno di emergenza: blocca la compilazione quantistica se il numero di qubit eccede 127.
+ */
+export const MAX_QUANTUM_QUBITS = 127;
+
 export const generateQiskitCode = (
   sector: string, 
   csv1: string, 
@@ -166,15 +172,27 @@ export const generateQiskitCode = (
   strategy: string
 ): string => {
   const { risorse, mappaQubit } = parseCsv1Deterministic(csv1);
-  const numItems = risorse.length > 0 ? risorse.length : 4;
+  const numQubits = risorse.length > 0 ? risorse.length : 4;
+
+  // Freno di Emergenza a 127 Qubit (Capacità Fisica IBM Quantum Utility-Scale)
+  if (numQubits > MAX_QUANTUM_QUBITS) {
+    throw new Error(
+      `[FRENO DI EMERGENZA QUANTISTICO] Rilevate ${numQubits} risorse nel File 1. ` +
+      `I processori quantistici fisici IBM Quantum Utility-scale supportano un massimo di ${MAX_QUANTUM_QUBITS} qubit. ` +
+      `Riduci le righe a massimo 127 oppure seleziona lo Scenario Classico (HPC), che elabora migliaia di righe senza vincoli di qubit.`
+    );
+  }
+
   const activeRelations = parseCsv2Deterministic(csv2, mappaQubit);
 
-  // 1. Inizializzazione Qubit (Formula quantistica esatta: theta = 2 * arcsin(sqrt(peso)))
-  const initBlocks = risorse.map((r, i) => {
+  // 1. Inizializzazione Dinamica Sequenziale Qubit (RY Rotations)
+  let initBlocks = '';
+  for (let i = 0; i < numQubits; i++) {
+    const r = risorse[i] || { id: `q_${i}`, peso: 0.5 };
     const pesoSafe = Math.max(0.0, Math.min(1.0, r.peso));
     const theta = (2.0 * Math.asin(Math.sqrt(pesoSafe))).toFixed(6);
-    return `ry(${theta}) q[${i}]; // ${r.id} (peso = ${pesoSafe.toFixed(2)})`;
-  }).join('\n');
+    initBlocks += `ry(${theta}) q[${i}]; // ${r.id} (p=|1> ${(pesoSafe * 100).toFixed(1)}%)\n`;
+  }
 
   // 2. Entanglement e Vincoli
   const isNone = vincolo === 'nessun_vincolo' || vincolo === 'senza_entanglement' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
@@ -182,11 +200,15 @@ export const generateQiskitCode = (
 
   let constraintBlocks = '// Nessun vincolo attivo';
   if (isNone) {
-    constraintBlocks = '// Nessun Entanglement (Risorse Indipendenti)';
+    constraintBlocks = '// Nessun Entanglement (Risorse Indipendenti / Stato Separabile Puro)';
   } else if (activeRelations.length > 0) {
     if (isHard) {
       // Regola del Blocco Rigido: solo connessioni critiche >= 0.60
-      const criticalRelations = activeRelations.filter(rel => rel.valore_peso >= SOGLIA_CRITICA_RIGIDA);
+      const criticalRelations = activeRelations.filter(rel => 
+        rel.valore_peso >= SOGLIA_CRITICA_RIGIDA && 
+        rel.id_controllo < numQubits && 
+        rel.id_target < numQubits
+      );
       if (criticalRelations.length > 0) {
         constraintBlocks = criticalRelations.map(rel => {
           return `cx q[${rel.id_controllo}], q[${rel.id_target}]; // Blocco Rigido (${rel.nome_controllo} -> ${rel.nome_target}, peso = ${rel.valore_peso.toFixed(2)} >= ${SOGLIA_CRITICA_RIGIDA.toFixed(2)})`;
@@ -196,7 +218,7 @@ export const generateQiskitCode = (
       }
     } else {
       // Legame Morbido (Continuous Phase)
-      constraintBlocks = activeRelations.map(rel => {
+      constraintBlocks = activeRelations.filter(rel => rel.id_controllo < numQubits && rel.id_target < numQubits).map(rel => {
         const phaseAngle = ((Math.PI / 4) * rel.valore_peso).toFixed(6);
         return `cp(${phaseAngle}) q[${rel.id_controllo}], q[${rel.id_target}]; // Legame Morbido (${rel.nome_controllo} -> ${rel.nome_target}, peso = ${rel.valore_peso.toFixed(2)})`;
       }).join('\n');
@@ -204,11 +226,11 @@ export const generateQiskitCode = (
   }
 
   let measureBlocks = '';
-  for (let i = 0; i < numItems; i++) {
+  for (let i = 0; i < numQubits; i++) {
     measureBlocks += `measure q[${i}] -> c[${i}];\n`;
   }
 
-  return `OPENQASM 3.0;\ninclude "stdgates.inc";\n\nqubit[${numItems}] q;\nbit[${numItems}] c;\n\n// ==========================================\n// 1. INIZIALIZZAZIONE STATO (RY ROTATIONS)\n// Formula esatta: theta = 2 * arcsin(sqrt(peso))\n// ==========================================\n${initBlocks}\n\n// ==========================================\n// 2. VINCOLI ED ENTANGLEMENT\n// ==========================================\n${constraintBlocks}\n\n// ==========================================\n// 3. MISURAZIONE FINALE\n// ==========================================\n${measureBlocks.trim()}`;
+  return `OPENQASM 3.0;\ninclude "stdgates.inc";\n\nqubit[${numQubits}] q;\nbit[${numQubits}] c;\n\n// ==========================================\n// 1. INIZIALIZZAZIONE STATO DINAMICA (${numQubits} QUBIT)\n// Formula esatta: theta = 2 * arcsin(sqrt(peso))\n// ==========================================\n${initBlocks.trim()}\n\n// ==========================================\n// 2. VINCOLI ED ENTANGLEMENT\n// ==========================================\n${constraintBlocks}\n\n// ==========================================\n// 3. MISURAZIONE FINALE SEQUENZIALE\n// ==========================================\n${measureBlocks.trim()}`;
 };
 
 export const generateQiskitPythonCode = (
@@ -219,7 +241,17 @@ export const generateQiskitPythonCode = (
   strategy: string
 ): string => {
   const { risorse, mappaQubit } = parseCsv1Deterministic(csv1);
-  const numItems = risorse.length > 0 ? risorse.length : 4;
+  const numQubits = risorse.length > 0 ? risorse.length : 4;
+
+  // FRENO DI EMERGENZA A 127 QUBIT (IBM Quantum Utility-scale)
+  if (numQubits > MAX_QUANTUM_QUBITS) {
+    throw new Error(
+      `[FRENO DI EMERGENZA QUANTISTICO] Rilevate ${numQubits} risorse nel File 1. ` +
+      `I processori quantistici fisici IBM Quantum Utility-scale (es. chip Eagle/Heron) supportano un massimo di ${MAX_QUANTUM_QUBITS} qubit. ` +
+      `Riduci il file a massimo 127 righe o seleziona lo Scenario Classico (HPC), che elabora migliaia di righe senza vincoli di qubit.`
+    );
+  }
+
   const activeRelations = parseCsv2Deterministic(csv2, mappaQubit);
 
   let pyCode = `import numpy as np\n`;
@@ -231,28 +263,33 @@ export const generateQiskitPythonCode = (
   const cleanSector = sector.replace(/[^a-zA-Z0-9]/g, '_') || 'General';
   const cleanStrategy = strategy.replace(/[^a-zA-Z0-9]/g, '_') || 'Default';
 
-  pyCode += `# 1. Definizione Registri Sequenziali (FIFO Rigido: riga CSV 1 -> q[0], riga 2 -> q[1], ...)\n`;
-  pyCode += `q = QuantumRegister(${numItems}, name="q")\n`;
-  pyCode += `c = ClassicalRegister(${numItems}, name="c")\n`;
+  pyCode += `# 1. Definizione Registri Dinamici Bounded (Allocazione Esatta: ${numQubits} Qubit, Max 127 IBM Utility-Scale)\n`;
+  pyCode += `q = QuantumRegister(${numQubits}, name="q")\n`;
+  pyCode += `c = ClassicalRegister(${numQubits}, name="c")\n`;
   pyCode += `qc = QuantumCircuit(q, c, name="QC_${cleanSector}_${cleanStrategy}")\n\n`;
 
-  pyCode += `# 2. Inizializzazione Qubit (Amplitude Encoding)\n`;
+  pyCode += `# 2. Inizializzazione Sequenziale Dinamica Qubit (Amplitude Encoding tramite Rotazioni RY)\n`;
   pyCode += `# Formula quantistica esatta: theta = 2.0 * np.arcsin(np.sqrt(peso_safe))\n`;
-  risorse.forEach((r, i) => {
+  for (let i = 0; i < numQubits; i++) {
+    const r = risorse[i] || { id: `q_${i}`, peso: 0.5 };
     const pesoSafe = Math.max(0.0, Math.min(1.0, r.peso));
     const theta = (2.0 * Math.asin(Math.sqrt(pesoSafe))).toFixed(6);
-    pyCode += `qc.ry(${theta}, q[${i}])  # ${r.id} (peso = ${pesoSafe.toFixed(2)})\n`;
-  });
+    pyCode += `qc.ry(${theta}, q[${i}])  # ${r.id} (p=|1> ${(pesoSafe * 100).toFixed(1)}%)\n`;
+  }
 
   pyCode += `\n# 3. Entanglement e Relazioni di Vincolo (Guidate da File 2: Matrice Connessioni)\n`;
   const isNone = vincolo === 'nessun_vincolo' || vincolo === 'senza_entanglement' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
   const isHard = !isNone && (vincolo === 'blocco_rigido' || vincolo.includes('rigido') || vincolo.includes('hard'));
 
   if (isNone) {
-    pyCode += `# Nessun Entanglement (Risorse Indipendenti)\n`;
+    pyCode += `# Nessun Entanglement (Risorse Indipendenti / Stato Separabile Puro)\n`;
   } else if (activeRelations.length > 0) {
     if (isHard) {
-      const criticalRelations = activeRelations.filter(rel => rel.valore_peso >= SOGLIA_CRITICA_RIGIDA);
+      const criticalRelations = activeRelations.filter(rel => 
+        rel.valore_peso >= SOGLIA_CRITICA_RIGIDA && 
+        rel.id_controllo < numQubits && 
+        rel.id_target < numQubits
+      );
       if (criticalRelations.length > 0) {
         criticalRelations.forEach(rel => {
           pyCode += `qc.cx(q[${rel.id_controllo}], q[${rel.id_target}])  # Blocco Rigido (${rel.nome_controllo} -> ${rel.nome_target}, peso = ${rel.valore_peso.toFixed(2)} >= ${SOGLIA_CRITICA_RIGIDA.toFixed(2)})\n`;
@@ -261,15 +298,15 @@ export const generateQiskitPythonCode = (
         pyCode += `# Nessuna relazione critica sopra la soglia (>= ${SOGLIA_CRITICA_RIGIDA.toFixed(2)}) per Blocco Rigido\n`;
       }
     } else {
-      activeRelations.forEach(rel => {
+      activeRelations.filter(rel => rel.id_controllo < numQubits && rel.id_target < numQubits).forEach(rel => {
         const phaseAngle = ((Math.PI / 4) * rel.valore_peso).toFixed(6);
         pyCode += `qc.cp(${phaseAngle}, q[${rel.id_controllo}], q[${rel.id_target}])  # Legame Morbido (${rel.nome_controllo} -> ${rel.nome_target}, peso = ${rel.valore_peso.toFixed(2)})\n`;
       });
     }
   }
 
-  pyCode += `\n# 4. Misurazione su Registro Classico\n`;
-  for (let i = 0; i < numItems; i++) {
+  pyCode += `\n# 4. Misurazione Sequenziale per tutti i ${numQubits} Qubit\n`;
+  for (let i = 0; i < numQubits; i++) {
     pyCode += `qc.measure(q[${i}], c[${i}])\n`;
   }
 
