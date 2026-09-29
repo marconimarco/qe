@@ -969,11 +969,13 @@ export default function TestPage({
           setTargetAlgoritmo(targetAlgo);
           setVincoloStile(style);
           
+          const currentStrategy = (activePhase === '3b_strat' ? userMessage : selectedStrategy) || 'Prudente';
           const finalExplanation = buildFinalOutcomeExplanation(
             targetAlgo,
             assetSector || selectedSector,
             style,
-            selectedPeriod || '1 Trimestre'
+            selectedPeriod || '1 Trimestre',
+            currentStrategy
           );
 
           replyText = replyText.replace(jsonMatch[0], () => finalExplanation);
@@ -1001,11 +1003,13 @@ export default function TestPage({
           setTargetAlgoritmo(targetAlgo);
           setVincoloStile(style);
 
+          const currentStrategy = (activePhase === '3b_strat' ? userMessage : selectedStrategy) || 'Prudente';
           const finalExplanation = buildFinalOutcomeExplanation(
             targetAlgo,
             assetSector || selectedSector,
             style,
-            selectedPeriod || '1 Trimestre'
+            selectedPeriod || '1 Trimestre',
+            currentStrategy
           );
 
           fallbackReply = fallbackReply.replace(jsonMatch[0], () => finalExplanation);
@@ -1027,7 +1031,8 @@ export default function TestPage({
     algo: string, 
     sector: string, 
     vincolo: string, 
-    periodo: string
+    periodo: string,
+    stratOverride?: string
   ) => {
     const isNone = vincolo === 'nessun_vincolo' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
     const isHard = !isNone && (vincolo === 'blocco_rigido' || vincolo.includes('rigido') || vincolo.includes('hard'));
@@ -1038,7 +1043,7 @@ export default function TestPage({
         ? 'Blocco Rigido (Porta Controlled-NOT / CX)' 
         : 'Legame Morbido (Porta di Fase Controllata / CP)');
 
-    const effectiveStrategy = selectedStrategy || 'Aggressiva';
+    const effectiveStrategy = stratOverride || selectedStrategy || 'Prudente';
     const effectiveSector = sector || selectedSector || 'Finanza e Mercati';
     const effectiveScenarioId = selectedScenario?.id || '';
     const isClassicalScenario = selectedScenario?.type === 'classical' || selectedInfra === 'classical' || algo.startsWith('Python_HPC_');
@@ -2073,14 +2078,14 @@ ${pythonSnippet}
         isOpen={showEndModal}
         onClose={() => setShowEndModal(false)}
         scenarioType={selectedScenario?.type || (selectedInfra === 'classical' ? 'classical' : 'quantum')}
-        qasmCode={finalQasm || (selectedScenario?.type === 'classical' ? '' : generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva'))}
+        qasmCode={finalQasm || (selectedScenario?.type === 'classical' ? '' : generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente'))}
         pythonCode={finalPython || (selectedScenario?.type === 'classical' 
-          ? generateClassicalHpcPythonCode(assetSector || selectedSector || 'Finanza e Mercati', selectedScenario?.name || selectedScenario?.id || 'Scenario Classico', selectedScenario?.id || 'HPC-Model', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedStrategy || 'Aggressiva')
-          : generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva'))}
+          ? generateClassicalHpcPythonCode(assetSector || selectedSector || 'Finanza e Mercati', selectedScenario?.name || selectedScenario?.id || 'Scenario Classico', selectedScenario?.id || 'HPC-Model', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedStrategy || 'Prudente')
+          : generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente'))}
         jsonCode={finalJson || JSON.stringify({
           settore: assetSector || selectedSector || 'Finanza e Mercati',
           scenario: selectedScenario?.name || 'Ottimizzazione',
-          strategia: selectedStrategy || 'Aggressiva',
+          strategia: selectedStrategy || 'Prudente',
           entanglement: selectedVincolo === 'nessun_vincolo' ? 'none' : (selectedVincolo === 'blocco_rigido' ? 'cx' : 'cp'),
           theta_radianti: parseFloat(radTheta.toFixed(4)),
           phi_radianti: (phi * Math.PI) / 180,
@@ -2092,7 +2097,7 @@ ${pythonSnippet}
         sector={assetSector || selectedSector || 'Finanza e Mercati'}
         onSendToIBM={() => {
           setShowEndModal(false);
-          const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Aggressiva');
+          const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente');
           if (setSharedQasm) {
             setSharedQasm(qCode);
           }
