@@ -60,6 +60,8 @@ REGOLA 3. ASSEGNAZIONE RIGIDA DELLE CASELLE DI LINGUAGGIO E CALCOLO:
    - Per i vincoli di "Legame Morbido" (Continuous Phase): usa cp o qc.rzz(np.pi / 2 * {valore_peso}, q[{id_controllo}], q[{id_target}]).
 
 2. MATEMATICA DEGLI SCENARI CLASSICI (HPC NUMPY / SCIPY) & OBBLIGO FILE 2:
+   - ISOLAMENTO E DINAMICITÀ DEI DATI HPC CLASSICI:
+     Quando si genera codice classico, i vettori numerici (es. rendimenti_attesi) e i nomi degli asset devono essere estratti dinamicamente ed esclusivamente dalle righe reali del File 1 del CSV (utilizzando i valori puri di peso/rendimento es. 0.85, 0.70, 0.60, 0.90), vietando dati mock fissi o moltiplicatori artificiali. I nomi degli asset devono essere contestualizzati dinamicamente allo scenario specifico (es. negli scenari di Trading ad Alta Frequenza / HFT è vietato ereditare o trascinare voci assicurative come 'Coorte Polizze Vita' o 'Rischio Attuariale'). Questa regola classica opera in totale isolamento, SENZA alterare in alcun modo la struttura dei qubit, gli angoli theta, i registri o l'inizializzazione delle ampiezze del ramo quantistico.
    - DIVIETO FORMULA TOY MINIMI QUADRATI: È vietato applicare la formula geometrica banale np.sum((x - capacita)**2)
      per scenari di finanza, portafoglio, machine learning o reti complesse.
    - NEGLI SCENARI FINANZIARI CLASSICI: Implementare l'ottimizzazione reale di portafoglio (Sharpe Ratio / Markowitz):
