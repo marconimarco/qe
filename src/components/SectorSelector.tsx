@@ -153,15 +153,15 @@ export default function SectorSelector({
       ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center h-full flex-1 w-full px-2 sm:px-4 py-1 sm:py-2 relative overflow-hidden select-none">
       {/* Background radial glow */}
       <div className="absolute inset-x-0 top-0 h-full bg-[radial-gradient(circle_at_center,rgba(0,242,255,0.05)_0%,transparent_70%)] pointer-events-none" />
 
       {isSubActive && (
-        <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50">
+        <div className="fixed top-3 left-3 sm:top-5 sm:left-5 z-50">
           <button 
             onClick={handleBackToMain}
-            className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-black/40 border border-white/10 rounded-full text-gray-400 transition-all group backdrop-blur-xl ${
+            className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-black/60 border border-white/15 rounded-full text-gray-400 transition-all group backdrop-blur-xl shadow-lg ${
               activeSubMenu === 'pqc_group' 
                 ? 'hover:text-emerald-400 hover:border-emerald-500/50' 
                 : 'hover:text-quantum-primary hover:border-quantum-primary/50'
@@ -174,9 +174,9 @@ export default function SectorSelector({
       )}
 
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -15 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-6 md:mb-12 relative z-10 w-full px-4"
+        className="text-center mb-1 sm:mb-2 md:mb-3 relative z-10 w-full px-2 shrink-0"
       >
         <AnimatePresence mode="wait">
           {isSubActive ? (
@@ -187,10 +187,10 @@ export default function SectorSelector({
               exit={{ opacity: 0, x: -20 }}
               className="flex flex-col items-center"
             >
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-display font-bold text-white mb-2 uppercase tracking-tighter">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-display font-bold text-white mb-1 uppercase tracking-tighter">
                 {t(`s_${activeSubMenu}_name`)}
               </h1>
-              <p className={`text-[9px] sm:text-xs font-mono uppercase tracking-[0.2em] sm:tracking-[0.3em] ${
+              <p className={`text-[8.5px] sm:text-xs font-mono uppercase tracking-[0.2em] sm:tracking-[0.25em] ${
                 activeSubMenu === 'pqc_group' ? 'text-emerald-400' : 'text-quantum-primary'
               }`}>
                 {activeSubMenu === 'pqc_group' ? t('pqc_cryptography') : t('advanced_dev_tools')}
@@ -203,20 +203,20 @@ export default function SectorSelector({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
             >
-              <h1 className="text-2xl sm:text-4xl md:text-6xl font-display font-bold quantum-gradient-text mb-2 md:mb-4 uppercase tracking-tighter">
+              <h1 className="text-xl sm:text-3xl md:text-5xl font-display font-bold quantum-gradient-text mb-1 uppercase tracking-tighter">
                 {t('title')}
               </h1>
-              <div className="flex flex-col items-center justify-center text-center max-w-4xl mx-auto px-4">
+              <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto px-2">
                 {t('subtitle').split('\n').map((line, idx) => (
                   <span
                     key={idx}
-                    className="block text-[10px] sm:text-xs md:text-sm lg:text-base text-gray-400 font-mono uppercase tracking-[0.08em] sm:tracking-[0.15em] md:tracking-[0.2em] leading-relaxed text-center"
+                    className="block text-[9px] sm:text-xs md:text-sm text-gray-400 font-mono uppercase tracking-[0.06em] sm:tracking-[0.12em] leading-snug text-center"
                   >
                     {line}
                   </span>
                 ))}
               </div>
-              <p className="text-[7px] sm:text-[10px] text-quantum-primary font-mono uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.4em] mt-3 sm:mt-4 md:mt-6 animate-pulse">
+              <p className="text-[7.5px] sm:text-[9.5px] text-quantum-primary font-mono uppercase tracking-[0.15em] sm:tracking-[0.25em] mt-1 sm:mt-2 animate-pulse">
                 {t('chooseSector')}
               </p>
             </motion.div>
@@ -225,10 +225,10 @@ export default function SectorSelector({
       </motion.div>
 
       {/* Centered layout for the orbital hub or active lists */}
-      <div className="flex items-center justify-center w-full max-w-7xl px-2 sm:px-4 z-10 my-2 sm:my-4 overflow-x-hidden">
+      <div className="flex items-center justify-center w-full max-w-7xl px-2 sm:px-4 z-10 my-0.5 sm:my-1 overflow-visible shrink-0">
         
         {/* Container with responsive smartphone sizing */}
-        <div className="relative w-[94vw] h-[94vw] max-w-[350px] max-h-[350px] sm:w-[75vmin] sm:h-[75vmin] sm:max-w-[550px] sm:max-h-[550px] flex items-center justify-center mb-4 xl:mb-0 shrink-0">
+        <div className="relative w-[90vw] h-[90vw] max-w-[320px] max-h-[320px] sm:w-[62vmin] sm:h-[62vmin] sm:max-w-[460px] sm:max-h-[460px] flex items-center justify-center shrink-0">
         {/* Satellite Buttons / Button List for sub-menu */}
         <AnimatePresence mode="wait">
           {!isSubActive ? (

@@ -205,8 +205,14 @@ function AppContent({
     setSelectedSectorId(null);
   };
 
+  const isHomePage = !selectedSector && !isIbmInterfaceOpen && !isTestPageOpen && !isBlankPageOpen;
+
   return (
-    <div className="min-h-screen bg-quantum-bg selection:bg-quantum-primary selection:text-quantum-bg flex flex-col overflow-x-hidden overflow-y-auto scrollbar-hide relative text-white">
+    <div className={`bg-quantum-bg selection:bg-quantum-primary selection:text-quantum-bg flex flex-col relative text-white ${
+      isHomePage 
+        ? 'h-screen max-h-screen overflow-hidden' 
+        : 'min-h-screen overflow-x-hidden overflow-y-auto scrollbar-hide'
+    }`}>
       
       {/* Dynamic flowing background gradients */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
@@ -270,7 +276,7 @@ function AppContent({
 
       {/* Top Banner if API Key is missing */}
       {!hasApiKey && (
-        <div className="relative z-50 bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-center text-xs text-amber-200 flex items-center justify-center gap-2 font-mono">
+        <div className="relative z-50 bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-center text-xs text-amber-200 flex items-center justify-center gap-2 font-mono shrink-0">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
           <span>Google AI Studio API Key not found. Please enter your API Key to enable AI features.</span>
           <button
@@ -288,8 +294,8 @@ function AppContent({
         </div>
       )}
 
-      {/* Elegant glassmorphism Top Header bar (fully smartphone responsive) */}
-      <header className="relative z-50 w-full px-3 sm:px-6 py-2 sm:py-3.5 mx-auto max-w-7xl flex items-center justify-between gap-2 border-b border-white/5 bg-black/50 backdrop-blur-md overflow-x-hidden">
+      {/* Elegant glassmorphism Top Header bar (overflow-visible to let language dropdown show cleanly) */}
+      <header className="relative z-[100] w-full px-3 sm:px-6 py-2 sm:py-3 mx-auto max-w-7xl flex items-center justify-between gap-2 border-b border-white/5 bg-black/50 backdrop-blur-md overflow-visible shrink-0">
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-quantum-primary animate-pulse shrink-0" />
           <span className="font-display font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-[10px] sm:text-sm bg-gradient-to-r from-white via-gray-300 to-quantum-primary bg-clip-text text-transparent truncate max-w-[120px] min-[400px]:max-w-[170px] sm:max-w-none">

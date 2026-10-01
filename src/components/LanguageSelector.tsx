@@ -15,7 +15,7 @@ export default function LanguageSelector({ currentLanguage, onLanguageChange, di
   const activeLang = LANGUAGES.find(l => l.code === currentLanguage) || LANGUAGES[0];
 
   return (
-    <div className="relative">
+    <div className="relative z-[100]">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-gray-300 hover:text-quantum-primary hover:border-quantum-primary/50 transition-all font-mono text-[10px] sm:text-xs uppercase tracking-wider backdrop-blur-md cursor-pointer"
@@ -30,7 +30,7 @@ export default function LanguageSelector({ currentLanguage, onLanguageChange, di
           <>
             {/* Click outside overlay */}
             <div 
-              className="fixed inset-0 z-40" 
+              className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-[1px]" 
               onClick={() => setIsOpen(false)} 
             />
             
@@ -40,9 +40,9 @@ export default function LanguageSelector({ currentLanguage, onLanguageChange, di
               exit={{ opacity: 0, y: direction === 'down' ? -5 : 5, scale: 0.95 }}
               className={`absolute right-0 ${
                 direction === 'down' ? 'top-full mt-2' : 'bottom-full mb-2'
-              } w-40 sm:w-48 bg-black/95 border border-white/15 rounded-xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.7)] z-50 backdrop-blur-xl`}
+              } w-44 sm:w-52 bg-slate-950/98 border border-cyan-400/40 rounded-xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.95)] z-[9999] backdrop-blur-2xl ring-1 ring-cyan-500/20`}
             >
-              <div className="py-1 max-h-60 overflow-y-auto scrollbar-hide">
+              <div className="py-1 max-h-64 overflow-y-auto scrollbar-hide divide-y divide-white/5">
                 {LANGUAGES.map((lang) => {
                   const isSelected = lang.code === currentLanguage;
                   return (
@@ -52,14 +52,14 @@ export default function LanguageSelector({ currentLanguage, onLanguageChange, di
                         onLanguageChange(lang.code);
                         setIsOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 sm:px-4 py-2 text-left text-[10px] sm:text-xs font-mono uppercase tracking-wider transition-colors cursor-pointer ${
+                      className={`w-full flex items-center justify-between px-3.5 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-mono uppercase tracking-wider transition-colors cursor-pointer ${
                         isSelected 
-                          ? 'text-quantum-primary bg-quantum-primary/10 font-bold' 
-                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                          ? 'text-cyan-300 bg-cyan-500/15 font-bold border-l-2 border-cyan-400' 
+                          : 'text-gray-300 hover:text-white hover:bg-white/10'
                       }`}
                     >
                       <span>{lang.label}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-quantum-primary" />}
+                      {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
                     </button>
                   );
                 })}

@@ -10,7 +10,7 @@ import axios from 'axios';
 import aiStudioPrompt from '../promptText.txt?raw';
 import { getStoredApiKey } from '../services/apiKeyService';
 import { getDemoCsvBySector } from "../data/demoCsv";
-import { generateQiskitCode, generateQiskitPythonCode, generateClassicalHpcPythonCode } from "../data/codeGenerators";
+import { generateQiskitCode, generateQiskitPythonCode, generateClassicalHpcPythonCode, parseCsv1Deterministic, parseCsv2MatrixDeterministic } from "../data/codeGenerators";
 import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfile } from "../data/taxonomicEngine";
 import { 
   CurrentUserSession, 
@@ -56,45 +56,72 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
     const thetaGradi = Math.round((rad * 180) / Math.PI);
     const fasePhiGradi = Math.round((phiRad * 180) / Math.PI);
     
-    // Formula quantistica dell'ampiezza di probabilità: P(|0>) = cos²(θ/2)
-    const stabilita0 = Math.round(Math.pow(Math.cos(rad / 2), 2) * 100);
-    const rischio1 = Math.round(Math.pow(Math.sin(rad / 2), 2) * 100);
+    // Formula quantistica dell'ampiezza di probabilità: P(|0>) = cos²(θ/2), P(|1>) = sin²(θ/2)
+    const ampiezza0 = Math.round(Math.pow(Math.cos(rad / 2), 2) * 100);
+    const ampiezza1 = Math.round(Math.pow(Math.sin(rad / 2), 2) * 100);
 
-    // TRADUTTORE SEMANTICO UNIVERSALE
-    let labelStato0 = "Componente Residua (Stabilità)";
-    let labelStato1 = "Valore CSV (Spinta/Alpha)";
-    let labelColonna = "Rendimento/Priorità";
-
+    // TRADUTTORE SEMANTICO UNIVERSALE SU TUTTE LE CATEGORIE AZIENDALI
     const sLower = dati.settore.toLowerCase();
-    if (sLower.includes("finanz")) {
-      labelColonna = "Rendimento/Priorità";
-      labelStato0 = "Componente Residua (Stabilità)";
-      labelStato1 = "Valore CSV (Rendimento/Alpha)";
-    } else if (sLower.includes("chimic") || sLower.includes("farmaceutica") || sLower.includes("materiali")) {
-      labelColonna = "Affinità Legame";
-      labelStato0 = "Stato Orbitale a Riposo (Residuo)";
-      labelStato1 = "Valore CSV (Eccitazione Attiva)";
-    } else if (sLower.includes("produzion") || sLower.includes("manifattura")) {
-      labelColonna = "Priorità Commessa";
-      labelStato0 = "Margine di Inattività (Residuo)";
-      labelStato1 = "Valore CSV (Efficienza/OEE)";
-    } else if (sLower.includes("sicurezz") || sLower.includes("telecomunicazion") || sLower.includes("reti")) {
-      labelColonna = "Criticità Log SIEM";
-      labelStato0 = "Rischio Base (Residuo)";
-      labelStato1 = "Valore CSV (Contenimento Attivo)";
-    } else if (sLower.includes("sanità") || sLower.includes("sanita") || sLower.includes("genomica")) {
-      labelColonna = "Livello Espressione Genica";
-      labelStato0 = "Componente Silente (Residua)";
-      labelStato1 = "Valore CSV (Espressione/Mutazione)";
+    const isPrudente = (dati.strategia || '').toLowerCase().includes('prudent') || (dati.strategia || '').toLowerCase().includes('conservat');
+
+    let labelColonna = "Rendimento/Priorità";
+    let labelStato0 = isPrudente ? "Margine di Solvibilità / Stabilità" : "Componente Base";
+    let labelStato1 = isPrudente ? "Copertura / Capienza Protettiva" : "Attivazione Nominale";
+
+    if (sLower.includes("finanz") || sLower.includes("mercat") || sLower.includes("banc")) {
+      labelColonna = "Copertura / Rischio Attuariale";
+      labelStato0 = isPrudente ? "Rischio Residuo Inadeguatezza" : "Componente Volatilità";
+      labelStato1 = isPrudente ? "Fondo di Copertura / Solvibilità Garantita" : "Rendimento / Alpha Atteso";
+    } else if (sLower.includes("logistic") || sLower.includes("supply") || sLower.includes("trasport")) {
+      labelColonna = "Saturazione Carico / Autonomia";
+      labelStato0 = isPrudente ? "Capienza di Riserva Flotta" : "Inerzia Logistica";
+      labelStato1 = isPrudente ? "Allocazione Protetta" : "Saturazione Hub";
+    } else if (sLower.includes("energi") || sLower.includes("reti") || sLower.includes("grid")) {
+      labelColonna = "Fattore di Erogazione / Backup";
+      labelStato0 = isPrudente ? "Margine di Stabilità Rete" : "Fluttuazione Residua";
+      labelStato1 = isPrudente ? "Capacità di Accumulo / Copertura Picco" : "Erogazione Attiva";
+    } else if (sLower.includes("chimic") || sLower.includes("farmaceutic") || sLower.includes("material")) {
+      labelColonna = "Affinità Molecolare / Stabilità Legame";
+      labelStato0 = isPrudente ? "Stato Fondamentale a Bassa Energia" : "Stato Orbitale a Riposo";
+      labelStato1 = isPrudente ? "Configurazione Conformatica Stabile" : "Eccitazione / Rendimento Reazione";
+    } else if (sLower.includes("sanit") || sLower.includes("genom") || sLower.includes("biomed")) {
+      labelColonna = "Espressione Fisiologica / Marker";
+      labelStato0 = isPrudente ? "Condizione Fisiologica Protetta" : "Componente Silente";
+      labelStato1 = isPrudente ? "Controllo / Sorveglianza Attiva" : "Espressione Target";
+    } else if (sLower.includes("manifattur") || sLower.includes("industr") || sLower.includes("produzion")) {
+      labelColonna = "Affidabilità Linea / Indice Qualità";
+      labelStato0 = isPrudente ? "Tolleranza Sicurezza Impianto" : "Margine di Inattività";
+      labelStato1 = isPrudente ? "Conformità Processo Garantita" : "Efficienza OEE";
+    } else if (sLower.includes("telecomunicazion") || sLower.includes("tlc") || sLower.includes("banda")) {
+      labelColonna = "Banda Trasmissiva / Ridondanza";
+      labelStato0 = isPrudente ? "Margine SNR / Protezione Rumore" : "Rumore Residuo";
+      labelStato1 = isPrudente ? "Throughput Affidabile Garantito" : "Banda Allocata";
+    } else if (sLower.includes("sicurezz") || sLower.includes("cyber") || sLower.includes("crittograf")) {
+      labelColonna = "Resilienza Crittografica / Barriera SIEM";
+      labelStato0 = isPrudente ? "Spazio di Immunità / Protezione Attiva" : "Vulnerabilità Residua";
+      labelStato1 = isPrudente ? "Contromisura Quantistica Operativa" : "Rilevamento Minaccia";
+    } else if (sLower.includes("aerospace") || sLower.includes("difesa") || sLower.includes("spazio")) {
+      labelColonna = "Fattore di Tolleranza / Spinta Nominale";
+      labelStato0 = isPrudente ? "Margine Strutturale Fail-Safe" : "Assetto Inerziale";
+      labelStato1 = isPrudente ? "Affidabilità Sub-Sistema" : "Spinta Orbitale";
     }
 
-    let outputBase = `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA V4 COMPLETATA]**
-• **Settore:** ${dati.settore}
+    const fisicaEntanglement = dati.entanglement === 'cx'
+      ? 'Blocco Rigido (Porta CX su Connessioni Critiche ≥ 0.60 dal File 2)'
+      : dati.entanglement === 'cp'
+      ? 'Legame Morbido (Porta CP con Sfasamento Continuo dal File 2)'
+      : 'Risorse Indipendenti (Senza Entanglement - Stato Separabile Puro)';
+
+    let outputBase = `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA COMPLETATA]**
+• **Settore Aziendale:** ${dati.settore}
 • **Scenario:** ${dati.scenario}
-• **Strategia Energetica:** ${dati.strategia}
-• **Traduzione Input (Amplitude Encoding):** Colonna 6 CSV mappata su '${labelColonna}'
-• **Fisica Entanglement:** ${dati.entanglement === 'cx' ? 'Blocco Rigido (Porta CX)' : dati.entanglement === 'cp' ? 'Legame Morbido (Porta CP)' : 'Risorse Indipendenti'}
-• **Stato Qubit[0]:** ${labelStato0} |0⟩ = ${stabilita0}% | ${labelStato1} |1⟩ = ${rischio1}% (θ=${thetaGradi}°, φ=${fasePhiGradi}°)`;
+• **Strategia Adottata:** ${dati.strategia}${isPrudente ? ' (Orientata alla Massima Stabilità / Protezione Rischio)' : ''}
+• **Encoding Quantistico (Amplitude Encoding):** Mappatura rigorosa su '${labelColonna}'
+• **Fisica Entanglement:** ${fisicaEntanglement}
+• **Stato del Qubit Master q[0]:**
+  - |1⟩ = ${ampiezza1}% → ${labelStato1}
+  - |0⟩ = ${ampiezza0}% → ${labelStato0}
+  *(Parametri di Rotazione: θ = ${thetaGradi}°, φ = ${fasePhiGradi}°)*`;
 
     if (dati.predisposizione_grafico) {
       outputBase += `\n\n📊 *[Avviso di Sistema]: Predisposizione grafico istogramma attivata dal simulatore Qiskit.*`;
@@ -804,24 +831,21 @@ export default function TestPage({
 \`\`\``;
       }
 
-      const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
-      let reply = `Strategia scelta: **${userInput}**.\n\n`;
+      const algoTarget = 'Qiskit_' + (selectedScenario?.modelCode || 'QAOA');
+      return `Strategia scelta: **${userInput}**.\n\n` +
+        `⚛️ **Infrastruttura Quantistica Determinata:** Lo scenario (*${selectedScenario?.name}*) è nativamente configurato per il Computer Quantistico (QPU IBM Qiskit).\n\n` +
+        `🔒 *L'analisi delle interdipendenze (File 2) e l'applicazione dell'entanglement quantistico (Porte CX/CP) sono avvenute automaticamente in background senza passaggi superflui.*\n\n` +
+        `*Elaborazione completata. Apertura del Cruscotto dei Risultati Quantistici con OpenQASM 3.0, Script Qiskit e Sfera di Bloch.*
 
-      if (!entProfile.needsEntanglement) {
-        reply += `👉 **Fase 4B: Configurazione Relazioni tra Risorse (Entanglement)**\n\n`;
-        reply += `💡 *${entProfile.reason}*\n\n`;
-        reply += `Scegli la configurazione per il circuito quantistico:\n`;
-        reply += `1. ⚡ **Nessun Entanglement (Risorse Indipendenti - Consigliato)**: Stato quantistico separabile puro.\n`;
-        reply += `2. 🔀 **Applica Entanglement (Gestito dall'IA)**: Lascia che il sistema valuti e applichi vincoli (Rigidi o Morbidi) in autonomia.\n\n`;
-        reply += `Quale configurazione preferisci?`;
-      } else {
-        reply += `👉 **Fase 4B: Regola per le Risorse Collegate (Entanglement / Vincoli)**\n\n`;
-        reply += `🔒 *${entProfile.reason}*\n\n`;
-        reply += `Scegli la tipologia di vincolo quantistico:\n`;
-        reply += `1. 🔒 **Applica Entanglement Automatico (Gestito dall'IA)**: Il sistema applicherà automaticamente i vincoli quantistici ottimali (Blocco Rigido o Legame Morbido) in base all'analisi del dataset.\n\n`;
-        reply += `Premi il pulsante per confermare.`;
-      }
-      return reply;
+\`\`\`json
+{
+  "algoritmo_target": "${algoTarget}",
+  "macro_scenario": "${selectedScenario?.id || 'quantistico'}",
+  "infrastruttura": "quantum",
+  "periodo_target": "${selectedPeriod || '1 Trimestre'}",
+  "conferma_avvio": true
+}
+\`\`\``;
     }
 
     if (phase === '4a_infra') {
@@ -834,7 +858,7 @@ export default function TestPage({
       const msgLower = userInput.toLowerCase();
       
       const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
-      let style = entProfile.recommendedVincolo || 'legame_morbido';
+      let style = entProfile.recommendedVincolo || 'blocco_rigido';
       
       if (msgLower.includes('nessun') || msgLower.includes('indipendent') || msgLower.includes('senza') || msgLower.includes('separabile')) {
         style = 'nessun_vincolo';
@@ -842,6 +866,9 @@ export default function TestPage({
         style = 'blocco_rigido';
       } else if (msgLower.includes('morbido') || msgLower.includes('soft')) {
         style = 'legame_morbido';
+      } else if (msgLower.includes('applica') || msgLower.includes('entanglement') || msgLower.includes('vincol')) {
+        // Se l'utente ha chiesto esplicitamente di applicare i legami, attiva SEMPRE l'entanglement
+        style = 'blocco_rigido';
       }
       
       const descrRegola = style === 'nessun_vincolo'
@@ -909,33 +936,40 @@ export default function TestPage({
         setSelectedVincolo('nessun_vincolo');
         setVincoloStile('nessun_vincolo');
         nextPhase = '5_done';
+        setShowEndModal(true);
       } else {
         setSelectedInfra('quantum');
-        nextPhase = '4b_vinc';
-      }
-    } else if (activePhase === '4a_infra') {
-      if (userMessage.toLowerCase().includes('classico') || userMessage.toLowerCase().includes('hpc') || selectedInfra === 'classical') {
-        setSelectedInfra('classical');
-        setSelectedVincolo('nessun_vincolo');
-        setVincoloStile('nessun_vincolo');
+        // AUTOMAZIONE ASSOLUTA: Rileva l'entanglement dal File 2 in background (Zero clic utente)
+        const srcCsv1 = customCsv1Content || currentCsv1;
+        const srcCsv2 = customCsv2Content || currentCsv2;
+        let autoVincolo: 'blocco_rigido' | 'legame_morbido' | 'nessun_vincolo' = 'nessun_vincolo';
+        if (srcCsv2) {
+          try {
+            const { risorse: rP, mappaQubit: mP } = parseCsv1Deterministic(srcCsv1);
+            const mat = parseCsv2MatrixDeterministic(srcCsv2, rP, mP);
+            let hasCrit = false;
+            let hasSoft = false;
+            for (let i = 0; i < mat.length; i++) {
+              for (let j = 0; j < mat[i].length; j++) {
+                if (i !== j) {
+                  if (mat[i][j] >= 0.60) hasCrit = true;
+                  else if (mat[i][j] > 0.0) hasSoft = true;
+                }
+              }
+            }
+            if (hasCrit) autoVincolo = 'blocco_rigido';
+            else if (hasSoft) autoVincolo = 'legame_morbido';
+            else autoVincolo = 'nessun_vincolo';
+          } catch {
+            autoVincolo = 'blocco_rigido';
+          }
+        }
+        setSelectedVincolo(autoVincolo);
+        setVincoloStile(autoVincolo);
         nextPhase = '5_done';
-      } else {
-        setSelectedInfra('quantum');
-        nextPhase = '4b_vinc';
+        setShowEndModal(true);
       }
-    } else if (activePhase === '4b_vinc') {
-      const msgLower = userMessage.toLowerCase();
-      let chosenStyle = 'legame_morbido';
-      if (msgLower.includes('nessun') || msgLower.includes('indipendent') || msgLower.includes('senza') || msgLower.includes('separabile')) {
-        chosenStyle = 'nessun_vincolo';
-      } else if (msgLower.includes('rigido') || msgLower.includes('hard')) {
-        chosenStyle = 'blocco_rigido';
-      }
-      setSelectedVincolo(chosenStyle as any);
-      setVincoloStile(chosenStyle);
-      nextPhase = '5_done';
-      setShowEndModal(true);
-    } else if (activePhase === '4c_close' || userMessage.includes('Avvia la simulazione') || userMessage.includes('tutto perfetto')) {
+    } else if (activePhase === '4a_infra' || activePhase === '4b_vinc' || activePhase === '4c_depth' || activePhase === '4d_close' || userMessage.includes('Avvia la simulazione') || userMessage.includes('tutto perfetto')) {
       nextPhase = '5_done';
       setShowEndModal(true);
     }
@@ -1355,6 +1389,22 @@ ${pythonSnippet}
         </div>
 
         <div className="flex items-center gap-2.5">
+          {uploadedFiles.length > 0 && (
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-[11px]">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{uploadedFiles.length} CSV in Memoria</span>
+              <label className="text-[10px] text-emerald-400 hover:text-emerald-200 underline cursor-pointer ml-1">
+                Sostituisci
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  multiple 
+                  className="hidden" 
+                  onChange={(e) => handleCsvUpload(e.target.files)} 
+                />
+              </label>
+            </div>
+          )}
           <button
             onClick={handleCopyInterview}
             className="px-3 py-1.5 border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 hover:text-cyan-200 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 shadow-sm"
@@ -1385,9 +1435,9 @@ ${pythonSnippet}
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Side: Chat + Interactive Quick Input Buttons */}
-        <div className="flex-[2] flex flex-col border-r border-white/10 relative bg-slate-950/60">
+      <div className="flex flex-1 overflow-hidden justify-center bg-slate-950/50 px-2 sm:px-6 py-2 sm:py-3">
+        {/* Finestra Chat Centrata con Spazio Bilanciato a Sinistra e a Destra */}
+        <div className="w-full max-w-5xl h-full flex flex-col border border-white/15 rounded-2xl relative bg-slate-950/90 shadow-[0_10px_50px_rgba(0,0,0,0.85)] overflow-hidden">
           
           {/* Chat Messages Log */}
           <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3.5">
@@ -1795,144 +1845,9 @@ ${pythonSnippet}
               })()
             )}
 
-            {/* Phase 4A: Infrastruttura */}
-            {currentPhase === '4a_infra' && (
-              <div className="flex flex-col gap-2">
-                <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-cyan-400" /> Ti guido a impostare il calcolo — Scegli tra Computer Classico o Quantistico (Infrastruttura Hardware):
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-normal">Risultato istantaneo vs Chip IBM Cloud</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleQuickClick("QUANTISTICA (IBM Qiskit)")}
-                    disabled={isLoading}
-                    className="p-3 bg-slate-800/90 hover:bg-amber-950/50 hover:border-amber-500/70 border border-amber-500/40 rounded-lg font-mono text-xs text-amber-200 transition-all text-left flex flex-col gap-1 group shadow-md"
-                  >
-                    <span className="font-bold flex items-center gap-1.5 text-amber-300 group-hover:text-amber-200">
-                      ⚛️ Chip Quantistico IBM (Qiskit / QPU)
-                    </span>
-                    <span className="text-[11px] text-slate-300 font-normal leading-normal">
-                      Elaborazione combinatoria avanzata con qubit reali IBM (richiede attesa della coda cloud).
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => handleQuickClick("CLASSICA (Python/HPC)")}
-                    disabled={isLoading}
-                    className="p-3 bg-slate-800/90 hover:bg-emerald-950/50 hover:border-emerald-500/70 border border-emerald-500/40 rounded-lg font-mono text-xs text-emerald-200 transition-all text-left flex flex-col gap-1 group shadow-md"
-                  >
-                    <span className="font-bold flex items-center gap-1.5 text-emerald-300 group-hover:text-emerald-200">
-                      💻 Macchina Classica HPC (Python / GPU — Risultato Immediato)
-                    </span>
-                    <span className="text-[11px] text-slate-300 font-normal leading-normal">
-                      Esecuzione ultrarapida senza attesa delle code IBM. Risoluzione immediata ad alte prestazioni.
-                    </span>
-                  </button>
-                </div>
-              </div>
-            )}
 
-            {/* Phase 4B: Vincoli / Entanglement */}
-            {currentPhase === '4b_vinc' && (
-              (() => {
-                const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
 
-                if (!entProfile.needsEntanglement) {
-                  return (
-                    <div className="flex flex-col gap-2.5">
-                      <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-emerald-400" /> Configurazione Relazioni tra Risorse (Scenario a Risorse Indipendenti):
-                        </span>
-                        <span className="text-[10px] text-emerald-400/90 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-                          Entanglement non necessario
-                        </span>
-                      </div>
 
-                      {/* Box esplicativo: Perché l'entanglement non serve in questo scenario */}
-                      <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-lg text-[11px] text-emerald-200 leading-relaxed font-mono flex flex-col gap-1.5 shadow-sm">
-                        <div className="font-bold flex items-center gap-1.5 text-emerald-300">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span>Perché in questo scenario l'entanglement NON è richiesto:</span>
-                        </div>
-                        <p className="text-slate-300 font-sans text-xs leading-relaxed">
-                          {entProfile.reason}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          onClick={() => handleQuickClick("Nessun Entanglement (Risorse Indipendenti - Consigliato)")}
-                          disabled={isLoading}
-                          className="p-3 bg-emerald-950/70 hover:bg-emerald-900/90 hover:border-emerald-400 border-2 border-emerald-500/80 rounded-lg font-mono text-xs text-emerald-100 transition-all text-left flex flex-col gap-1 group shadow-md"
-                        >
-                          <span className="font-bold flex items-center gap-1.5 text-emerald-300 group-hover:text-emerald-200">
-                            ⚡ Nessun Entanglement (Consigliato)
-                          </span>
-                          <span className="text-[10px] text-slate-300 font-normal leading-normal">
-                            Stato separabile puro. Zero porte a due qubit: massima fedeltà e campionamento parallelo senza rumore.
-                          </span>
-                        </button>
-
-                        <button
-                          onClick={() => handleQuickClick("Applica Entanglement (Gestito dall'IA)")}
-                          disabled={isLoading}
-                          className="p-3 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/70 border border-indigo-500/30 rounded-lg font-mono text-xs text-indigo-200 transition-all text-left flex flex-col gap-1 group shadow-sm opacity-90 hover:opacity-100"
-                        >
-                          <span className="font-bold flex items-center gap-1.5 text-indigo-300 group-hover:text-indigo-200">
-                            🔀 Applica Entanglement (Gestito dall'IA)
-                          </span>
-                          <span className="text-[10px] text-slate-300 font-normal leading-normal">
-                            Lascia che il sistema valuti e applichi vincoli (Rigidi o Morbidi) in autonomia in base al dataset.
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Scenario ad alto accoppiamento (Entanglement Indispensabile)
-                return (
-                  <div className="flex flex-col gap-2.5">
-                    <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-amber-400" /> Scegli la Regola per le Risorse Collegate (Entanglement Indispensabile):
-                      </span>
-                      <span className="text-[10px] text-amber-400/90 font-mono bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30">
-                        Entanglement richiesto
-                      </span>
-                    </div>
-
-                    {/* Box esplicativo: Perché l'entanglement è necessario */}
-                    <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-lg text-[11px] text-amber-200 leading-relaxed font-mono flex flex-col gap-1.5 shadow-sm">
-                      <div className="font-bold flex items-center gap-1.5 text-amber-300">
-                        <Layers className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span>Perché in questo scenario l'entanglement è INDISPENSABILE:</span>
-                      </div>
-                      <p className="text-slate-300 font-sans text-xs leading-relaxed">
-                        {entProfile.reason}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2">
-                      <button
-                        onClick={() => handleQuickClick("Applica Entanglement Automatico (Gestito dall'IA)")}
-                        disabled={isLoading}
-                        className="p-3 bg-slate-800/90 hover:bg-amber-950/50 hover:border-amber-500/70 border border-amber-500/40 rounded-lg font-mono text-xs text-amber-200 transition-all text-left flex flex-col gap-1 group shadow-sm"
-                      >
-                        <span className="font-bold flex items-center gap-1.5 text-amber-300 group-hover:text-amber-200">
-                          🔒 Applica Entanglement Automatico (Gestito dall'IA)
-                        </span>
-                        <span className="text-[10px] text-slate-300 font-normal leading-normal">
-                          Il sistema applicherà automaticamente i vincoli quantistici ottimali (Blocco Rigido o Legame Morbido) in base all'analisi del dataset.
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()
-            )}
 
             {/* Phase 4C: Chiusura */}
             {currentPhase === '4c_close' && (
@@ -1994,101 +1909,6 @@ ${pythonSnippet}
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Right Side: Bloch Sphere & Telemetry HUD */}
-        <div className="flex-1 min-w-[360px] max-w-[420px] bg-slate-950 p-5 flex flex-col overflow-y-auto border-l border-white/10">
-          <div className="bg-slate-900 border border-white/15 rounded-xl overflow-hidden shadow-2xl flex flex-col items-center p-5 mb-4">
-            <h2 className="text-xs font-mono font-bold tracking-wider text-center text-cyan-400 mb-1 flex items-center gap-2">
-              <Terminal className="w-3.5 h-3.5" /> 
-              {isQuantum 
-                ? '▲ QUANTUM PROCESSING CORE DATASTREAM ▲' 
-                : (targetAlgoritmo !== 'IDLE' 
-                  ? '▲ HPC CLUSTER PROCESSING DATASTREAM ▲' 
-                  : '▲ STANDBY DATASTREAM ▲')}
-            </h2>
-            <div className="text-[10px] font-mono text-slate-400 text-center mb-3">
-              {targetAlgoritmo !== 'IDLE' ? `Mappatura nodi: ${assetSector}` : 'Inizializzazione cluster... In attesa input'}
-            </div>
-            
-            {/* Canvas */}
-            <div className="relative bg-slate-950/80 rounded-lg p-2 border border-white/5 my-1">
-              <canvas ref={canvasRef} width={280} height={280} />
-            </div>
-
-
-            {/* Born Rule Telemetry & State Amplitudes */}
-            <div className="w-full grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/10">
-              <div className="bg-slate-950/70 p-2.5 rounded-lg border border-white/5 flex flex-col">
-                <div className="text-[10px] text-slate-400 font-mono uppercase">STATO |0⟩ (Born Rule)</div>
-                <div className="font-mono text-sm text-cyan-400 font-bold">{Math.round(prob0 * 100)}%</div>
-                <div className="text-[10px] text-slate-500 font-mono">Ampiezza α: {Math.cos(radTheta / 2).toFixed(2)}</div>
-              </div>
-              <div className="bg-slate-950/70 p-2.5 rounded-lg border border-white/5 flex flex-col">
-                <div className="text-[10px] text-slate-400 font-mono uppercase">STATO |1⟩ (Born Rule)</div>
-                <div className="font-mono text-sm text-pink-400 font-bold">{Math.round(prob1 * 100)}%</div>
-                <div className="text-[10px] text-slate-500 font-mono">Ampiezza β: {Math.sin(radTheta / 2).toFixed(2)}</div>
-              </div>
-            </div>
-
-            {/* Active Setup Badge */}
-            <div className="w-full mt-3 flex items-center justify-between text-[11px] font-mono p-2 rounded bg-slate-950/80 border border-white/10">
-              <span className="text-slate-400">Algoritmo:</span>
-              <span className={`font-semibold ${isQuantum ? 'text-amber-400' : 'text-emerald-400'}`}>
-                {targetAlgoritmo}
-              </span>
-            </div>
-          </div>
-
-          {/* CSV File Status Widget */}
-          <div className="mb-4 flex flex-col gap-2">
-            {uploadedFiles.length > 0 ? (
-              <div className="p-3 bg-emerald-950/40 border border-emerald-500/50 rounded-xl flex flex-col gap-1.5 shadow-sm">
-                <div className="flex items-center justify-between text-emerald-300 font-mono text-xs font-semibold">
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{uploadedFiles.length} File CSV in Memoria:</span>
-                  </span>
-                  <label className="text-[10px] text-emerald-400/90 hover:text-emerald-300 underline cursor-pointer">
-                    Sostituisci
-                    <input 
-                      type="file" 
-                      accept=".csv" 
-                      multiple 
-                      className="hidden" 
-                      onChange={(e) => handleCsvUpload(e.target.files)} 
-                    />
-                  </label>
-                </div>
-                <div className="flex flex-col gap-1 text-[11px] font-mono text-slate-300">
-                  {uploadedFiles.map((f, idx) => (
-                    <div key={idx} className="truncate">
-                      • <span className="text-white font-medium">{f.name}</span> ({f.size}, ~{f.rows} righe)
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 bg-slate-900/80 border border-white/10 rounded-xl flex items-center justify-between font-mono text-xs text-slate-400">
-                <div className="flex items-center gap-2">
-                  <Database className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Dati CSV: caricamento al passo 2</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Composer IBM Quantum (Mockup) */}
-          <IbmQuantumComposerMockup targetAlgoritmo={targetAlgoritmo} getActionDescription={getActionDescription} />
-          
-          {/* Nuovo Modulo Grafico (Istogramma) - Renderizzato condizionalmente */}
-          {currentPhase === '5_done' && messages.some(m => m.text.includes('"predisposizione_grafico": true')) && (
-             <IstogrammaQuantisticoUniversale 
-               theta_radianti={radTheta} 
-               settore={assetSector} 
-             />
-          )}
-
         </div>
       </div>
 

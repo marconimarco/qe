@@ -848,6 +848,7 @@ async function startServer() {
           config: {
             systemInstruction: cleanedSystemPrompt,
             temperature: 0.0,
+            maxOutputTokens: 8192,
           },
         });
 

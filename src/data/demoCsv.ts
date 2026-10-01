@@ -40,22 +40,41 @@ const header2Template = (catName: string) =>
   `# =========================================================================================\n`;
 
 export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
-  // 1. FINANZA E MERCATI
+  // 1. FINANZA E MERCATI (GENERALE)
   "Finanza e Mercati": {
     sectorKey: "finanza",
     categoryName: "Finanza e Mercati",
-    description: "Portafoglio investimenti, coperture cross-asset e riserva attuariale",
+    description: "Portafoglio investimenti, coperture cross-asset, liquidità e riserva di capitale",
     resources: [
       { id: 'asset_01', nome: 'Asset Azionario Alpha Core', cat: 'titoli_equity', costo: '120.50', qta: '1500', peso: 0.85 },
       { id: 'asset_02', nome: 'Asset Obbligazionario Governativo', cat: 'reddito_fisso', costo: '98.20', qta: '2400', peso: 0.70 },
-      { id: 'coorte_eta_01', nome: 'Coorte Polizze Vita Standard', cat: 'portafoglio_insurtech', costo: '450.00', qta: '500', peso: 0.60 },
-      { id: 'rischio_attuariale', nome: 'Fondo Copertura Rischio Attuariale', cat: 'riserva_capitale', costo: '1000.00', qta: '100', peso: 0.90 }
+      { id: 'tranche_aaa', nome: 'Tranche Obbligazionaria Senior AAA (Tutela Capitale)', cat: 'senior_debt', costo: '450.00', qta: '800', peso: 0.88 },
+      { id: 'fondo_liquidita', nome: 'Fondo di Riserva Liquidità Interbancaria', cat: 'riserva_capitale', costo: '1000.00', qta: '100', peso: 0.90 }
     ],
     matrix: [
       [1.00, 0.40, 0.60, 0.00],
       [0.40, 1.00, 0.00, 0.50],
       [0.60, 0.00, 1.00, 0.70],
       [0.00, 0.50, 0.70, 1.00]
+    ]
+  },
+
+  // 1B. FINANZA - CALCOLO PROBABILITA DEFAULT MUTUI SUBPRIME (fin-q-19)
+  "Finanza_MutuiSubprime": {
+    sectorKey: "finanza",
+    categoryName: "Finanza: Probabilità Default Mutui Subprime",
+    description: "Cartolarizzazioni MBS/CDO, tranches di debito, Loan-to-Value (LTV) e Score FICO",
+    resources: [
+      { id: 'asset_01', nome: 'Pool Mutui Ipotecari Subprime (Alpha)', cat: 'mortgage_pool', costo: '250.00', qta: '1500', peso: 0.85 },
+      { id: 'tranche_aaa', nome: 'Tranche Senior AAA (Tutela Capitale / Solvibilità)', cat: 'senior_debt_mbs', costo: '1000.00', qta: '2400', peso: 0.90 },
+      { id: 'fico_score', nome: 'Score Creditizio FICO Subprime (Capienza Debitore)', cat: 'credit_rating', costo: '75.00', qta: '3000', peso: 0.70 },
+      { id: 'ltv_ratio', nome: 'Indice Loan-to-Value (LTV Pool Garanzie Collaterali)', cat: 'collateral_ratio', costo: '150.00', qta: '1200', peso: 0.65 }
+    ],
+    matrix: [
+      [1.00, 0.45, 0.65, 0.00],
+      [0.45, 1.00, 0.00, 0.70],
+      [0.65, 0.00, 1.00, 0.60],
+      [0.00, 0.70, 0.60, 1.00]
     ]
   },
 
@@ -246,6 +265,11 @@ export function resolveSectorKey(sector: string, scenario: string = ""): string 
   }
   if (norm.includes('knapsack') || norm.includes('scaffal') || norm.includes('planogram') || norm.includes('crm') || norm.includes('log_q_13') || norm.includes('log_q_14')) {
     return "Logistica_KnapsackScaffale";
+  }
+
+  // Sub-scenario specializzato Finanza: Calcolo Probabilità Default Mutui Subprime (fin-q-19)
+  if (norm.includes('subprime') || norm.includes('mutui') || norm.includes('fin_q_19') || norm.includes('fin-q-19') || (norm.includes('default') && norm.includes('mutu'))) {
+    return "Finanza_MutuiSubprime";
   }
 
   if (norm.includes('logist') || norm.includes('supply') || norm.includes('flott') || norm.includes('vrptw') || norm.includes('bin packing') || norm.includes('log-') || norm.includes('log_')) {

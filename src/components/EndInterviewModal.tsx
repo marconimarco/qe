@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ExternalLink, Activity, Network, Cpu, Play, CheckCircle2, Server } from 'lucide-react';
-import { CodeBlockWithCopy, IstogrammaQuantisticoUniversale } from './TestPage';
+import { CodeBlockWithCopy, IstogrammaQuantisticoUniversale, IbmQuantumComposerMockup } from './TestPage';
 
 interface EndInterviewModalProps {
   isOpen: boolean;
@@ -213,18 +213,63 @@ export default function EndInterviewModal({
               </div>
             </div>
 
-            {/* Grafici: Bloch & Istogramma (solo per scenari quantistici) */}
+            {/* Grafici: Bloch, Istogramma & IBM Quantum Composer (solo per scenari quantistici) */}
             {isQuantumScenario ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center border-t border-white/10 pt-8">
-                <div className="flex flex-col items-center justify-center gap-4">
-                  <h4 className="font-mono text-xs font-bold text-slate-300">Sfera di Bloch (Stato Quantistico)</h4>
-                  <div className="p-4 bg-slate-900/50 border border-white/5 rounded-xl shadow-inner w-full flex justify-center">
-                    <BlochSphere theta={theta} phi={phi} targetAlgoritmo={targetAlgoritmo} />
+              <div className="flex flex-col gap-6 border-t border-white/10 pt-8">
+                {/* Sezione Grafica 1: Sfera di Bloch */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-mono text-sm font-bold text-amber-300 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      Immagine 1: Sfera di Bloch (Bloch Sphere Vector Visualizer)
+                    </h3>
+                    <span className="text-[10px] font-mono bg-amber-950/70 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40">
+                      plot_bloch_multivector | Statevector 3D
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="p-4 bg-slate-900/60 border border-amber-500/20 rounded-xl shadow-inner w-full flex flex-col items-center">
+                        <BlochSphere theta={theta} phi={phi} targetAlgoritmo={targetAlgoritmo} />
+                        <div className="mt-3 text-center font-mono text-[11px] text-slate-300 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-white/5 w-full">
+                          <span>Coordinate di Stato AML: </span>
+                          <span className="text-amber-400 font-bold">Theta = {theta.toFixed(4)} rad</span>
+                          <span className="text-slate-400 mx-2">|</span>
+                          <span className="text-cyan-400 font-bold">Phi = {phi.toFixed(4)} rad</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <h4 className="font-mono text-xs font-bold text-slate-300">Distribuzione Probabilistica degli Stati</h4>
+                      <IstogrammaQuantisticoUniversale theta_radianti={theta} settore={sector} />
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-4">
-                  <h4 className="font-mono text-xs font-bold text-slate-300">Distribuzione di Probabilità</h4>
-                  <IstogrammaQuantisticoUniversale theta_radianti={theta} settore={sector} />
+
+                {/* Sezione Grafica 2: IBM Quantum Composer */}
+                <div className="flex flex-col gap-3 pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-mono text-sm font-bold text-cyan-300 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                      Immagine 2: IBM Quantum Composer (Visual Circuit Rendering & Gates Layout)
+                    </h3>
+                    <button
+                      onClick={() => window.open('https://quantum.ibm.com/composer', '_blank')}
+                      className="flex items-center gap-1.5 text-[11px] font-mono bg-cyan-950/70 hover:bg-cyan-900 text-cyan-300 px-2.5 py-1 rounded border border-cyan-500/40 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Apri in IBM Composer Cloud</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-1">
+                    <IbmQuantumComposerMockup 
+                      targetAlgoritmo={targetAlgoritmo} 
+                      getActionDescription={() => "Mappatura dinamica circuito QPU IBM con porte RY, CX/CP e misurazioni"} 
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
