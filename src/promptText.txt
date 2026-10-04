@@ -149,9 +149,9 @@ REGOLA 4. RISOLUZIONE DETERMINISTICA DELL'INPUT (Strict Data Binding):
      ```json
      "grafica_risultati": {
        "bloch_sphere": {
-         "file_output": "bloch_sphere_aml.png",
+         "file_output": "bloch_sphere_vector.png",
          "visualizer_active": true,
-         "descrizione": "Visualizzatore Vettoriale 3D Stato di Purezza Asset AML"
+         "descrizione": "Visualizzatore Vettoriale 3D Stato di Purezza Pre-Entanglement"
        },
        "ibm_composer": {
          "file_output": "ibm_circuit_composer.png",

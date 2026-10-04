@@ -233,7 +233,7 @@ export default function EndInterviewModal({
                       <div className="p-4 bg-slate-900/60 border border-amber-500/20 rounded-xl shadow-inner w-full flex flex-col items-center">
                         <BlochSphere theta={theta} phi={phi} targetAlgoritmo={targetAlgoritmo} />
                         <div className="mt-3 text-center font-mono text-[11px] text-slate-300 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-white/5 w-full">
-                          <span>Coordinate di Stato AML: </span>
+                          <span>Coordinate Vettoriali di Stato: </span>
                           <span className="text-amber-400 font-bold">Theta = {theta.toFixed(4)} rad</span>
                           <span className="text-slate-400 mx-2">|</span>
                           <span className="text-cyan-400 font-bold">Phi = {phi.toFixed(4)} rad</span>

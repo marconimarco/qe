@@ -112,20 +112,34 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
       ? 'Legame Morbido (Porta CP con Sfasamento Continuo dal File 2)'
       : 'Risorse Indipendenti (Senza Entanglement - Stato Separabile Puro)';
 
-    let outputBase = `🎉 **[COMPILAZIONE QUANTISTICA DETERMINISTICA COMPLETATA]**
-• **Settore Aziendale:** ${dati.settore}
-• **Scenario:** ${dati.scenario}
-• **Strategia Adottata:** ${dati.strategia}${isPrudente ? ' (Orientata alla Massima Stabilità / Protezione Rischio)' : ''}
-• **Encoding Quantistico (Amplitude Encoding):** Mappatura rigorosa su '${labelColonna}'
-• **Fisica Entanglement:** ${fisicaEntanglement}
-• **Stato del Qubit Master q[0]:**
-  - |1⟩ = ${ampiezza1}% → ${labelStato1}
-  - |0⟩ = ${ampiezza0}% → ${labelStato0}
-  *(Parametri di Rotazione: θ = ${thetaGradi}°, φ = ${fasePhiGradi}°)*`;
+    const descrizioniSettoriali: Record<string, string> = {
+      finanz: "Il modello ha quantificato la stabilità del portafoglio e mitigato i rischi di contagio creditizio e volatilità sistemica tramite correlazioni mirate.",
+      logistic: "Il calcolo ha ottimizzato lo smistamento dei flussi nei nodi critici, neutralizzando i colli di bottiglia e bilanciando la saturazione tra le baie e i vettori AGV/LGV.",
+      energi: "L'analisi ha stabilizzato l'inerzia della rete di distribuzione, armonizzando le fluttuazioni di fornitura rinnovabile con le cabine primarie e i sistemi di accumulo BESS.",
+      chimic: "Il circuito ha calcolato la configurazione a minima energia libera per il docking molecolare, blindando i legami conformazionali rigidi e prevenendo la denaturazione.",
+      produzion: "L'algoritmo ha sincronizzato la cinematica dei giunti robotici con la linea di confezionamento, prevenendo micro-fermi ciclo e preservando l'indice OEE nominale.",
+      manifattur: "L'algoritmo ha sincronizzato la cinematica dei giunti robotici con la linea di confezionamento, prevenendo micro-fermi ciclo e preservando l'indice OEE nominale.",
+      sicurezz: "L'infrastruttura ha instradato la trasmissione sui percorsi di rete a minor latenza, garantendo l'immunità dei nodi da tentativi di intrusione e saturazione.",
+      telecomunicazion: "L'infrastruttura ha instradato la trasmissione sui percorsi di rete a minor latenza, garantendo l'immunità dei nodi da tentativi di intrusione e saturazione.",
+      sanit: "La simulazione ha mappato le interazioni cliniche tra i biomarcatori, isolando gli effetti domino cardiovascolari e metabolici a tutela dell'omeostasi d'organo.",
+      genom: "La simulazione ha mappato le interazioni cliniche tra i biomarcatori, isolando gli effetti domino cardiovascolari e metabolici a tutela dell'omeostasi d'organo."
+    };
 
-    if (dati.predisposizione_grafico) {
-      outputBase += `\n\n📊 *[Avviso di Sistema]: Predisposizione grafico istogramma attivata dal simulatore Qiskit.*`;
+    let macroDescrizione = "I calcoli hanno elaborato dinamicamente le ampiezze di stato e la matrice dei vincoli in conformità allo scenario selezionato.";
+    for (const [k, v] of Object.entries(descrizioniSettoriali)) {
+      if (sLower.includes(k)) {
+        macroDescrizione = v;
+        break;
+      }
     }
+
+    let outputBase = `### PANORAMICA ESECUTIVA DEI RISULTATI
+**Ambito Operativo:** ${dati.settore} | **Scenario:** ${dati.scenario}
+
+${macroDescrizione}
+
+* **Elaborazione Posizionale Input:** Dataset acquisito dinamicamente dal File 1 per l'ampiezza di stato e dalla matrice simmetrica del File 2 per i vincoli di accoppiamento.
+* **Topologia di Connessione Applicata:** ${fisicaEntanglement}.`;
 
     return outputBase;
 
