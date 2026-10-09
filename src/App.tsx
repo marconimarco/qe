@@ -16,7 +16,7 @@ import { SectorId, SECTORS, LanguageCode } from './types';
 import { TranslationProvider, useTranslation } from './lib/TranslationContext';
 import { Cpu, Terminal, ArrowLeft, Layers, HelpCircle, Key, ShieldCheck, AlertCircle, User, LogOut, Users, Shield, Crown, AlertTriangle } from 'lucide-react';
 import { getStoredApiKey } from './services/apiKeyService';
-import { getCurrentSession, logoutUser, CurrentUserSession, isIconAllowedForUser } from './services/authService';
+import { getCurrentSession, logoutUser, CurrentUserSession, isIconAllowedForUser, logUserAccess } from './services/authService';
 import { motion } from 'motion/react';
 import aiStudioPrompt from './promptText.txt?raw';
 import { Check, Copy } from 'lucide-react';
@@ -148,6 +148,17 @@ function AppContent({
   const [deniedModal, setDeniedModal] = useState<{ isOpen: boolean; iconId: string; iconName?: string } | null>(null);
 
   const handleAccessDenied = (iconId: string, iconName?: string) => {
+    logUserAccess({
+      userId: currentUser.id,
+      username: currentUser.username,
+      userRole: currentUser.role,
+      type: 'access_denied',
+      actionName: 'Tentativo di Accesso Bloccato (Permesso Mancante)',
+      viewDetail: `Tentativo di apertura modulo protetto non autorizzato: ${iconName || iconId}`,
+      targetId: iconId,
+      allowedIconsSnapshot: currentUser.allowedIcons,
+      allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+    });
     setDeniedModal({
       isOpen: true,
       iconId,
@@ -187,16 +198,61 @@ function AppContent({
       handleAccessDenied(id, t(`s_${id}_name`));
       return;
     }
+    const sectorName = t(`s_${id}_name`);
     if (id === 'quantum_code' || id === 'send_to_ibm') {
+      logUserAccess({
+        userId: currentUser.id,
+        username: currentUser.username,
+        userRole: currentUser.role,
+        type: 'view_page',
+        actionName: 'Apertura IBM Quantum Interface',
+        viewDetail: 'Visualizzazione ambiente Qiskit Runtime, circuiti quantistici e QASM 3.0',
+        targetId: 'send_to_ibm',
+        allowedIconsSnapshot: currentUser.allowedIcons,
+        allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+      });
       setIsIbmInterfaceOpen(true);
     } else if (id === 'realq') {
+      logUserAccess({
+        userId: currentUser.id,
+        username: currentUser.username,
+        userRole: currentUser.role,
+        type: 'view_page',
+        actionName: 'Apertura Specifiche e Guida RealQ',
+        viewDetail: 'Visualizzazione documentazione tecnica e architettura quantistica',
+        targetId: 'realq',
+        allowedIconsSnapshot: currentUser.allowedIcons,
+        allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+      });
       setIsHelpModalOpen(true);
     } else {
+      logUserAccess({
+        userId: currentUser.id,
+        username: currentUser.username,
+        userRole: currentUser.role,
+        type: 'view_page',
+        actionName: 'Apertura Modulo Applicativo',
+        viewDetail: `Visualizzazione modulo: ${sectorName}`,
+        targetId: id,
+        allowedIconsSnapshot: currentUser.allowedIcons,
+        allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+      });
       setSelectedSectorId(id);
     }
   };
 
   const handleBackFromDashboard = (forceHome?: boolean) => {
+    logUserAccess({
+      userId: currentUser.id,
+      username: currentUser.username,
+      userRole: currentUser.role,
+      type: 'view_page',
+      actionName: 'Ritorno alla Schermata Principale',
+      viewDetail: 'Visualizzazione Dashboard Home (Panoramica Moduli Quantistici)',
+      targetId: 'home',
+      allowedIconsSnapshot: currentUser.allowedIcons,
+      allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+    });
     if (!forceHome && selectedSectorId && ['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(selectedSectorId)) {
       setReturnToSubMenu('pqc_group');
     } else {
@@ -308,7 +364,20 @@ function AppContent({
           {currentUser.role === 'admin' && (
             <button
               id="header-admin-users-btn"
-              onClick={() => setIsAdminUsersModalOpen(true)}
+              onClick={() => {
+                logUserAccess({
+                  userId: currentUser.id,
+                  username: currentUser.username,
+                  userRole: currentUser.role,
+                  type: 'view_page',
+                  actionName: 'Visualizzazione Console Gestione Utenti',
+                  viewDetail: 'Pannello di controllo utenti, ruoli RBAC e registro audit log accessi ("Cosa Vede")',
+                  targetId: 'user_management',
+                  allowedIconsSnapshot: currentUser.allowedIcons,
+                  allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+                });
+                setIsAdminUsersModalOpen(true);
+              }}
               className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl border border-quantum-primary/30 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary text-[10px] sm:text-xs font-mono transition-all cursor-pointer shadow-[0_0_10px_rgba(0,242,255,0.15)] min-h-[32px] sm:min-h-[36px]"
               title="Apri pannello di controllo e gestione utenti"
             >
@@ -321,7 +390,20 @@ function AppContent({
           {currentUser.role === 'admin' && (
             <button
               id="header-admin-disclaimer-btn"
-              onClick={() => setIsDisclaimerModalOpen(true)}
+              onClick={() => {
+                logUserAccess({
+                  userId: currentUser.id,
+                  username: currentUser.username,
+                  userRole: currentUser.role,
+                  type: 'view_page',
+                  actionName: 'Apertura Disclaimer Legale',
+                  viewDetail: 'Consultazione disclaimer di responsabilità e conformità quantistica (88 Articoli)',
+                  targetId: 'disclaimer_modal',
+                  allowedIconsSnapshot: currentUser.allowedIcons,
+                  allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+                });
+                setIsDisclaimerModalOpen(true);
+              }}
               className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-mono transition-all cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.15)] min-h-[32px] sm:min-h-[36px]"
               title="Visualizza e modifica il General Disclaimer (88 Articoli)"
             >
@@ -337,6 +419,17 @@ function AppContent({
                 handleAccessDenied('api_key', 'Configura Google API Key');
                 return;
               }
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Apertura Configurazione Google API Key',
+                viewDetail: 'Gestione credenziali e chiavi API per Google AI Studio',
+                targetId: 'api_key',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
               setIsApiKeyModalOpen(true);
             }}
             className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-[10px] sm:text-xs font-mono transition-all cursor-pointer min-h-[32px] sm:min-h-[36px]"
@@ -393,13 +486,39 @@ function AppContent({
       <main className="relative z-10 flex-1 flex flex-col">
         {isBlankPageOpen ? (
           <MedicalScreening 
-            onBack={() => setIsBlankPageOpen(false)} 
+            onBack={() => {
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Chiusura Medical Screening',
+                viewDetail: 'Ritorno alla Schermata Principale dalla Pagina Salute',
+                targetId: 'home',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
+              setIsBlankPageOpen(false);
+            }} 
             currentUser={currentUser}
           />
         ) : isTestPageOpen ? (
           <TestPage 
             currentUser={currentUser}
-            onBack={() => setIsTestPageOpen(false)} 
+            onBack={() => {
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Chiusura Agent AI',
+                viewDetail: 'Ritorno alla Schermata Principale dal portale Agent AI',
+                targetId: 'home',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
+              setIsTestPageOpen(false);
+            }} 
             onOpenIbm={() => { 
               if (!isIconAllowedForUser(currentUser, 'send_to_ibm')) {
                 handleAccessDenied('send_to_ibm', t('s_send_to_ibm_name'));
@@ -413,6 +532,17 @@ function AppContent({
         ) : isIbmInterfaceOpen ? (
           <IBMQuantumInterface 
             onBack={() => {
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Chiusura IBM Quantum Interface',
+                viewDetail: 'Ritorno alla Schermata Principale',
+                targetId: 'home',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
               setIsIbmInterfaceOpen(false);
             }} 
             initialCode={sharedQasm}
@@ -441,6 +571,17 @@ function AppContent({
                 handleAccessDenied('send_to_ibm', t('s_send_to_ibm_name'));
                 return;
               }
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Apertura IBM Quantum Interface',
+                viewDetail: 'Visualizzazione ambiente Qiskit Runtime & QASM 3.0',
+                targetId: 'send_to_ibm',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
               setIsIbmInterfaceOpen(true);
             }}
             onOpenHelp={() => {
@@ -448,6 +589,17 @@ function AppContent({
                 handleAccessDenied('realq', 'RealQ Quantum Support');
                 return;
               }
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Apertura Specifiche e Guida RealQ',
+                viewDetail: 'Visualizzazione documentazione e architettura quantistica',
+                targetId: 'realq',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
               setIsHelpModalOpen(true);
             }}
             onOpenTest={() => {
@@ -455,6 +607,17 @@ function AppContent({
                 handleAccessDenied('agent_ai', 'Agent AI');
                 return;
               }
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Apertura Agent AI',
+                viewDetail: 'Visualizzazione Portale Centrale Agent AI (108 Scenari Quantistici)',
+                targetId: 'agent_ai',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
               setIsTestPageOpen(true);
             }}
             onOpenBlank={() => {
@@ -462,6 +625,17 @@ function AppContent({
                 handleAccessDenied('medical_screening', 'Medical Screening Analysis');
                 return;
               }
+              logUserAccess({
+                userId: currentUser.id,
+                username: currentUser.username,
+                userRole: currentUser.role,
+                type: 'view_page',
+                actionName: 'Apertura Medical Screening',
+                viewDetail: 'Visualizzazione Pagina Salute - Screening Predittivo 14 Qubit & Effetto Domino',
+                targetId: 'medical_screening',
+                allowedIconsSnapshot: currentUser.allowedIcons,
+                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
+              });
               setIsBlankPageOpen(true);
             }}
             onAccessDenied={handleAccessDenied}

@@ -15,7 +15,8 @@ import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfi
 import { 
   CurrentUserSession, 
   isAgentAiCategoryAllowedForUser, 
-  getCurrentSession 
+  getCurrentSession,
+  logUserAccess
 } from "../services/authService";
 
 export interface SectorScenario {
@@ -936,6 +937,19 @@ export default function TestPage({
       const allScenarios = Object.values(SECTOR_DATA).flatMap(d => d.scenarios);
       const matched = allScenarios.find(s => userMessage.includes(s.name) || s.name.includes(userMessage)) || null;
       setSelectedScenario(matched);
+      if (liveUser) {
+        logUserAccess({
+          userId: liveUser.id,
+          username: liveUser.username,
+          userRole: liveUser.role,
+          type: 'view_page',
+          actionName: `Visualizzazione Scenario: ${matched?.name || userMessage}`,
+          viewDetail: `Modulo Agent AI: Categoria "${selectedSector}" - Scenario "${matched?.name || userMessage}"`,
+          targetId: 'agent_ai_scenario',
+          allowedIconsSnapshot: liveUser.allowedIcons,
+          allowedCategoriesSnapshot: liveUser.allowedAgentAiCategories
+        });
+      }
       nextPhase = '2_csv';
     } else if (activePhase === '2_csv') {
       nextPhase = '3a_per';
@@ -1193,6 +1207,20 @@ ${classicalPyCode}
     const jsonString = JSON.stringify(jsonObj, null, 2);
     setFinalJson(jsonString);
     setShowEndModal(true);
+
+    if (liveUser) {
+      logUserAccess({
+        userId: liveUser.id,
+        username: liveUser.username,
+        userRole: liveUser.role,
+        type: 'action',
+        actionName: `Compilazione Quantistica (${taxSector.name} - ${selectedScenario?.name || 'Ottimizzazione'})`,
+        viewDetail: `Generazione circuito quantistico Qiskit / OpenQASM 3.0 con strategia "${effectiveStrategy}" ed entanglement "${entanglementType}"`,
+        targetId: 'quantum_compilation',
+        allowedIconsSnapshot: liveUser.allowedIcons,
+        allowedCategoriesSnapshot: liveUser.allowedAgentAiCategories
+      });
+    }
     
     // Pass the generated JSON string and Python code to the universal UI renderer
     const uiText = renderizzaInterfacciaUniversaleBlindata(jsonString, pythonSnippet);

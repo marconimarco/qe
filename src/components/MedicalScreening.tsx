@@ -16,7 +16,7 @@ import { WearableWorkloadMetrics, DEFAULT_WEARABLE_METRICS, valutaEffettiDominoW
 import { HealthPageReport, elaboraPaginaHealth, estraiDatiFascicoloPerQubit } from '../lib/quantumHealthEngine';
 import { CATEGORY_DETAILS_ENRICHED, CROSS_PARAMETER_PROBLEMS } from '../data/medicalCategoriesData';
 import { generateMedicalReportPdf } from '../lib/generateMedicalReportPdf';
-import { CurrentUserSession, getCurrentSession } from '../services/authService';
+import { CurrentUserSession, getCurrentSession, logUserAccess } from '../services/authService';
 
 type InputMethod = 'none' | 'manual' | 'smartwatch' | 'photo';
 type RiskLevel = 'low' | 'medium' | 'high';
@@ -987,7 +987,22 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
           )}
 
           <button
-            onClick={() => setShowAcquiredReportsModal(true)}
+            onClick={() => {
+              if (activeSession) {
+                logUserAccess({
+                  userId: activeSession.id,
+                  username: activeSession.username,
+                  userRole: activeSession.role,
+                  type: 'view_page',
+                  actionName: 'Visualizzazione Fascicolo Referti Acquisiti',
+                  viewDetail: `Consultazione fascicolo con ${acquiredReports.length} referti sincronizzati (PDF/CSV) e analisi biomarker`,
+                  targetId: 'acquired_reports_modal',
+                  allowedIconsSnapshot: activeSession.allowedIcons,
+                  allowedCategoriesSnapshot: activeSession.allowedAgentAiCategories
+                });
+              }
+              setShowAcquiredReportsModal(true);
+            }}
             className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-[10px] sm:text-xs font-mono flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.1)] min-h-[34px] sm:min-h-[38px]"
             title="Visualizza tutti i referti o dati acquisiti"
           >
@@ -1594,6 +1609,19 @@ export default function MedicalScreening({ onBack, currentUser }: MedicalScreeni
                         type="button"
                         onClick={() => {
                           if (!isDominoStable) {
+                            if (activeSession) {
+                              logUserAccess({
+                                userId: activeSession.id,
+                                username: activeSession.username,
+                                userRole: activeSession.role,
+                                type: 'view_page',
+                                actionName: 'Visualizzazione Effetto Domino sulla Salute',
+                                viewDetail: `Apertura Mappa Reazioni a Catena: ${nonGreenDominoCount} correlazioni patologiche inter-organo attive`,
+                                targetId: 'domino_modal',
+                                allowedIconsSnapshot: activeSession.allowedIcons,
+                                allowedCategoriesSnapshot: activeSession.allowedAgentAiCategories
+                              });
+                            }
                             setShowChainReactionModal(true);
                           }
                         }}

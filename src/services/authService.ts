@@ -159,6 +159,32 @@ export interface CurrentUserSession {
 const USERS_STORAGE_KEY = 'spark_quantum_users_db_v1';
 const SESSION_STORAGE_KEY = 'spark_quantum_auth_session_v1';
 
+// =====================================================================
+// TIMESTAMP COORDINATI PER SESSIONI DI AUDIT DETERMINISTICHE E COERENTI
+// =====================================================================
+// Riferimenti temporali reali:
+// 1) Admin: sessione attiva OGGI (login 45 minuti fa, visualizzazione gestione utenti 35 min fa)
+// 2) Demo: sessione di consultazione effettuata 14 GIORNI FA (2 settimane fa)
+// 3) Quantum Analyst: sessione di analisi effettuata 30 GIORNI FA (1 mese fa)
+const _BASE_SEED_TIME = Date.now();
+
+// 1. ADMIN (Sessione di Oggi)
+export const SEED_ADMIN_LOGIN_TIME = new Date(_BASE_SEED_TIME - 45 * 60 * 1000).toISOString();
+export const SEED_ADMIN_VIEW_TIME = new Date(_BASE_SEED_TIME - 35 * 60 * 1000).toISOString();
+
+// 2. DEMO (Sessione di 14 Giorni Fa - 2 Settimane Fa)
+const DEMO_SESSION_OFFSET_MS = 14 * 86400 * 1000;
+export const SEED_DEMO_LOGIN_TIME = new Date(_BASE_SEED_TIME - DEMO_SESSION_OFFSET_MS).toISOString();
+export const SEED_DEMO_VIEW1_TIME = new Date(_BASE_SEED_TIME - DEMO_SESSION_OFFSET_MS + 3 * 60 * 1000).toISOString();
+export const SEED_DEMO_VIEW2_TIME = new Date(_BASE_SEED_TIME - DEMO_SESSION_OFFSET_MS + 15 * 60 * 1000).toISOString();
+
+// 3. ANALYST (Sessione di 30 Giorni Fa - 1 Mese Fa)
+const ANALYST_SESSION_OFFSET_MS = 30 * 86400 * 1000;
+export const SEED_ANALYST_LOGIN_TIME = new Date(_BASE_SEED_TIME - ANALYST_SESSION_OFFSET_MS).toISOString();
+export const SEED_ANALYST_VIEW1_TIME = new Date(_BASE_SEED_TIME - ANALYST_SESSION_OFFSET_MS + 3 * 60 * 1000).toISOString();
+export const SEED_ANALYST_ACTION_TIME = new Date(_BASE_SEED_TIME - ANALYST_SESSION_OFFSET_MS + 10 * 60 * 1000).toISOString();
+export const SEED_ANALYST_DENIED_TIME = new Date(_BASE_SEED_TIME - ANALYST_SESSION_OFFSET_MS + 15 * 60 * 1000).toISOString();
+
 export const DEFAULT_USERS: AuthUser[] = [
   {
     id: 'usr_admin_001',
@@ -168,8 +194,8 @@ export const DEFAULT_USERS: AuthUser[] = [
     email: 'admin@sparkquantum.internal',
     role: 'admin',
     status: 'active',
-    createdAt: '2026-01-15T08:00:00.000Z',
-    lastLogin: '2026-08-18T11:50:00.000Z',
+    createdAt: new Date(_BASE_SEED_TIME - 90 * 86400 * 1000).toISOString(),
+    lastLogin: SEED_ADMIN_LOGIN_TIME,
     hasAcceptedAgreements: false,
     allowedIcons: ALL_APP_ICON_IDS,
     allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
@@ -182,8 +208,8 @@ export const DEFAULT_USERS: AuthUser[] = [
     email: 'demo@sparkquantum.internal',
     role: 'user',
     status: 'active',
-    createdAt: '2026-03-01T10:00:00.000Z',
-    lastLogin: '2026-08-18T12:00:00.000Z',
+    createdAt: new Date(_BASE_SEED_TIME - 60 * 86400 * 1000).toISOString(),
+    lastLogin: SEED_DEMO_LOGIN_TIME,
     hasAcceptedAgreements: true,
     allowedIcons: ALL_APP_ICON_IDS,
     allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
@@ -196,8 +222,8 @@ export const DEFAULT_USERS: AuthUser[] = [
     email: 'analyst@sparkquantum.internal',
     role: 'user',
     status: 'active',
-    createdAt: '2026-02-01T09:30:00.000Z',
-    lastLogin: '2026-08-18T10:15:00.000Z',
+    createdAt: new Date(_BASE_SEED_TIME - 45 * 86400 * 1000).toISOString(),
+    lastLogin: SEED_ANALYST_LOGIN_TIME,
     hasAcceptedAgreements: false,
     allowedIcons: ALL_APP_ICON_IDS,
     allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
@@ -206,6 +232,7 @@ export const DEFAULT_USERS: AuthUser[] = [
 
 export function getStoredUsers(): AuthUser[] {
   try {
+    reconcileAndSanitizeStorage();
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
     if (!raw) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
@@ -238,8 +265,8 @@ export function getStoredUsers(): AuthUser[] {
         email: 'demo@sparkquantum.internal',
         role: 'user',
         status: 'active',
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
+        createdAt: new Date(_BASE_SEED_TIME - 60 * 86400 * 1000).toISOString(),
+        lastLogin: SEED_DEMO_LOGIN_TIME,
         hasAcceptedAgreements: true,
         allowedIcons: ALL_APP_ICON_IDS,
         allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
@@ -408,6 +435,19 @@ export function loginUser(usernameInput: string, passwordInput: string): { succe
 
   setCurrentSession(users[userIndex]);
 
+  // Registra automaticamente il log di accesso per l'audit dell'amministratore
+  logUserAccess({
+    userId: user.id,
+    username: user.username,
+    userRole: user.role,
+    type: 'login',
+    actionName: 'Accesso al Portale (Login Riuscito)',
+    viewDetail: `Accesso autorizzato alla piattaforma. Permessi attivi: ${user.role === 'admin' ? 'Amministratore Totale' : `${user.allowedIcons?.length ?? ALL_APP_ICON_IDS.length} Icone e ${user.allowedAgentAiCategories?.length ?? ALL_AGENT_AI_CATEGORY_IDS.length} Categorie AI`}`,
+    targetId: 'auth_login',
+    allowedIconsSnapshot: user.allowedIcons ?? (user.role === 'admin' ? ALL_APP_ICON_IDS : []),
+    allowedCategoriesSnapshot: user.allowedAgentAiCategories ?? ALL_AGENT_AI_CATEGORY_IDS
+  });
+
   return {
     success: true,
     user: {
@@ -427,6 +467,18 @@ export function loginUser(usernameInput: string, passwordInput: string): { succe
 }
 
 export function logoutUser(): void {
+  const session = getCurrentSession();
+  if (session) {
+    logUserAccess({
+      userId: session.id,
+      username: session.username,
+      userRole: session.role,
+      type: 'logout',
+      actionName: 'Disconnessione Utente (Logout)',
+      viewDetail: 'Chiusura sessione di lavoro e disconnessione dalla piattaforma',
+      targetId: 'auth_logout'
+    });
+  }
   localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
@@ -740,3 +792,377 @@ export function deleteExistingUser(
 export function resetUsersDatabase(): void {
   saveStoredUsers(DEFAULT_USERS);
 }
+
+// =====================================================================
+// REGISTRO LOG ACCESSI ED AUDIT ATTIVITÀ ("COSA VEDE OGNI UTENTE")
+// =====================================================================
+
+export type AccessLogType = 'login' | 'logout' | 'view_page' | 'action' | 'access_denied';
+
+export interface UserAccessLog {
+  id: string;
+  userId: string;
+  username: string;
+  userRole: UserRole;
+  timestamp: string; // ISO String
+  type: AccessLogType;
+  actionName: string;
+  viewDetail: string; // Descrizione parlante di cosa vede l'utente
+  targetId?: string; // id modulo/icona/categoria
+  ipAddress?: string;
+  deviceInfo?: string;
+  allowedIconsSnapshot?: string[];
+  allowedCategoriesSnapshot?: string[];
+  metadata?: Record<string, any>;
+}
+
+const ACCESS_LOGS_STORAGE_KEY = 'spark_quantum_user_access_logs_v1';
+
+export const SEED_ACCESS_LOGS: UserAccessLog[] = [
+  // Sessione Admin (oggi - 35 minuti fa)
+  {
+    id: 'log_seed_001',
+    userId: 'usr_admin_001',
+    username: 'admin',
+    userRole: 'admin',
+    timestamp: SEED_ADMIN_LOGIN_TIME,
+    type: 'login',
+    actionName: 'Accesso al Portale (Login Riuscito)',
+    viewDetail: 'Autenticazione amministrativa con visibilità completa su tutti i moduli e 108 scenari',
+    targetId: 'auth_login',
+    ipAddress: '192.168.1.10 (Rete Sicura)',
+    deviceInfo: 'Console Admin • Chrome / Desktop',
+    allowedIconsSnapshot: ALL_APP_ICON_IDS,
+    allowedCategoriesSnapshot: ALL_AGENT_AI_CATEGORY_IDS
+  },
+  {
+    id: 'log_seed_002',
+    userId: 'usr_admin_001',
+    username: 'admin',
+    userRole: 'admin',
+    timestamp: SEED_ADMIN_VIEW_TIME,
+    type: 'view_page',
+    actionName: 'Visualizzazione Console Gestione Utenti',
+    viewDetail: 'Pannello di controllo utenti, ruoli RBAC e permessi granulari',
+    targetId: 'user_management',
+    ipAddress: '192.168.1.10 (Rete Sicura)',
+    deviceInfo: 'Console Admin • Chrome / Desktop'
+  },
+  // Sessione Demo (oggi - 3 ore fa)
+  {
+    id: 'log_seed_003',
+    userId: 'usr_demo_003',
+    username: 'demo',
+    userRole: 'user',
+    timestamp: SEED_DEMO_LOGIN_TIME,
+    type: 'login',
+    actionName: 'Accesso al Portale (Login Riuscito)',
+    viewDetail: 'Accesso utente demo con permessi di consultazione standard',
+    targetId: 'auth_login',
+    ipAddress: '10.0.4.88 (VPN Ospite)',
+    deviceInfo: 'Sessione Utente • Firefox / Desktop',
+    allowedIconsSnapshot: ALL_APP_ICON_IDS,
+    allowedCategoriesSnapshot: ALL_AGENT_AI_CATEGORY_IDS
+  },
+  {
+    id: 'log_seed_004',
+    userId: 'usr_demo_003',
+    username: 'demo',
+    userRole: 'user',
+    timestamp: SEED_DEMO_VIEW1_TIME,
+    type: 'view_page',
+    actionName: 'Visualizzazione Medical Screening',
+    viewDetail: 'Pagina Salute - Screening Predittivo Multi-Organo, Scanner Olografico & Effetto Domino',
+    targetId: 'medical_screening',
+    ipAddress: '10.0.4.88 (VPN Ospite)',
+    deviceInfo: 'Sessione Utente • Firefox / Desktop'
+  },
+  {
+    id: 'log_seed_005',
+    userId: 'usr_demo_003',
+    username: 'demo',
+    userRole: 'user',
+    timestamp: SEED_DEMO_VIEW2_TIME,
+    type: 'view_page',
+    actionName: 'Visualizzazione Mappa Reazioni a Catena',
+    viewDetail: 'Apertura dettaglio Effetto Domino: 18 Quadranti Fisiopatologici e Sequenza a 3 Passi',
+    targetId: 'domino_map',
+    ipAddress: '10.0.4.88 (VPN Ospite)',
+    deviceInfo: 'Sessione Utente • Firefox / Desktop'
+  },
+  // Sessione Analyst (ieri - 25 ore fa)
+  {
+    id: 'log_seed_006',
+    userId: 'usr_user_002',
+    username: 'quantum_user',
+    userRole: 'user',
+    timestamp: SEED_ANALYST_LOGIN_TIME,
+    type: 'login',
+    actionName: 'Accesso al Portale (Login Riuscito)',
+    viewDetail: 'Accesso Quantum Risk Analyst',
+    targetId: 'auth_login',
+    ipAddress: '172.16.20.15 (LAN Ricerca)',
+    deviceInfo: 'Workstation Analisi • Safari / Mac',
+    allowedIconsSnapshot: ALL_APP_ICON_IDS,
+    allowedCategoriesSnapshot: ALL_AGENT_AI_CATEGORY_IDS
+  },
+  {
+    id: 'log_seed_007',
+    userId: 'usr_user_002',
+    username: 'quantum_user',
+    userRole: 'user',
+    timestamp: SEED_ANALYST_VIEW1_TIME,
+    type: 'view_page',
+    actionName: 'Visualizzazione Agent AI (Finanza e Mercati)',
+    viewDetail: 'Modulo Quantistico: Calcolo Probabilità di Default su Mutui Subprime (Strategia Prudente)',
+    targetId: 'agent_ai_finanza',
+    ipAddress: '172.16.20.15 (LAN Ricerca)',
+    deviceInfo: 'Workstation Analisi • Safari / Mac'
+  },
+  {
+    id: 'log_seed_008',
+    userId: 'usr_user_002',
+    username: 'quantum_user',
+    userRole: 'user',
+    timestamp: SEED_ANALYST_ACTION_TIME,
+    type: 'action',
+    actionName: 'Compilazione Circuito Quantistico Qiskit',
+    viewDetail: 'Generazione codice Qiskit 1.x con 4 Qubit, rotazioni Ry pure e Sfera di Bloch pre-entanglement',
+    targetId: 'qiskit_compilation',
+    ipAddress: '172.16.20.15 (LAN Ricerca)',
+    deviceInfo: 'Workstation Analisi • Safari / Mac'
+  },
+  {
+    id: 'log_seed_009',
+    userId: 'usr_user_002',
+    username: 'quantum_user',
+    userRole: 'user',
+    timestamp: SEED_ANALYST_DENIED_TIME,
+    type: 'access_denied',
+    actionName: 'Tentativo di Accesso Bloccato (Permesso Mancante)',
+    viewDetail: 'Tentativo bloccato su: Configurazione Google API Key (Modulo riservato ad Amministratori)',
+    targetId: 'api_key',
+    ipAddress: '172.16.20.15 (LAN Ricerca)',
+    deviceInfo: 'Workstation Analisi • Safari / Mac'
+  }
+];
+
+const ACCESS_LOGS_SYNC_KEY = 'spark_quantum_logs_synced_v5';
+
+export function reconcileAndSanitizeStorage(): void {
+  try {
+    const rawLogs = localStorage.getItem(ACCESS_LOGS_STORAGE_KEY);
+    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
+
+    let logs: UserAccessLog[] = rawLogs ? JSON.parse(rawLogs) : [...SEED_ACCESS_LOGS];
+    if (!Array.isArray(logs) || logs.length === 0) logs = [...SEED_ACCESS_LOGS];
+
+    let users: AuthUser[] = rawUsers ? JSON.parse(rawUsers) : [...DEFAULT_USERS];
+    if (!Array.isArray(users) || users.length === 0) users = [...DEFAULT_USERS];
+
+    let logsChanged = false;
+    let usersChanged = false;
+
+    // Riallinea i seed log storici affinché ogni utente abbia i suoi log esattamente nella sessione di accesso
+    logs = logs.map(l => {
+      // Demo (14 giorni fa - 2 settimane fa)
+      if (l.id === 'log_seed_003' && l.timestamp !== SEED_DEMO_LOGIN_TIME) { logsChanged = true; return { ...l, timestamp: SEED_DEMO_LOGIN_TIME }; }
+      if (l.id === 'log_seed_004' && l.timestamp !== SEED_DEMO_VIEW1_TIME) { logsChanged = true; return { ...l, timestamp: SEED_DEMO_VIEW1_TIME }; }
+      if (l.id === 'log_seed_005' && l.timestamp !== SEED_DEMO_VIEW2_TIME) { logsChanged = true; return { ...l, timestamp: SEED_DEMO_VIEW2_TIME }; }
+      // Analyst (30 giorni fa - 1 mese fa)
+      if (l.id === 'log_seed_006' && l.timestamp !== SEED_ANALYST_LOGIN_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ANALYST_LOGIN_TIME }; }
+      if (l.id === 'log_seed_007' && l.timestamp !== SEED_ANALYST_VIEW1_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ANALYST_VIEW1_TIME }; }
+      if (l.id === 'log_seed_008' && l.timestamp !== SEED_ANALYST_ACTION_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ANALYST_ACTION_TIME }; }
+      if (l.id === 'log_seed_009' && l.timestamp !== SEED_ANALYST_DENIED_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ANALYST_DENIED_TIME }; }
+      // Admin (oggi)
+      if (l.id === 'log_seed_001' && l.timestamp !== SEED_ADMIN_LOGIN_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ADMIN_LOGIN_TIME }; }
+      if (l.id === 'log_seed_002' && l.timestamp !== SEED_ADMIN_VIEW_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ADMIN_VIEW_TIME }; }
+      return l;
+    });
+
+    // Controllo coerenza per ciascun utente in users
+    for (const u of users) {
+      if (u.id === 'usr_demo_003') {
+        const manualRecentLogin = logs.find(l => l.userId === u.id && !l.id.startsWith('log_seed_') && l.type === 'login' && (Date.now() - new Date(l.timestamp).getTime()) < 86400000);
+        if (manualRecentLogin) {
+          if (u.lastLogin !== manualRecentLogin.timestamp) {
+            u.lastLogin = manualRecentLogin.timestamp;
+            usersChanged = true;
+          }
+        } else if (u.lastLogin !== SEED_DEMO_LOGIN_TIME) {
+          u.lastLogin = SEED_DEMO_LOGIN_TIME;
+          usersChanged = true;
+        }
+      } else if (u.id === 'usr_user_002') {
+        const manualRecentLogin = logs.find(l => l.userId === u.id && !l.id.startsWith('log_seed_') && l.type === 'login' && (Date.now() - new Date(l.timestamp).getTime()) < 86400000);
+        if (manualRecentLogin) {
+          if (u.lastLogin !== manualRecentLogin.timestamp) {
+            u.lastLogin = manualRecentLogin.timestamp;
+            usersChanged = true;
+          }
+        } else if (u.lastLogin !== SEED_ANALYST_LOGIN_TIME) {
+          u.lastLogin = SEED_ANALYST_LOGIN_TIME;
+          usersChanged = true;
+        }
+      } else if (u.id === 'usr_admin_001') {
+        if (!u.lastLogin || u.lastLogin.includes('2026-08-18')) {
+          u.lastLogin = SEED_ADMIN_LOGIN_TIME;
+          usersChanged = true;
+        }
+      } else {
+        const userLogs = logs.filter(l => l.userId === u.id);
+        if (userLogs.length > 0) {
+          const userLogin = userLogs.find(l => l.type === 'login');
+          if (userLogin && u.lastLogin !== userLogin.timestamp) {
+            u.lastLogin = userLogin.timestamp;
+            usersChanged = true;
+          }
+        }
+      }
+    }
+
+    // Assicura l'ordinamento decrescente cronologico per tutti i log
+    logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    if (logsChanged || !rawLogs) {
+      localStorage.setItem(ACCESS_LOGS_STORAGE_KEY, JSON.stringify(logs));
+    }
+    if (usersChanged || !rawUsers) {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+    localStorage.setItem(ACCESS_LOGS_SYNC_KEY, 'true');
+  } catch (e) {
+    console.error("Errore reconcileAndSanitizeStorage:", e);
+  }
+}
+
+export function getStoredUserAccessLogs(): UserAccessLog[] {
+  try {
+    reconcileAndSanitizeStorage();
+    const raw = localStorage.getItem(ACCESS_LOGS_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(ACCESS_LOGS_STORAGE_KEY, JSON.stringify(SEED_ACCESS_LOGS));
+      return SEED_ACCESS_LOGS;
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(ACCESS_LOGS_STORAGE_KEY, JSON.stringify(SEED_ACCESS_LOGS));
+      return SEED_ACCESS_LOGS;
+    }
+    // Ordina sempre rigorosamente decrescente (più recente in cima)
+    return parsed.sort((a: UserAccessLog, b: UserAccessLog) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  } catch {
+    return SEED_ACCESS_LOGS;
+  }
+}
+
+export function saveStoredUserAccessLogs(logs: UserAccessLog[]): void {
+  try {
+    // Conserva fino a un massimo di 500 log per sicurezza e performance
+    const capped = logs.slice(0, 500);
+    localStorage.setItem(ACCESS_LOGS_STORAGE_KEY, JSON.stringify(capped));
+  } catch (e) {
+    console.error("Errore salvataggio log accessi:", e);
+  }
+}
+
+export function logUserAccess(entry: Omit<UserAccessLog, 'id' | 'timestamp'>): UserAccessLog {
+  const currentLogs = getStoredUserAccessLogs();
+  const nowIso = new Date().toISOString();
+  const newLog: UserAccessLog = {
+    ...entry,
+    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    timestamp: nowIso,
+    ipAddress: entry.ipAddress || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? '127.0.0.1 (Locale)' : 'Client Web Autenticato'),
+    deviceInfo: entry.deviceInfo || (typeof navigator !== 'undefined' ? `${navigator.userAgent.slice(0, 45)}...` : 'Browser Web')
+  };
+
+  const updatedLogs = [newLog, ...currentLogs];
+  saveStoredUserAccessLogs(updatedLogs);
+
+  // Sincronizza lo stato utente per garantire che lastLogin rispecchi la sessione
+  try {
+    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
+    if (rawUsers) {
+      const users: AuthUser[] = JSON.parse(rawUsers);
+      const uIdx = users.findIndex(u => u.id === entry.userId);
+      if (uIdx !== -1) {
+        if (entry.type === 'login' || !users[uIdx].lastLogin) {
+          users[uIdx].lastLogin = nowIso;
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  return newLog;
+}
+
+export function getUserAccessLogs(userId?: string): UserAccessLog[] {
+  const allLogs = getStoredUserAccessLogs();
+  if (!userId || userId === 'all') {
+    return allLogs;
+  }
+  return allLogs.filter(log => log.userId === userId);
+}
+
+export function clearUserAccessLogs(userId?: string): void {
+  if (!userId || userId === 'all') {
+    saveStoredUserAccessLogs([]);
+  } else {
+    const current = getStoredUserAccessLogs();
+    const filtered = current.filter(l => l.userId !== userId);
+    saveStoredUserAccessLogs(filtered);
+  }
+}
+
+export function resetDefaultAccessLogs(): void {
+  saveStoredUserAccessLogs(SEED_ACCESS_LOGS);
+  // Sincronizza anche il campo lastLogin degli utenti predefiniti
+  try {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    if (raw) {
+      const users: AuthUser[] = JSON.parse(raw);
+      for (const u of users) {
+        if (u.id === 'usr_admin_001') u.lastLogin = SEED_ADMIN_LOGIN_TIME;
+        if (u.id === 'usr_demo_003') u.lastLogin = SEED_DEMO_LOGIN_TIME;
+        if (u.id === 'usr_user_002') u.lastLogin = SEED_ANALYST_LOGIN_TIME;
+      }
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+export function exportUserAccessLogsAsJson(userId?: string): string {
+  const logs = getUserAccessLogs(userId);
+  return JSON.stringify(logs, null, 2);
+}
+
+export function exportUserAccessLogsAsCsv(userId?: string): string {
+  const logs = getUserAccessLogs(userId);
+  const headers = ['Data_Ora_ISO', 'Data_Ora_Formattata', 'ID_Utente', 'Username', 'Ruolo', 'Tipo_Evento', 'Azione_Effettuata', 'Cosa_Vede_Nell_App', 'Target_ID', 'IP_Dispositivo'];
+  
+  const rows = logs.map(l => {
+    const d = new Date(l.timestamp);
+    const formattedDate = `${d.toLocaleDateString('it-IT')} ${d.toLocaleTimeString('it-IT')}`;
+    return [
+      `"${l.timestamp}"`,
+      `"${formattedDate}"`,
+      `"${l.userId}"`,
+      `"${l.username}"`,
+      `"${l.userRole}"`,
+      `"${l.type}"`,
+      `"${(l.actionName || '').replace(/"/g, '""')}"`,
+      `"${(l.viewDetail || '').replace(/"/g, '""')}"`,
+      `"${l.targetId || ''}"`,
+      `"${l.ipAddress || ''}"`
+    ].join(',');
+  });
+
+  return [headers.join(','), ...rows].join('\n');
+}
+
