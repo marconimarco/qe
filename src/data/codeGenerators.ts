@@ -20,6 +20,44 @@ interface ParsedRelazione {
   nome_target: string;
 }
 
+export function cleanNumericValue(val: unknown): number | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') {
+    return isNaN(val) ? null : val;
+  }
+  let s = String(val).trim();
+  if (!s) return null;
+
+  // Rimuovi simboli valuta, spazi strani
+  s = s.replace(/^[€$£¥\s]+|[€$£¥\s]+$/g, '');
+
+  const isPercent = s.includes('%');
+  s = s.replace(/%/g, '').trim();
+
+  // Gestione formato europeo vs anglosassone
+  if (s.includes(',') && s.includes('.')) {
+    if (s.indexOf('.') < s.indexOf(',')) {
+      // 1.250,50 -> 1250.50
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // 1,250.50 -> 1250.50
+      s = s.replace(/,/g, '');
+    }
+  } else if (s.includes(',')) {
+    // Es. 0,85 -> 0.85
+    s = s.replace(',', '.');
+  }
+
+  const parsed = parseFloat(s);
+  if (isNaN(parsed)) return null;
+
+  if (isPercent) {
+    return parsed / 100.0;
+  }
+
+  return parsed;
+}
+
 function splitCsvLine(line: string): string[] {
   const sep = line.includes(';') && !line.includes(',') ? ';' : (line.includes(';') && (line.split(';').length > line.split(',').length) ? ';' : ',');
   return line.split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
@@ -69,13 +107,13 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
     dataStartIndex = headerIdx + 1;
   }
 
-  // Se la colonna peso non è stata identificata per nome, cerca la prima colonna con numeri decimali
+  // Se la colonna peso non è stata identificata per nome, cerca la prima colonna con numeri
   if (pesoColIndex === -1 && rawLines.length > dataStartIndex) {
     const sampleParts = splitCsvLine(rawLines[dataStartIndex]);
     for (let c = 0; c < sampleParts.length; c++) {
       if (c === idColIndex) continue;
-      const num = parseFloat(sampleParts[c]);
-      if (!isNaN(num)) {
+      const num = cleanNumericValue(sampleParts[c]);
+      if (num !== null) {
         pesoColIndex = c;
         break;
       }
@@ -95,20 +133,20 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
     const id = parts[idColIndex];
     if (!id || id.toLowerCase().startsWith('id_')) continue;
 
-    let rawPeso = parseFloat(parts[pesoColIndex] !== undefined ? parts[pesoColIndex] : '0.5');
+    let rawPeso = cleanNumericValue(parts[pesoColIndex] !== undefined ? parts[pesoColIndex] : '0.5');
+    if (rawPeso === null) rawPeso = 0.5;
+
     const nome = (nomeColIndex < parts.length && parts[nomeColIndex]) ? parts[nomeColIndex] : id;
 
-    if (!isNaN(rawPeso)) {
-      // Normalizzazione automatica percentuali (es. 85 -> 0.85)
-      if (rawPeso > 1.0 && rawPeso <= 100.0) {
-        rawPeso = rawPeso / 100.0;
-      }
-      const pesoSafe = Math.max(0.0, Math.min(1.0, rawPeso));
-      const qIdx = risorse.length;
-      mappaQubit.set(id, qIdx);
-      mappaQubit.set(id.toLowerCase(), qIdx); // Fallback case-insensitive
-      risorse.push({ id, nome, peso: pesoSafe });
+    // Normalizzazione automatica percentuali (es. 85 -> 0.85)
+    if (rawPeso > 1.0 && rawPeso <= 100.0) {
+      rawPeso = rawPeso / 100.0;
     }
+    const pesoSafe = Math.max(0.0, Math.min(1.0, rawPeso));
+    const qIdx = risorse.length;
+    mappaQubit.set(id, qIdx);
+    mappaQubit.set(id.toLowerCase(), qIdx); // Fallback case-insensitive
+    risorse.push({ id, nome, peso: pesoSafe });
   }
 
   return { risorse, mappaQubit };
@@ -135,8 +173,8 @@ function parseCsv2Deterministic(csv2: string, mappaQubit: Map<string, number>): 
       if (idxB === undefined) continue;
       if (idxA === idxB) continue; // Salta auto-connessioni sulla diagonale
 
-      let peso = parseFloat(parts[j]);
-      if (isNaN(peso)) continue;
+      let peso = cleanNumericValue(parts[j]);
+      if (peso === null) continue;
 
       if (peso > 1.0 && peso <= 100.0) {
         peso = peso / 100.0;
@@ -235,7 +273,8 @@ export const generateQiskitPythonCode = (
 
   const activeRelations = parseCsv2Deterministic(csv2, mappaQubit);
 
-  let pyCode = `import numpy as np\n`;
+  let pyCode = `import io\n`;
+  pyCode += `import numpy as np\n`;
   pyCode += `import pandas as pd\n`;
   pyCode += `import matplotlib.pyplot as plt\n`;
   pyCode += `from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister\n`;
@@ -411,8 +450,8 @@ export function parseCsv2MatrixDeterministic(
       if (parts.length < 3) continue;
       const idxA = mappaQubit.get(parts[0]) ?? mappaQubit.get(parts[0].toLowerCase());
       const idxB = mappaQubit.get(parts[1]) ?? mappaQubit.get(parts[1].toLowerCase());
-      let val = parseFloat(parts[2]);
-      if (idxA !== undefined && idxB !== undefined && !isNaN(val) && idxA < numItems && idxB < numItems) {
+      let val = cleanNumericValue(parts[2]);
+      if (idxA !== undefined && idxB !== undefined && val !== null && idxA < numItems && idxB < numItems) {
         if (val > 1.0 && val <= 100.0) val = val / 100.0;
         matrix[idxA][idxB] = Number(val.toFixed(4));
         matrix[idxB][idxA] = Number(val.toFixed(4));
@@ -436,8 +475,8 @@ export function parseCsv2MatrixDeterministic(
         const effectiveCol = colIdx !== undefined ? colIdx : (c - 1 < numItems ? c - 1 : undefined);
         if (effectiveCol === undefined || effectiveCol >= numItems) continue;
 
-        let val = parseFloat(parts[c]);
-        if (!isNaN(val)) {
+        let val = cleanNumericValue(parts[c]);
+        if (val !== null) {
           if (val > 1.0 && val <= 100.0) val = val / 100.0;
           matrix[effectiveRow][effectiveCol] = Number(val.toFixed(4));
           if (effectiveRow !== effectiveCol && matrix[effectiveCol][effectiveRow] === 0.0) {

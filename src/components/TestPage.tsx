@@ -7,6 +7,7 @@ import {
   FileText, FileCheck, Search, Download, Lock
 } from 'lucide-react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import aiStudioPrompt from '../promptText.txt?raw';
 import { getStoredApiKey } from '../services/apiKeyService';
 import { getDemoCsvBySector } from "../data/demoCsv";
@@ -518,8 +519,42 @@ export default function TestPage({
     setTimeout(() => setCopiedInterview(false), 2200);
   };
 
-  // Gestione caricamento reale file CSV
-  const handleCsvUpload = (fileList: FileList | null) => {
+  const readUploadedFileToCsvString = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      if (isExcel) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const buffer = e.target?.result as ArrayBuffer;
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[firstSheetName];
+            const csv = XLSX.utils.sheet_to_csv(sheet);
+            resolve(csv);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (typeof e.target?.result === 'string') {
+            resolve(e.target.result);
+          } else {
+            resolve('');
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+      }
+    });
+  };
+
+  // Gestione caricamento reale file CSV / Excel (.xlsx, .xls)
+  const handleCsvUpload = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
 
     const filesArray = Array.from(fileList);
@@ -531,32 +566,29 @@ export default function TestPage({
 
     setUploadedFiles(parsedInfo);
 
-    // Leggi il contenuto testuale reale dei file caricati
-    if (filesArray[0]) {
-      const reader1 = new FileReader();
-      reader1.onload = (e) => {
-        if (typeof e.target?.result === 'string') {
-          setCustomCsv1Content(e.target.result);
-        }
-      };
-      reader1.readAsText(filesArray[0]);
-    }
+    try {
+      if (filesArray[0]) {
+        const content1 = await readUploadedFileToCsvString(filesArray[0]);
+        setCustomCsv1Content(content1);
+        const rowsCount1 = content1.split('\n').filter(l => l.trim().length > 0 && !l.startsWith('#')).length;
+        parsedInfo[0].rows = Math.max(1, rowsCount1 - 1);
+      }
 
-    if (filesArray[1]) {
-      const reader2 = new FileReader();
-      reader2.onload = (e) => {
-        if (typeof e.target?.result === 'string') {
-          setCustomCsv2Content(e.target.result);
-        }
-      };
-      reader2.readAsText(filesArray[1]);
+      if (filesArray[1]) {
+        const content2 = await readUploadedFileToCsvString(filesArray[1]);
+        setCustomCsv2Content(content2);
+        const rowsCount2 = content2.split('\n').filter(l => l.trim().length > 0 && !l.startsWith('#')).length;
+        parsedInfo[1].rows = Math.max(1, rowsCount2 - 1);
+      }
+    } catch (err) {
+      console.error("Errore lettura file caricati:", err);
     }
 
     const file1 = parsedInfo[0];
     const file2 = parsedInfo[1] || { name: "matrice_correlazioni_default.csv", size: "1.8 KB", rows: 24 };
 
-    const uploadUserMsg = `[FILE CSV CARICATI]\n• ${file1.name} (${file1.size})\n• ${file2.name} (${file2.size})`;
-    const uploadBotReply = `✅ **File CSV caricati e validati!**\n\n• **${file1.name}**: ${file1.rows} risorse trovate (costi e scorte).\n• **${file2.name}**: ${file2.rows} relazioni trovate.\n\n*I dati restano al sicuro nella memoria locale del tuo browser.*\n\n👉 Passiamo alla **Fase 3: Scegli l'arco di tempo del calcolo**.`;
+    const uploadUserMsg = `[FILE CARICATI (CSV / EXCEL)]\n• ${file1.name} (${file1.size})\n• ${file2.name} (${file2.size})`;
+    const uploadBotReply = `✅ **File CSV/Excel caricati e validati!**\n\n• **${file1.name}**: ${file1.rows} risorse trovate (anagrafica).\n• **${file2.name}**: ${file2.rows} relazioni trovate (matrice).\n\n*Supporto nativo integrato per CSV ed Excel con normalizzazione automatica dei decimali.*\n\n👉 Passiamo alla **Fase 3: Scegli l'arco di tempo del calcolo**.`;
 
     setMessages(prev => [
       ...prev,
@@ -1439,7 +1471,7 @@ ${pythonSnippet}
                 Sostituisci
                 <input 
                   type="file" 
-                  accept=".csv" 
+                  accept=".csv, .xlsx, .xls, .tsv, .txt" 
                   multiple 
                   className="hidden" 
                   onChange={(e) => handleCsvUpload(e.target.files)} 
@@ -1454,6 +1486,23 @@ ${pythonSnippet}
           >
             {copiedInterview ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
             <span className="font-semibold">{copiedInterview ? "Intervista Copiata!" : "Copia Intervista"}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = '/GUIDA_COMPLETA_AGENT_AI_108_SCENARI.md';
+              link.download = 'GUIDA_COMPLETA_AGENT_AI_108_SCENARI.md';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="px-3 py-1.5 border border-purple-500/40 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 hover:text-purple-200 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+            title="Scarica la guida completa e il dossier tecnico sui 108 scenari"
+          >
+            <Download className="w-3.5 h-3.5 text-purple-400" />
+            <span className="font-semibold hidden md:inline">Guida 108 Scenari (.md)</span>
+            <span className="font-semibold md:hidden">Guida (.md)</span>
           </button>
 
           {(targetAlgoritmo !== 'IDLE' || currentPhase === '5_done') && (
@@ -1677,10 +1726,10 @@ ${pythonSnippet}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <label className="px-4 py-3 bg-amber-500/25 hover:bg-amber-500/35 border-2 border-amber-500 text-amber-300 font-bold font-mono text-xs rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 shadow-lg animate-pulse">
                     <Upload className="w-4 h-4 text-amber-400" />
-                    <span className="uppercase tracking-wider">Carica i Tuoi CSV</span>
+                    <span className="uppercase tracking-wider">Carica i Tuoi File (CSV / Excel)</span>
                     <input 
                       type="file" 
-                      accept=".csv" 
+                      accept=".csv, .xlsx, .xls, .tsv, .txt" 
                       multiple 
                       className="hidden" 
                       onChange={(e) => handleCsvUpload(e.target.files)} 

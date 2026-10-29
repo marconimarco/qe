@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ExternalLink, Activity, Network, Cpu, Play, CheckCircle2, Server } from 'lucide-react';
+import { X, ExternalLink, Activity, Network, Cpu, Play, CheckCircle2, Server, Download } from 'lucide-react';
 import { CodeBlockWithCopy, IstogrammaQuantisticoUniversale, IbmQuantumComposerMockup } from './TestPage';
 
 interface EndInterviewModalProps {
@@ -31,9 +31,13 @@ function BlochSphere({ theta, phi, targetAlgoritmo }: { theta: number; phi: numb
     let currentPhi = 0;
     let time = 0;
 
+    // Normalizzazione interna per evitare ambiguità (gradi per canvas)
+    const targetThetaDeg = theta <= Math.PI * 2 ? (theta * 180) / Math.PI : theta;
+    const targetPhiDeg = phi <= Math.PI * 2 ? (phi * 180) / Math.PI : phi;
+
     const render = () => {
-      currentTheta += (theta - currentTheta) * 0.05;
-      currentPhi += (phi - currentPhi) * 0.05;
+      currentTheta += (targetThetaDeg - currentTheta) * 0.05;
+      currentPhi += (targetPhiDeg - currentPhi) * 0.05;
       time += 0.02;
 
       const isQuantum = targetAlgoritmo.startsWith('Qiskit_');
@@ -145,6 +149,21 @@ export default function EndInterviewModal({
 
   const isQuantumScenario = scenarioType === 'quantum' && targetAlgoritmo.startsWith('Qiskit_');
 
+  // Normalizzazione rigorosa angoli (radianti e gradi)
+  const thetaRad = theta > Math.PI * 2 ? (theta * Math.PI) / 180 : theta;
+  const thetaDeg = theta > Math.PI * 2 ? theta : (theta * 180) / Math.PI;
+  const phiRad = phi > Math.PI * 2 ? (phi * Math.PI) / 180 : phi;
+  const phiDeg = phi > Math.PI * 2 ? phi : (phi * 180) / Math.PI;
+
+  const handleDownloadDoc = () => {
+    const link = document.createElement('a');
+    link.href = '/GUIDA_COMPLETA_AGENT_AI_108_SCENARI.md';
+    link.download = 'GUIDA_COMPLETA_AGENT_AI_108_SCENARI.md';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -162,20 +181,32 @@ export default function EndInterviewModal({
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-900/50">
-            <h2 className="font-mono text-lg font-bold text-white flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Activity className={`w-5 h-5 ${isQuantumScenario ? 'text-amber-400' : 'text-emerald-400'}`} />
-              Risultati dell'Intervista Strategica
-              <span className={`text-xs px-2 py-0.5 rounded border ml-2 ${
-                isQuantumScenario 
-                  ? 'bg-purple-950/70 text-purple-300 border-purple-500/40' 
-                  : 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
-              }`}>
-                {isQuantumScenario ? '⚛️ Pipeline Quantistica (QPU)' : '💻 Calcolo Classico (HPC / GPU)'}
-              </span>
-            </h2>
-            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-slate-400" />
-            </button>
+              <h2 className="font-mono text-lg font-bold text-white flex items-center gap-2">
+                Risultati dell'Intervista Strategica
+                <span className={`text-xs px-2 py-0.5 rounded border ml-2 ${
+                  isQuantumScenario 
+                    ? 'bg-purple-950/70 text-purple-300 border-purple-500/40' 
+                    : 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
+                }`}>
+                  {isQuantumScenario ? '⚛️ Pipeline Quantistica (QPU)' : '💻 Calcolo Classico (HPC / GPU)'}
+                </span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadDoc}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                title="Scarica il documento completo con la spiegazione dei 108 scenari e tutti i calcoli"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Dossier 108 Scenari (.md)</span>
+              </button>
+              <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -231,19 +262,19 @@ export default function EndInterviewModal({
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <div className="p-4 bg-slate-900/60 border border-amber-500/20 rounded-xl shadow-inner w-full flex flex-col items-center">
-                        <BlochSphere theta={theta} phi={phi} targetAlgoritmo={targetAlgoritmo} />
+                        <BlochSphere theta={thetaDeg} phi={phiDeg} targetAlgoritmo={targetAlgoritmo} />
                         <div className="mt-3 text-center font-mono text-[11px] text-slate-300 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-white/5 w-full">
                           <span>Coordinate Vettoriali di Stato: </span>
-                          <span className="text-amber-400 font-bold">Theta = {theta.toFixed(4)} rad</span>
+                          <span className="text-amber-400 font-bold">Theta = {thetaRad.toFixed(4)} rad ({thetaDeg.toFixed(1)}°)</span>
                           <span className="text-slate-400 mx-2">|</span>
-                          <span className="text-cyan-400 font-bold">Phi = {phi.toFixed(4)} rad</span>
+                          <span className="text-cyan-400 font-bold">Phi = {phiRad.toFixed(4)} rad ({phiDeg.toFixed(1)}°)</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-3">
                       <h4 className="font-mono text-xs font-bold text-slate-300">Distribuzione Probabilistica degli Stati</h4>
-                      <IstogrammaQuantisticoUniversale theta_radianti={theta} settore={sector} />
+                      <IstogrammaQuantisticoUniversale theta_radianti={thetaRad} settore={sector} />
                     </div>
                   </div>
                 </div>

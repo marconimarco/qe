@@ -579,6 +579,34 @@ async function startServer() {
     return `Il sistema quantistico Pepsight ha ricevuto la tua richiesta ed è operativo in modalità autonoma ad alte prestazioni. Procedi pure con il prossimo step della calibrazione.`;
   }
 
+  // Modelli candidati in ordine di priorità secondo le linee guida Google GenAI
+  const CANDIDATE_GEMINI_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-latest"
+  ];
+
+  async function callGeminiWithFallback(aiClient: any, requestPayload: { contents: any; config: any }) {
+    let lastErr: any = null;
+    for (const modelName of CANDIDATE_GEMINI_MODELS) {
+      try {
+        const response = await aiClient.models.generateContent({
+          ...requestPayload,
+          model: modelName
+        });
+        if (response && response.text) {
+          return response;
+        }
+      } catch (err: any) {
+        const errStr = (err?.status ? `Status ${err.status} ` : "") + (err?.message || "") + (JSON.stringify(err) || "");
+        console.warn(`[GEMINI-FALLBACK] Modello ${modelName} non disponibile (${errStr}). Tentativo sul modello successivo...`);
+        lastErr = err;
+        await new Promise(r => setTimeout(r, 250));
+      }
+    }
+    throw lastErr || new Error("Tutti i modelli Gemini candidati hanno restituito errore.");
+  }
+
   // --- QUANTUM BI AI CHAT ---
   app.post("/api/quantum-bi/chat", async (req, res) => {
     let keyUsed = '';
@@ -683,8 +711,7 @@ async function startServer() {
       while (attempts < maxAttempts) {
         try {
           attempts++;
-          result = await aiClient.models.generateContent({
-            model: "gemini-3.5-flash",
+          result = await callGeminiWithFallback(aiClient, {
             contents: contents,
             config: {
               systemInstruction: patchedSystemPrompt,
@@ -842,8 +869,7 @@ async function startServer() {
 
       try {
         const cleanedSystemPrompt = purge(systemPrompt || "");
-        const result = await aiClient.models.generateContent({
-          model: "gemini-2.5-flash",
+        const result = await callGeminiWithFallback(aiClient, {
           contents: contents,
           config: {
             systemInstruction: cleanedSystemPrompt,
