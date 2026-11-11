@@ -579,10 +579,10 @@ async function startServer() {
     return `Il sistema quantistico Pepsight ha ricevuto la tua richiesta ed è operativo in modalità autonoma ad alte prestazioni. Procedi pure con il prossimo step della calibrazione.`;
   }
 
-  // Modelli candidati in ordine di priorità secondo le linee guida Google GenAI
+  // Modelli candidati in ordine di priorità per massima velocità e reattività (sub-second)
   const CANDIDATE_GEMINI_MODELS = [
-    "gemini-3.8-flash",
     "gemini-3.1-flash-lite",
+    "gemini-3.8-flash",
     "gemini-flash-latest"
   ];
 
@@ -873,8 +873,8 @@ async function startServer() {
           contents: contents,
           config: {
             systemInstruction: cleanedSystemPrompt,
-            temperature: 0.0,
-            maxOutputTokens: 8192,
+            temperature: 0.2,
+            maxOutputTokens: 1024,
           },
         });
 

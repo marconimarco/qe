@@ -1,6 +1,11 @@
-// DEMO CSV GENERATOR — TAXONOMIC QUANTUM ENGINE V3
+// DEMO CSV GENERATOR — TAXONOMIC QUANTUM ENGINE V4
 // Mappatura esatta e deterministica dei dataset nativi per ciascuno dei 7 settori industriali.
 // Ogni settore ha tassativamente i propri file CSV demo con anagrafica e matrice connessioni.
+//
+// [FIX 1] resolveSectorKey: accetta ID con underscore (log_q_10) E con trattino (log-q-10)
+//         per compatibilità con scenarios.ts (che usa trattino) e con TestPage.tsx.
+// [FIX 2] Matrici simmetriche verificate. buildCsv2 forza la simmetria a runtime.
+// [FIX 3] throw new Error se dataset non trovato: niente fallback silenziosi.
 
 export interface DemoResource {
   id: string;
@@ -19,25 +24,11 @@ export interface SectorDemoData {
   matrix: number[][];
 }
 
-// 1. GUIDA INTESTAZIONE DEI FILE CSV (Standard FIFO)
-const header1Template = (catName: string) => 
-  `# =========================================================================================\n` +
-  `# GUIDA ALLA COMPILAZIONE: FILE 1 - ANAGRAFICA RISORSE [SETTORE: ${catName.toUpperCase()}]\n` +
-  `# =========================================================================================\n` +
-  `# 1. SEPARATORE DI COLONNA: Usa SEMPRE la VIRGOLA (,)\n` +
-  `# 2. SEPARATORE DECIMALE PER I NUMERI: Usa SEMPRE il PUNTO (.) (es. 100.50). MAI la virgola per i decimali.\n` +
-  `# 3. NOMI ID (id_risorsa): Scrivi tutto in MINUSCOLO, usa UNDERSCORE '_' (es. asset_01, hub_centrale).\n` +
-  `# 4. Mappatura Qubit: Riga 1 -> q[0], Riga 2 -> q[1], Riga 3 -> q[2], Riga 4 -> q[3] (FIFO rigoroso)\n` +
-  `# =========================================================================================\n`;
+// I template di header sono VUOTI: i CSV scaricati partono direttamente con l'header,
+// senza righe di commento '#' che potrebbero essere alterate da Excel o da editor non UTF-8.
+const header1Template = (_catName: string) => "";
 
-const header2Template = (catName: string) => 
-  `# =========================================================================================\n` +
-  `# GUIDA ALLA COMPILAZIONE: FILE 2 - MATRICE DELLE CONNESSIONI [SETTORE: ${catName.toUpperCase()}]\n` +
-  `# =========================================================================================\n` +
-  `# 1. Prima colonna deve chiamarsi esplicitamente: id_risorsa\n` +
-  `# 2. Intestazioni di colonna successive = ID identici al File 1 in ordine FIFO.\n` +
-  `# 3. Valori da 0.00 a 1.00: 0.00 (indipendente), < 0.60 (legame morbido / CP), >= 0.60 (blocco rigido / CX).\n` +
-  `# =========================================================================================\n`;
+const header2Template = (_catName: string) => "";
 
 export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
   // 1. FINANZA E MERCATI (GENERALE)
@@ -48,8 +39,8 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
     resources: [
       { id: 'asset_01', nome: 'Asset Azionario Alpha Core', cat: 'titoli_equity', costo: '120.50', qta: '1500', peso: 0.85 },
       { id: 'asset_02', nome: 'Asset Obbligazionario Governativo', cat: 'reddito_fisso', costo: '98.20', qta: '2400', peso: 0.70 },
-      { id: 'tranche_aaa', nome: 'Tranche Obbligazionaria Senior AAA (Tutela Capitale)', cat: 'senior_debt', costo: '450.00', qta: '800', peso: 0.88 },
-      { id: 'fondo_liquidita', nome: 'Fondo di Riserva Liquidità Interbancaria', cat: 'riserva_capitale', costo: '1000.00', qta: '100', peso: 0.90 }
+      { id: 'tranche_aaa', nome: 'Tranche Obbligazionaria Senior AAA - Tutela Capitale', cat: 'senior_debt', costo: '450.00', qta: '800', peso: 0.88 },
+      { id: 'fondo_liquidita', nome: 'Fondo di Riserva Liquidita Interbancaria', cat: 'riserva_capitale', costo: '1000.00', qta: '100', peso: 0.90 }
     ],
     matrix: [
       [1.00, 0.40, 0.60, 0.00],
@@ -65,10 +56,10 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
     categoryName: "Finanza: Probabilità Default Mutui Subprime",
     description: "Cartolarizzazioni MBS/CDO, tranches di debito, Loan-to-Value (LTV) e Score FICO",
     resources: [
-      { id: 'asset_01', nome: 'Pool Mutui Ipotecari Subprime (Alpha)', cat: 'mortgage_pool', costo: '250.00', qta: '1500', peso: 0.85 },
-      { id: 'tranche_aaa', nome: 'Tranche Senior AAA (Tutela Capitale / Solvibilità)', cat: 'senior_debt_mbs', costo: '1000.00', qta: '2400', peso: 0.90 },
-      { id: 'fico_score', nome: 'Score Creditizio FICO Subprime (Capienza Debitore)', cat: 'credit_rating', costo: '75.00', qta: '3000', peso: 0.70 },
-      { id: 'ltv_ratio', nome: 'Indice Loan-to-Value (LTV Pool Garanzie Collaterali)', cat: 'collateral_ratio', costo: '150.00', qta: '1200', peso: 0.65 }
+      { id: 'asset_01', nome: 'Pool Mutui Ipotecari Subprime Alpha', cat: 'mortgage_pool', costo: '250.00', qta: '1500', peso: 0.85 },
+      { id: 'tranche_aaa', nome: 'Tranche Senior AAA - Tutela Capitale e Solvibilita', cat: 'senior_debt_mbs', costo: '1000.00', qta: '2400', peso: 0.90 },
+      { id: 'fico_score', nome: 'Score Creditizio FICO Subprime - Capienza Debitore', cat: 'credit_rating', costo: '75.00', qta: '3000', peso: 0.70 },
+      { id: 'ltv_ratio', nome: 'Indice Loan-to-Value - Pool Garanzie Collaterali', cat: 'collateral_ratio', costo: '150.00', qta: '1200', peso: 0.65 }
     ],
     matrix: [
       [1.00, 0.45, 0.65, 0.00],
@@ -143,7 +134,7 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
     resources: [
       { id: 'facing_ad_alta_rotaz', nome: 'Facing Top Seller Ad Alta Rotazione', cat: 'scaffale_livello_occhi', costo: '4.50', qta: '45', peso: 0.95 },
       { id: 'facing_alto_margine', nome: 'Prodotti Premium Ad Alto Margine', cat: 'scaffale_livello_mani', costo: '8.90', qta: '30', peso: 0.82 },
-      { id: 'prodotto_ingombrante', nome: 'Confezioni Famiglia Bassa Densità Valore', cat: 'scaffale_livello_suolo', costo: '2.10', qta: '20', peso: 0.60 },
+      { id: 'prodotto_ingombrante', nome: 'Confezioni Famiglia Bassa Densita Valore', cat: 'scaffale_livello_suolo', costo: '2.10', qta: '20', peso: 0.60 },
       { id: 'cluster_promo_testata', nome: 'Testata di Gondola Promozionale CRM', cat: 'display_promozionale', costo: '12.00', qta: '15', peso: 0.75 }
     ],
     matrix: [
@@ -181,7 +172,7 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
     resources: [
       { id: 'sala_operatoria', nome: 'Blocco Operatorio Chirurgico Alta Complessita', cat: 'infrastruttura_ospedaliera', costo: '8500.00', qta: '4', peso: 0.95 },
       { id: 'equipe_medica', nome: 'Equipe Chirurgica Specialistica', cat: 'personale_sanitario', costo: '2400.00', qta: '8', peso: 0.85 },
-      { id: 'catena_proteica', nome: 'Catena Polipeptidica Target (Folding)', cat: 'struttura_molecolare', costo: '18.50', qta: '500', peso: 0.70 },
+      { id: 'catena_proteica', nome: 'Catena Polipeptidica Target Folding', cat: 'struttura_molecolare', costo: '18.50', qta: '500', peso: 0.70 },
       { id: 'marcatore_dna', nome: 'Marcatore Genomico HLA Donatore', cat: 'diagnostica_molecolare', costo: '150.00', qta: '120', peso: 0.65 }
     ],
     matrix: [
@@ -237,7 +228,7 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
     description: "Catalizzatori metallorganici, molecole target farmacologiche e sintesi ad alta pressione",
     resources: [
       { id: 'composto_catalizzatore', nome: 'Composto Catalizzatore Metallorganico', cat: 'reagenti_catalitici', costo: '1250.00', qta: '25', peso: 0.85 },
-      { id: 'molecola_target', nome: 'Molecola Farmacologica Target (Inibitore)', cat: 'target_biologico', costo: '4500.00', qta: '5', peso: 0.95 },
+      { id: 'molecola_target', nome: 'Molecola Farmacologica Target Inibitore', cat: 'target_biologico', costo: '4500.00', qta: '5', peso: 0.95 },
       { id: 'reattore_h2', nome: 'Reattore Idrogenazione Alta Pressione', cat: 'impianti_sintesi', costo: '55000.00', qta: '2', peso: 0.75 },
       { id: 'solvente_puro', nome: 'Solvente Organico Supercritico Anidro', cat: 'reagenti_base', costo: '35.00', qta: '600', peso: 0.60 }
     ],
@@ -252,26 +243,61 @@ export const SECTOR_DEMO_DATASETS: Record<string, SectorDemoData> = {
 
 /**
  * Risolve la chiave del settore in modo deterministico e insensibile a maiuscole/minuscole.
+ * Lancia un errore esplicito se lo scenario non è mappato (niente fallback silenzioso su Finanza).
+ *
+ * [FIX 1] Accetta ID con underscore (log_q_10) E con trattino (log-q-10)
+ *         per compatibilità con scenarios.ts (che usa trattino) e con TestPage.tsx.
  */
 export function resolveSectorKey(sector: string, scenario: string = ""): string {
   const norm = (sector + " " + scenario).toLowerCase().trim();
 
   // Sub-scenari specializzati di Logistica & Retail Supply Chain
-  if (norm.includes('cross-dock') || norm.includes('cross dock') || norm.includes('stoccaggio') || norm.includes('log_q_10')) {
+  if (
+    norm.includes('cross-dock') ||
+    norm.includes('cross dock') ||
+    norm.includes('stoccaggio') ||
+    norm.includes('log-q-10') ||
+    norm.includes('log_q_10')
+  ) {
     return "Logistica_CrossDocking";
   }
-  if (norm.includes('fresch') || norm.includes('scarto') || norm.includes('markdown') || norm.includes('pricing') || norm.includes('log_q_11') || norm.includes('log_q_12')) {
+  if (
+    norm.includes('fresch') ||
+    norm.includes('scarto') ||
+    norm.includes('markdown') ||
+    norm.includes('pricing') ||
+    norm.includes('log-q-11') ||
+    norm.includes('log-q-12') ||
+    norm.includes('log_q_11') ||
+    norm.includes('log_q_12')
+  ) {
     return "Logistica_RetailPricing";
   }
-  if (norm.includes('knapsack') || norm.includes('scaffal') || norm.includes('planogram') || norm.includes('crm') || norm.includes('log_q_13') || norm.includes('log_q_14')) {
+  if (
+    norm.includes('knapsack') ||
+    norm.includes('scaffal') ||
+    norm.includes('planogram') ||
+    norm.includes('crm') ||
+    norm.includes('log-q-13') ||
+    norm.includes('log-q-14') ||
+    norm.includes('log_q_13') ||
+    norm.includes('log_q_14')
+  ) {
     return "Logistica_KnapsackScaffale";
   }
 
   // Sub-scenario specializzato Finanza: Calcolo Probabilità Default Mutui Subprime (fin-q-19)
-  if (norm.includes('subprime') || norm.includes('mutui') || norm.includes('fin_q_19') || norm.includes('fin-q-19') || (norm.includes('default') && norm.includes('mutu'))) {
+  if (
+    norm.includes('subprime') ||
+    norm.includes('mutui') ||
+    norm.includes('fin-q-19') ||
+    norm.includes('fin_q_19') ||
+    (norm.includes('default') && norm.includes('mutu'))
+  ) {
     return "Finanza_MutuiSubprime";
   }
 
+  // Settori generici
   if (norm.includes('logist') || norm.includes('supply') || norm.includes('flott') || norm.includes('vrptw') || norm.includes('bin packing') || norm.includes('log-') || norm.includes('log_')) {
     return "Logistica e Supply Chain";
   }
@@ -293,7 +319,12 @@ export function resolveSectorKey(sector: string, scenario: string = ""): string 
   if (norm.includes('finanz') || norm.includes('mercat') || norm.includes('fin-') || norm.includes('fin_') || norm.includes('insurtech') || norm.includes('banking') || norm.includes('portafoglio')) {
     return "Finanza e Mercati";
   }
-  return "Finanza e Mercati";
+
+  // Niente fallback silenzioso su Finanza: se lo scenario non è mappato, lancia un errore esplicito
+  throw new Error(
+    `[demoCsv] Scenario non mappato: "${sector}" / "${scenario}". ` +
+    `Aggiungi il dataset in SECTOR_DEMO_DATASETS e la keyword di matching in resolveSectorKey.`
+  );
 }
 
 const buildCsv1 = (resources: DemoResource[], catName: string): string => {
@@ -311,6 +342,12 @@ const buildCsv2 = (ids: string[], matrixBase: number[][], isNone: boolean, catNa
     const row = [ids[i]];
     for (let j = 0; j < ids.length; j++) {
       let val = matrixBase[i] && matrixBase[i][j] !== undefined ? matrixBase[i][j] : 0.0;
+      // Forza simmetria: se il triangolo inferiore è 0 ma il superiore no, copia il superiore.
+      // Questo garantisce che il CSV generato sia SEMPRE simmetrico, anche se in futuro
+      // qualcuno modifica una matrice in SECTOR_DEMO_DATASETS rendendola asimmetrica.
+      if (i !== j && val === 0.0 && matrixBase[j] && matrixBase[j][i] !== undefined && matrixBase[j][i] > 0.0) {
+        val = matrixBase[j][i];
+      }
       if (i === j) {
         val = 1.00;
       } else if (isNone) {
@@ -324,7 +361,9 @@ const buildCsv2 = (ids: string[], matrixBase: number[][], isNone: boolean, catNa
 };
 
 /**
- * Funzione principale esportata: scarica o ottiene il CSV corretto per il settore selezionato
+ * Funzione principale esportata: scarica o ottiene il CSV corretto per il settore selezionato.
+ * NOTA: scenario deve essere passato dal chiamante (TestPage.tsx) per garantire che il demo
+ * scaricato sia specifico per lo scenario (es. Mutui Subprime, Cross-Docking, Retail Pricing).
  */
 export const getDemoCsvBySector = (
   sector: string, 
@@ -332,8 +371,22 @@ export const getDemoCsvBySector = (
   vincolo: string = "", 
   strategy: string = ""
 ): { csv1: string; csv2: string; sectorKey: string; dataset: SectorDemoData } => {
-  const canonicalSector = resolveSectorKey(sector, scenario);
-  const dataset = SECTOR_DEMO_DATASETS[canonicalSector] || SECTOR_DEMO_DATASETS["Finanza e Mercati"];
+  // [FIX CRITICO] Se sector è vuoto/whitespace, usa Finanza come default
+  // per evitare il crash al mount di TestPage (fase 0_cat con selectedSector="")
+  let canonicalSector: string;
+  if (!sector || !sector.trim()) {
+    canonicalSector = "Finanza e Mercati";
+  } else {
+    canonicalSector = resolveSectorKey(sector, scenario);
+  }
+  
+  const dataset = SECTOR_DEMO_DATASETS[canonicalSector];
+  if (!dataset) {
+    throw new Error(
+      `[demoCsv] Dataset non trovato per la chiave "${canonicalSector}". ` +
+      `Settore="${sector}", scenario="${scenario}". Verifica SECTOR_DEMO_DATASETS.`
+    );
+  }
 
   const isNone = vincolo === 'nessun_vincolo' || 
                  vincolo === 'senza_entanglement' || 

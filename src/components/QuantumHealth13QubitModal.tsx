@@ -23,7 +23,7 @@ interface QuantumHealth13QubitModalProps {
 }
 
 const SAMPLE_FSE_CDA2_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<ClinicalDocument xmlns="urn:hl7-org:v3">
+<ClinicalDocument xmlns="urn:hl7-org:v3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <!-- FSE 2.0 Fascicolo Sanitario Elettronico Interoperabile (Regione Emilia-Romagna / Lepida) -->
   <recordTarget>
     <patientRole>

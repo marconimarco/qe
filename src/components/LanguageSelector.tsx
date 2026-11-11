@@ -15,7 +15,7 @@ export default function LanguageSelector({ currentLanguage, onLanguageChange, di
   const activeLang = LANGUAGES.find(l => l.code === currentLanguage) || LANGUAGES[0];
 
   return (
-    <div className="relative z-[100]">
+    <div className="relative z-[9999]" style={{ position: 'relative', zIndex: 9999 }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-gray-300 hover:text-quantum-primary hover:border-quantum-primary/50 transition-all font-mono text-[10px] sm:text-xs uppercase tracking-wider backdrop-blur-md cursor-pointer"
@@ -38,9 +38,10 @@ export default function LanguageSelector({ currentLanguage, onLanguageChange, di
               initial={{ opacity: 0, y: direction === 'down' ? -5 : 5, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: direction === 'down' ? -5 : 5, scale: 0.95 }}
+              style={{ zIndex: 10000 }}
               className={`absolute right-0 ${
                 direction === 'down' ? 'top-full mt-2' : 'bottom-full mb-2'
-              } w-44 sm:w-52 bg-slate-950/98 border border-cyan-400/40 rounded-xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.95)] z-[9999] backdrop-blur-2xl ring-1 ring-cyan-500/20`}
+              } w-44 sm:w-52 bg-slate-950/98 border border-cyan-400/40 rounded-xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.95)] z-[10000] backdrop-blur-2xl ring-1 ring-cyan-500/20`}
             >
               <div className="py-1 max-h-64 overflow-y-auto scrollbar-hide divide-y divide-white/5">
                 {LANGUAGES.map((lang) => {

@@ -11,6 +11,7 @@ import LoginScreen from './components/LoginScreen';
 import AdminUserManagementModal from './components/AdminUserManagementModal';
 import FirstLoginAgreementModal from './components/FirstLoginAgreementModal';
 import AccessDeniedModal from './components/AccessDeniedModal';
+import TrialDisclaimerModal from './components/TrialDisclaimerModal';
 import TestPage from './components/TestPage';
 import { SectorId, SECTORS, LanguageCode } from './types';
 import { TranslationProvider, useTranslation } from './lib/TranslationContext';
@@ -45,6 +46,38 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUserSession | null>(() => {
     return getCurrentSession();
   });
+
+  // Trial / Beta test disclaimer acceptance state (exempt for admin, blocking for standard users)
+  const [hasAcceptedTrial, setHasAcceptedTrial] = useState<boolean>(() => {
+    try {
+      const session = getCurrentSession();
+      if (!session) return false;
+      if (session.role === 'admin') return true;
+      return localStorage.getItem(`trial_disclaimer_accepted_${session.id}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'admin') {
+        setHasAcceptedTrial(true);
+      } else {
+        const accepted = localStorage.getItem(`trial_disclaimer_accepted_${currentUser.id}`) === 'true';
+        setHasAcceptedTrial(accepted);
+      }
+    }
+  }, [currentUser]);
+
+  const handleAcceptTrial = () => {
+    if (currentUser) {
+      try {
+        localStorage.setItem(`trial_disclaimer_accepted_${currentUser.id}`, 'true');
+      } catch {}
+    }
+    setHasAcceptedTrial(true);
+  };
 
   // Keep currentUser state in sync in real time when permissions or storage changes
   useEffect(() => {
@@ -84,6 +117,15 @@ export default function App() {
             setCurrentUser(null);
           }}
         />
+      </TranslationProvider>
+    );
+  }
+
+  // Mandatory blocking Trial / Beta Test Disclaimer for non-admin users
+  if (currentUser.role !== 'admin' && !hasAcceptedTrial) {
+    return (
+      <TranslationProvider language={currentLanguage}>
+        <TrialDisclaimerModal onAccept={handleAcceptTrial} />
       </TranslationProvider>
     );
   }
@@ -140,6 +182,9 @@ function AppContent({
 
   // Disclaimer modal state
   const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState(false);
+
+  // Trial / Beta Test Disclaimer modal state (on-demand review)
+  const [isTrialDisclaimerOpen, setIsTrialDisclaimerOpen] = useState(false);
 
   // Admin User Management modal state
   const [isAdminUsersModalOpen, setIsAdminUsersModalOpen] = useState(false);
@@ -264,11 +309,14 @@ function AppContent({
   const isHomePage = !selectedSector && !isIbmInterfaceOpen && !isTestPageOpen && !isBlankPageOpen;
 
   return (
-    <div className={`bg-quantum-bg selection:bg-quantum-primary selection:text-quantum-bg flex flex-col relative text-white ${
-      isHomePage 
-        ? 'h-screen max-h-screen overflow-hidden' 
-        : 'min-h-screen overflow-x-hidden overflow-y-auto scrollbar-hide'
-    }`}>
+    <div 
+      style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
+      className={`bg-quantum-bg selection:bg-quantum-primary selection:text-quantum-bg flex flex-col relative text-white min-h-screen ${
+        isHomePage 
+          ? 'h-screen max-h-screen overflow-hidden' 
+          : 'min-h-screen overflow-x-hidden overflow-y-auto scrollbar-hide'
+      }`}
+    >
       
       {/* Dynamic flowing background gradients */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
@@ -308,6 +356,13 @@ function AppContent({
         onClose={() => setIsDisclaimerModalOpen(false)}
         canEdit={currentUser.role === 'admin'}
       />
+
+      {/* Trial / Beta Test Disclaimer Modal (accessible on-demand via footer) */}
+      {isTrialDisclaimerOpen && (
+        <TrialDisclaimerModal
+          onAccept={() => setIsTrialDisclaimerOpen(false)}
+        />
+      )}
 
       {/* Admin User Management Modal (Only for admins) */}
       {currentUser.role === 'admin' && (
@@ -654,6 +709,17 @@ function AppContent({
           >
             <ShieldCheck className="w-3.5 h-3.5 text-quantum-primary group-hover:scale-110 transition-transform" />
             <span className="border-b border-quantum-primary/40 group-hover:border-white font-bold">{t('privacy_policy')}</span>
+          </button>
+
+          {/* Trial / Beta Test Disclaimer shortcut in footer */}
+          <button
+            id="trial-disclaimer-footer-btn"
+            onClick={() => setIsTrialDisclaimerOpen(true)}
+            className="text-[9px] sm:text-[10px] text-amber-400 hover:text-white font-mono uppercase tracking-[0.15em] sm:tracking-[0.3em] flex items-center gap-1.5 transition-all cursor-pointer group hover:bg-white/5 px-2 py-1 rounded-lg border border-amber-500/20 hover:border-amber-500/60"
+            title="Visualizza Informativa Versione Trial di Prova"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+            <span className="border-b border-amber-400/40 group-hover:border-white font-bold">Trial Disclaimer</span>
           </button>
 
           {/* Quick mobile logout shortcut in footer */}

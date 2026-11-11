@@ -723,9 +723,9 @@ export const QUANTUM_SCENARIOS: QuantumScenario[] = [
     id: "fin-c-7",
     macroarea: "Finanza e Mercati",
     technology: "IA Classica / HPC",
-    name: "7. Pricing di Polizze Vita Personalizzate (Insurtech) (XGBoost)",
+    name: "7. Scoring di Affidabilità Creditizia su Dati Transazionali (XGBoost)",
     logicType: "Gradient Boosting (XGBoost)",
-    targetVariables: "Tavole_Mortalità, Indice_Massa_Corporea, Storico_Clinico, Età"
+    targetVariables: "Rapporto_Debito_Reddito, Utilizzo_Carta_Credito, Storico_Rimborsi, Ritardo_Pagamenti"
   },
 
   // 2.2 🚚 Logistica e Supply Chain (4 Scenari)

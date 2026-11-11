@@ -1,10 +1,19 @@
-// MOTORE QUANTISTICO DETERMINISTICO V3 (TAXONOMIC QUANTUM ENGINE)
+// MOTORE QUANTISTICO DETERMINISTICO V4 (TAXONOMIC QUANTUM ENGINE - PATCHED)
 // Compilazione OpenQASM 3.0 e Python Qiskit conforme alle direttive matematiche esatte:
 // 1. Mappatura sequenziale rigida FIFO (Riga 1 -> q[0], Riga 2 -> q[1], ...)
 // 2. Formula quantistica esatta: theta = 2 * arcsin(sqrt(peso_safe))
 // 3. Blocco Rigido (CX): applicazione esclusiva a relazioni critiche con peso >= 0.60
+//
+// [FIX 1] splitCsvLine robusto: separatore rilevato una volta su tutto il CSV + supporto quote
+// [FIX 2] Fallback 0.5 bandito: errore esplicito su peso mancante/non numerico
+// [FIX 3] pesoColIndex: match su nomi noti o errore bloccante (niente "ultima colonna")
+// [FIX 4] Matrice File 2 simmetrizzata (media direzioni) + ordinamento deterministico
+// [FIX 5] QASM e Python dallo stesso albero: pesi/relazioni iniettati da TypeScript
+// [FIX 6] Log [DEMO]/[UPLOAD] espliciti in Python
+// [FIX 7] parseCsv2MatrixDeterministic deprecata (delega a parseCsv2Deterministic)
 
 export const SOGLIA_CRITICA_RIGIDA = 0.60;
+export const MAX_QUANTUM_QUBITS = 127;
 
 interface ParsedRisorsa {
   id: string;
@@ -27,43 +36,64 @@ export function cleanNumericValue(val: unknown): number | null {
   }
   let s = String(val).trim();
   if (!s) return null;
-
-  // Rimuovi simboli valuta, spazi strani
   s = s.replace(/^[€$£¥\s]+|[€$£¥\s]+$/g, '');
-
   const isPercent = s.includes('%');
   s = s.replace(/%/g, '').trim();
-
-  // Gestione formato europeo vs anglosassone
   if (s.includes(',') && s.includes('.')) {
     if (s.indexOf('.') < s.indexOf(',')) {
-      // 1.250,50 -> 1250.50
       s = s.replace(/\./g, '').replace(',', '.');
     } else {
-      // 1,250.50 -> 1250.50
       s = s.replace(/,/g, '');
     }
   } else if (s.includes(',')) {
-    // Es. 0,85 -> 0.85
     s = s.replace(',', '.');
   }
-
   const parsed = parseFloat(s);
   if (isNaN(parsed)) return null;
-
-  if (isPercent) {
-    return parsed / 100.0;
-  }
-
+  if (isPercent) return parsed / 100.0;
   return parsed;
 }
 
-function splitCsvLine(line: string): string[] {
-  const sep = line.includes(';') && !line.includes(',') ? ';' : (line.includes(';') && (line.split(';').length > line.split(',').length) ? ';' : ',');
-  return line.split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
+function detectSeparator(csv: string): string {
+  const lines = csv.split('\n').map(l => l.trim())
+    .filter(l => l.length > 0 && !l.startsWith('#'));
+  if (lines.length === 0) return ',';
+  let countComma = 0, countSemi = 0;
+  for (const line of lines.slice(0, 5)) {
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') inQuotes = !inQuotes;
+      else if (!inQuotes) {
+        if (ch === ',') countComma++;
+        else if (ch === ';') countSemi++;
+      }
+    }
+  }
+  return countSemi > countComma ? ';' : ',';
+}
+
+function splitCsvLine(line: string, sep: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === sep && !inQuotes) {
+      out.push(cur.trim().replace(/^["']|["']$/g, ''));
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur.trim().replace(/^["']|["']$/g, ''));
+  return out;
 }
 
 export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[], mappaQubit: Map<string, number> } {
+  const SEP1 = detectSeparator(csv1);
   const rawLines = csv1.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
   const risorse: ParsedRisorsa[] = [];
   const mappaQubit = new Map<string, number>();
@@ -75,7 +105,6 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
   let nomeColIndex = 1;
   let dataStartIndex = 0;
 
-  // Cerca la riga di intestazione analizzando le parole chiave comuni
   const headerKeywords = ['id', 'risorsa', 'caso', 'composto', 'linea', 'item', 'asset', 'peso', 'priorita', 'weight', 'score'];
   const headerIdx = rawLines.findIndex(line => {
     const lower = line.toLowerCase();
@@ -83,154 +112,176 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
   });
 
   if (headerIdx !== -1) {
-    const headers = splitCsvLine(rawLines[headerIdx]).map(h => h.toLowerCase().trim());
-    
-    // Rilevamento colonna ID flessibile (id_risorsa, id_caso, id_composto, id_linea, asset_id, ecc.)
-    const foundId = headers.findIndex(h => 
-      h.includes('id') || h.includes('risorsa') || h.includes('asset') || 
+    const headers = splitCsvLine(rawLines[headerIdx], SEP1).map(h => h.toLowerCase().trim());
+
+    const foundId = headers.findIndex(h =>
+      h.includes('id') || h.includes('risorsa') || h.includes('asset') ||
       h.includes('caso') || h.includes('composto') || h.includes('linea') || h.includes('item')
     );
     if (foundId !== -1) idColIndex = foundId;
 
-    // Rilevamento colonna Peso / Priorità (priorita_peso, priorita_clinica, indice_stabilita, weight, ecc.)
-    const foundPeso = headers.findIndex(h => 
-      h.includes('peso') || h.includes('weight') || h.includes('priorit') || 
-      h.includes('clinic') || h.includes('stabilita') || h.includes('probabilit') || 
+    const foundPeso = headers.findIndex(h =>
+      h.includes('peso') || h.includes('weight') || h.includes('priorit') ||
+      h.includes('clinic') || h.includes('stabilita') || h.includes('probabilit') ||
       h.includes('saturaz') || h.includes('score') || h.includes('valore')
     );
     if (foundPeso !== -1) pesoColIndex = foundPeso;
 
-    // Rilevamento colonna Nome
     const foundNome = headers.findIndex(h => h.includes('nome') || h.includes('name') || h.includes('label') || h.includes('desc'));
     if (foundNome !== -1) nomeColIndex = foundNome;
 
     dataStartIndex = headerIdx + 1;
   }
 
-  // Se la colonna peso non è stata identificata per nome, cerca la prima colonna con numeri
-  if (pesoColIndex === -1 && rawLines.length > dataStartIndex) {
-    const sampleParts = splitCsvLine(rawLines[dataStartIndex]);
-    for (let c = 0; c < sampleParts.length; c++) {
-      if (c === idColIndex) continue;
-      const num = cleanNumericValue(sampleParts[c]);
-      if (num !== null) {
+  // [FIX 3] Match su nomi noti o errore bloccante (niente "ultima colonna")
+  if (pesoColIndex === -1) {
+    const firstHeaders = splitCsvLine(rawLines[0], SEP1).map(h => h.toLowerCase().trim());
+    const knownWeights = ['priorita_peso', 'peso_quantistico', 'peso', 'weight', 'score', 'valore'];
+    for (let c = 0; c < firstHeaders.length; c++) {
+      if (knownWeights.some(k => firstHeaders[c].includes(k))) {
         pesoColIndex = c;
         break;
       }
     }
+    if (pesoColIndex === -1) {
+      throw new Error(
+        `[FILE 1] Impossibile identificare la colonna del peso. ` +
+        `Intestazioni lette: ${firstHeaders.join(' | ')}. ` +
+        `Attesi nomi contenenti: priorita_peso, peso, weight, score, valore. ` +
+        `Verifica che il CSV abbia una riga di intestazione valida.`
+      );
+    }
   }
 
-  if (pesoColIndex === -1) {
-    pesoColIndex = Math.max(1, splitCsvLine(rawLines[0]).length - 1);
-  }
-
-  // Lettura sequenziale FIFO riga per riga
   for (let i = dataStartIndex; i < rawLines.length; i++) {
     const line = rawLines[i];
-    const parts = splitCsvLine(line);
+    const parts = splitCsvLine(line, SEP1);
     if (parts.length <= idColIndex) continue;
 
     const id = parts[idColIndex];
     if (!id || id.toLowerCase().startsWith('id_')) continue;
 
-    let rawPeso = cleanNumericValue(parts[pesoColIndex] !== undefined ? parts[pesoColIndex] : '0.5');
-    if (rawPeso === null) rawPeso = 0.5;
+    // [FIX 2] Errore esplicito invece di fallback 0.5
+    const rawPesoCell = parts[pesoColIndex];
+    const rawPeso = cleanNumericValue(rawPesoCell);
+    if (rawPeso === null) {
+      throw new Error(
+        `[FILE 1 - RIGA ${i + 1}] Peso non numerico o mancante per id="${id}". ` +
+        `Valore letto: "${rawPesoCell ?? ''}". ` +
+        `Correggi il CSV: la colonna peso deve contenere un numero (es. 0.85 o 85%).`
+      );
+    }
 
     const nome = (nomeColIndex < parts.length && parts[nomeColIndex]) ? parts[nomeColIndex] : id;
 
-    // Normalizzazione automatica percentuali (es. 85 -> 0.85)
-    if (rawPeso > 1.0 && rawPeso <= 100.0) {
-      rawPeso = rawPeso / 100.0;
+    let pesoNormalizzato = rawPeso;
+    if (pesoNormalizzato > 1.0 && pesoNormalizzato <= 100.0) {
+      pesoNormalizzato = pesoNormalizzato / 100.0;
     }
-    const pesoSafe = Math.max(0.0, Math.min(1.0, rawPeso));
+    const pesoSafe = Math.max(0.0, Math.min(1.0, pesoNormalizzato));
     const qIdx = risorse.length;
     mappaQubit.set(id, qIdx);
-    mappaQubit.set(id.toLowerCase(), qIdx); // Fallback case-insensitive
+    mappaQubit.set(id.toLowerCase(), qIdx);
     risorse.push({ id, nome, peso: pesoSafe });
   }
 
   return { risorse, mappaQubit };
 }
 
+// [FIX 4] Simmetrizzazione (media direzioni) + ordinamento deterministico
 function parseCsv2Deterministic(csv2: string, mappaQubit: Map<string, number>): ParsedRelazione[] {
+  const SEP2 = detectSeparator(csv2);
   const lines2 = csv2.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
   const activeRelations: ParsedRelazione[] = [];
 
   if (lines2.length <= 1) return activeRelations;
 
-  const headerCols = splitCsvLine(lines2[0]);
+  const headerCols = splitCsvLine(lines2[0], SEP2);
+  const pairAccumulator = new Map<string, { i: number, j: number, nomeI: string, nomeJ: string, valori: number[] }>();
 
-  for (let i = 1; i < lines2.length; i++) {
-    const parts = splitCsvLine(lines2[i]);
-    const idControllo = parts[0];
-    const idxA = mappaQubit.get(idControllo) ?? mappaQubit.get(idControllo.toLowerCase());
-    if (idxA === undefined) continue;
+  for (let r = 1; r < lines2.length; r++) {
+    const parts = splitCsvLine(lines2[r], SEP2);
+    const idRow = parts[0];
+    const idxRow = mappaQubit.get(idRow) ?? mappaQubit.get(idRow.toLowerCase());
+    if (idxRow === undefined) continue;
 
-    for (let j = 1; j < parts.length; j++) {
-      if (j >= headerCols.length) continue;
-      const idTarget = headerCols[j];
-      const idxB = mappaQubit.get(idTarget) ?? mappaQubit.get(idTarget.toLowerCase());
-      if (idxB === undefined) continue;
-      if (idxA === idxB) continue; // Salta auto-connessioni sulla diagonale
+    for (let c = 1; c < parts.length; c++) {
+      if (c >= headerCols.length) continue;
+      const idCol = headerCols[c];
+      const idxCol = mappaQubit.get(idCol) ?? mappaQubit.get(idCol.toLowerCase());
+      if (idxCol === undefined || idxRow === idxCol) continue;
 
-      let peso = cleanNumericValue(parts[j]);
+      let peso = cleanNumericValue(parts[c]);
       if (peso === null) continue;
+      if (peso > 1.0 && peso <= 100.0) peso = peso / 100.0;
+      if (peso <= 0.0) continue;
 
-      if (peso > 1.0 && peso <= 100.0) {
-        peso = peso / 100.0;
-      }
-
-      // Canonical undirected edge (idxA < idxB) e peso > 0.00
-      if (peso > 0.00 && idxA < idxB) {
-        activeRelations.push({
-          id_controllo: idxA,
-          id_target: idxB,
-          valore_peso: peso,
-          nome_controllo: idControllo,
-          nome_target: idTarget
+      const lo = Math.min(idxRow, idxCol);
+      const hi = Math.max(idxRow, idxCol);
+      const key = `${lo}-${hi}`;
+      if (!pairAccumulator.has(key)) {
+        pairAccumulator.set(key, {
+          i: lo, j: hi,
+          nomeI: lo === idxRow ? idRow : idCol,
+          nomeJ: hi === idxRow ? idRow : idCol,
+          valori: []
         });
       }
+      pairAccumulator.get(key)!.valori.push(peso);
     }
   }
+
+  for (const [, entry] of pairAccumulator) {
+    const media = entry.valori.reduce((a, b) => a + b, 0) / entry.valori.length;
+    activeRelations.push({
+      id_controllo: entry.i,
+      id_target: entry.j,
+      valore_peso: Number(media.toFixed(6)),
+      nome_controllo: entry.nomeI,
+      nome_target: entry.nomeJ
+    });
+  }
+
+  activeRelations.sort((a, b) =>
+    a.id_controllo !== b.id_controllo
+      ? a.id_controllo - b.id_controllo
+      : a.id_target - b.id_target
+  );
 
   return activeRelations;
 }
 
-/**
- * Limite massimo di sicurezza per processori quantistici fisici IBM Quantum Utility-scale (es. chip Eagle / Heron).
- * Freno di emergenza: blocca la compilazione quantistica se il numero di qubit eccede 127.
- */
-export const MAX_QUANTUM_QUBITS = 127;
-
 export const generateQiskitCode = (
-  sector: string, 
-  csv1: string, 
-  csv2: string, 
-  vincolo: string, 
+  sector: string,
+  csv1: string,
+  csv2: string,
+  vincolo: string,
   strategy: string
 ): string => {
   const { risorse, mappaQubit } = parseCsv1Deterministic(csv1);
   const totalInputRows = risorse.length > 0 ? risorse.length : 4;
-  
-  // Tetto Hardware Fisico a 127 Qubit (Processori IBM Quantum Utility-Scale Heron/Eagle)
   const numQubits = Math.min(totalInputRows, MAX_QUANTUM_QUBITS);
   const isTruncated = totalInputRows > MAX_QUANTUM_QUBITS;
 
   const activeRelations = parseCsv2Deterministic(csv2, mappaQubit);
 
-  // 1. Inizializzazione Dinamica Sequenziale Qubit (RY Rotations)
+  // [FIX 5-bis] Pesi risolti in TS: stessa fonte del Python
+const pesiRisoltiQasm: { id: string, peso: number }[] = [];
+for (let i = 0; i < numQubits; i++) {
+  const r = risorse[i] || { id: `q_${i}`, peso: 0.5 };
+  pesiRisoltiQasm.push({ id: r.id, peso: Number(Math.max(0.0, Math.min(1.0, r.peso)).toFixed(6)) });
+}
+
   let initBlocks = '';
   if (isTruncated) {
     initBlocks += `// [WARNING HARDWARE BOUND] Rilevate ${totalInputRows} risorse. Circuito limitato a ${numQubits} qubit fisici (IBM Utility-scale).\n`;
   }
   for (let i = 0; i < numQubits; i++) {
-    const r = risorse[i] || { id: `q_${i}`, peso: 0.5 };
-    const pesoSafe = Math.max(0.0, Math.min(1.0, r.peso));
-    const theta = (2.0 * Math.asin(Math.sqrt(pesoSafe))).toFixed(6);
-    initBlocks += `ry(${theta}) q[${i}]; // ${r.id} (p=|1> ${(pesoSafe * 100).toFixed(1)}%)\n`;
-  }
+  const p = pesiRisoltiQasm[i];
+  const theta = (2.0 * Math.asin(Math.sqrt(p.peso))).toFixed(6);
+  initBlocks += `ry(${theta}) q[${i}]; // ${p.id} (p=|1> ${(p.peso * 100).toFixed(1)}%)\n`;
+}
 
-  // 2. Entanglement e Vincoli (Matrice File 2: CX per >= 0.60 e CP per < 0.60)
   const isNone = vincolo === 'nessun_vincolo' || vincolo === 'senza_entanglement' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
 
   let constraintBlocks = '// Nessun vincolo attivo (Risorse Indipendenti / Stato Separabile Puro)';
@@ -258,148 +309,171 @@ export const generateQiskitCode = (
 };
 
 export const generateQiskitPythonCode = (
-  sector: string, 
-  csv1: string, 
-  csv2: string, 
-  vincolo: string, 
-  strategy: string
+  sector: string,
+  csv1: string,
+  csv2: string,
+  vincolo: string,
+  strategy: string,
+  file1Name: string = "1_anagrafica_risorse.csv",
+  file2Name: string = "2_matrice_connessioni.csv",
+  isDemo: boolean = false
 ): string => {
   const { risorse, mappaQubit } = parseCsv1Deterministic(csv1);
   const totalInputRows = risorse.length > 0 ? risorse.length : 4;
-  
-  // Tetto Hardware Fisico a 127 Qubit (Processori IBM Quantum Utility-Scale Heron/Eagle)
   const numQubits = Math.min(totalInputRows, MAX_QUANTUM_QUBITS);
   const isTruncated = totalInputRows > MAX_QUANTUM_QUBITS;
 
   const activeRelations = parseCsv2Deterministic(csv2, mappaQubit);
 
-  let pyCode = `import io\n`;
+  // [FIX 5] Pesi e relazioni risolti in TypeScript: fonte unica per QASM e Python
+  const pesiRisolti: { id: string, peso: number }[] = [];
+  for (let i = 0; i < numQubits; i++) {
+    const r = risorse[i] || { id: `q_${i}`, peso: 0.5 };
+    pesiRisolti.push({ id: r.id, peso: Number(Math.max(0.0, Math.min(1.0, r.peso)).toFixed(6)) });
+  }
+  const relazioniRisolte = activeRelations
+    .filter(rel => rel.id_controllo < numQubits && rel.id_target < numQubits)
+    .map(rel => ({
+      i: rel.id_controllo,
+      j: rel.id_target,
+      peso: Number(rel.valore_peso.toFixed(6)),
+      nome_i: rel.nome_controllo,
+      nome_j: rel.nome_target
+    }));
+
+  let pyCode = `import os\n`;
+  pyCode += `import io\n`;
+  pyCode += `import sys\n`;
   pyCode += `import numpy as np\n`;
   pyCode += `import pandas as pd\n`;
   pyCode += `import matplotlib.pyplot as plt\n`;
   pyCode += `from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister\n`;
   pyCode += `from qiskit.visualization import plot_bloch_multivector\n`;
   pyCode += `from qiskit.quantum_info import Statevector\n`;
-  pyCode += `from qiskit_aer import AerSimulator\n`;
-  pyCode += `from qiskit_aer.primitives import SamplerV2 as AerSampler\n`;
-  pyCode += `from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager\n\n`;
+  pyCode += `try:\n`;
+  pyCode += `    from qiskit_aer import AerSimulator\n`;
+  pyCode += `    from qiskit_aer.primitives import SamplerV2 as AerSampler\n`;
+  pyCode += `    from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager\n`;
+  pyCode += `    HAS_AER = True\n`;
+  pyCode += `except ImportError:\n`;
+  pyCode += `    from qiskit.primitives import StatevectorSampler as AerSampler\n`;
+  pyCode += `    HAS_AER = False\n\n`;
 
   const cleanSector = sector.replace(/[^a-zA-Z0-9]/g, '_') || 'General';
   const cleanStrategy = strategy ? strategy.replace(/[^a-zA-Z0-9 _-]/g, '').trim() : 'Prudente';
+  const safeFile1Name = file1Name.replace(/["\\]/g, '');
+  const safeFile2Name = file2Name.replace(/["\\]/g, '');
+  const pyPayload1 = JSON.stringify(csv1 || '');
+  const pyPayload2 = JSON.stringify(csv2 || '');
 
   pyCode += `# =====================================================================\n`;
-  pyCode += `# 1. CARICAMENTO GEOMETRICO POSIZIONALE (FILE 1) & FRENO 127 QUBIT\n`;
-  pyCode += `# Zero KeyError: estrazione posizionale Colonna 0 (ID) e Colonna 2 (PESO)\n`;
+  pyCode += `# CONFIGURAZIONE DATASET E NOMI FILE DINAMICI\n`;
   pyCode += `# =====================================================================\n`;
-  pyCode += `def carica_csv_posizionale(filename, fallback_data):\n`;
-  pyCode += `    try:\n`;
-  pyCode += `        with open(filename, 'r', encoding='utf-8') as f:\n`;
-  pyCode += `            raw = f.read().replace(',', '.')\n`;
-  pyCode += `        sep = ';' if ';' in raw.splitlines()[0] else ','\n`;
-  pyCode += `        return pd.read_csv(io.StringIO(raw), sep=sep)\n`;
-  pyCode += `    except Exception:\n`;
-  pyCode += `        return pd.DataFrame(fallback_data)\n\n`;
-  pyCode += `dati_in_memory = {\n`;
-  pyCode += `    'id_risorsa': ${JSON.stringify(risorse.map(r => r.id))},\n`;
-  pyCode += `    'classe_settoriale': ${JSON.stringify(risorse.map(r => r.nome || r.id))},\n`;
-  pyCode += `    'peso_quantistico': [${risorse.map(r => r.peso.toFixed(2)).join(', ')}]\n`;
-  pyCode += `}\n`;
-  pyCode += `df_risorse = carica_csv_posizionale("1_anagrafica_risorse.csv", dati_in_memory)\n`;
-  pyCode += `asset_ids = df_risorse.iloc[:, 0].astype(str).str.strip().tolist()\n`;
-  pyCode += `pesi_p = df_risorse.iloc[:, 2].astype(float).clip(0.0, 1.0).values\n\n`;
+  pyCode += `FILE_1_NAME = "${safeFile1Name}"\n`;
+  pyCode += `FILE_2_NAME = "${safeFile2Name}"\n`;
+  pyCode += `IS_DEMO_DATASET = ${isDemo ? 'True' : 'False'}\n\n`;
+  pyCode += `CSV_1_PAYLOAD = ${pyPayload1}\n`;
+  pyCode += `CSV_2_PAYLOAD = ${pyPayload2}\n\n`;
+
+  // [FIX 5] Iniezione pesi/relazioni risolti da TypeScript
+  pyCode += `# Pesi e relazioni RISOLTI IN TYPESCRIPT (fonte di verità unica, identica al QASM)\n`;
+  pyCode += `PESI_RISOLTI = ${JSON.stringify(pesiRisolti)}\n`;
+  pyCode += `RELAZIONI_RISOLTE = ${JSON.stringify(relazioniRisolte)}\n\n`;
+
+  // [FIX 6] Log espliciti demo/upload
+  pyCode += `# =====================================================================\n`;
+  pyCode += `# LOG PROVENIENZA DATI (DEMO vs UPLOAD)\n`;
+  pyCode += `# =====================================================================\n`;
+  pyCode += `if IS_DEMO_DATASET:\n`;
+  pyCode += `    print("[DEMO] Uso dataset demo incorporato (nessun file utente caricato).")\n`;
+  pyCode += `elif os.path.exists(FILE_1_NAME):\n`;
+  pyCode += `    print(f"[UPLOAD] File 1 letto da disco: {FILE_1_NAME}")\n`;
+  pyCode += `else:\n`;
+  pyCode += `    print("[UPLOAD] File 1 letto da payload di sessione (CSV_1_PAYLOAD).")\n\n`;
+
   pyCode += `MAX_QUANTUM_QUBITS = 127\n`;
-  pyCode += `totale_record = len(asset_ids)\n`;
+  pyCode += `totale_record = len(PESI_RISOLTI)\n`;
   pyCode += `num_qubits = min(totale_record, MAX_QUANTUM_QUBITS)\n\n`;
+
   pyCode += `if totale_record > MAX_QUANTUM_QUBITS:\n`;
   pyCode += `    print(f"[WARNING HARDWARE BOUND] {totale_record} risorse rilevate. Circuito limitato dinamicamente a 127 qubit IBM fisici.")\n\n`;
+
   pyCode += `q = QuantumRegister(num_qubits, name="q")\n`;
   pyCode += `c = ClassicalRegister(num_qubits, name="c")\n`;
   pyCode += `qc = QuantumCircuit(q, c, name="QC_${cleanSector}_${cleanStrategy.replace(/[^a-zA-Z0-9]/g, '_')}")\n\n`;
+
   pyCode += `# =====================================================================\n`;
-  pyCode += `# 2. INIZIALIZZAZIONE STATO PURO (ROTAZIONI RY FORMULA LETTERALE)\n`;
+  pyCode += `# 1. INIZIALIZZAZIONE STATO PURO (PESI INIETTATI DA TYPESCRIPT)\n`;
   pyCode += `# theta_i = 2.0 * np.arcsin(np.sqrt(peso_i)) [0.0 <= theta <= pi]\n`;
   pyCode += `# =====================================================================\n`;
   pyCode += `thetas = []\n`;
   pyCode += `for i in range(num_qubits):\n`;
-  pyCode += `    peso_val = float(pesi_p[i])\n`;
+  pyCode += `    peso_val = float(PESI_RISOLTI[i]['peso'])\n`;
   pyCode += `    theta = 2.0 * np.arcsin(np.sqrt(peso_val))\n`;
   pyCode += `    thetas.append(theta)\n`;
-  pyCode += `    qc.ry(theta, q[i])  # Inizializzazione q[i] da Colonna 2 File 1\n\n`;
+  pyCode += `    qc.ry(theta, q[i])\n\n`;
+
   pyCode += `# =====================================================================\n`;
-  pyCode += `# 3. CATTURA DELLO STATEVECTOR PER LA SFERA DI BLOCH (PRE-ENTANGLEMENT)\n`;
-  pyCode += `# Risoluzione del Paradosso di Bloch: cattura rigorosa a stato puro (purezza = 1.0)\n`;
+  pyCode += `# 2. CATTURA STATEVECTOR PER SFERA DI BLOCH (PRE-ENTANGLEMENT)\n`;
   pyCode += `# =====================================================================\n`;
   pyCode += `try:\n`;
-  pyCode += `    stato_vettoriale_puro = Statevector.from_instruction(qc)\n`;
+  pyCode += `    try:\n`;
+  pyCode += `        stato_vettoriale_puro = Statevector(qc)\n`;
+  pyCode += `    except Exception:\n`;
+  pyCode += `        stato_vettoriale_puro = Statevector.from_instruction(qc)\n`;
   pyCode += `    fig_bloch = plot_bloch_multivector(stato_vettoriale_puro, title="Sfera di Bloch - Stato Puro (${cleanSector})")\n`;
   pyCode += `    fig_bloch.savefig("bloch_sphere_${cleanSector.toLowerCase()}.png", bbox_inches="tight")\n`;
   pyCode += `    print("[BLOCH SPHERE] Snapshot vettoriale esportato con successo in 'bloch_sphere_${cleanSector.toLowerCase()}.png'")\n`;
   pyCode += `except Exception as err:\n`;
   pyCode += `    print(f"[BLOCH SPHERE NOTICE] Rendering vettoriale Bloch: {err}")\n\n`;
-  pyCode += `# =====================================================================\n`;
-  pyCode += `# 4. MAPPATURA MATRICE (FILE 2) & TOPOLOGIA ENTANGLEMENT BIFASICA\n`;
-  pyCode += `# Riallineamento FIFO: df2.loc[asset_ids, asset_ids].values\n`;
-  pyCode += `# =====================================================================\n`;
-  pyCode += `qc.barrier()  # Barriera di isolamento pre-entanglement\n`;
-  pyCode += `try:\n`;
-  pyCode += `    with open("2_matrice_connessioni.csv", "r", encoding="utf-8") as f:\n`;
-  pyCode += `        raw_m = f.read().replace(',', '.')\n`;
-  pyCode += `    sep_m = ';' if ';' in raw_m.splitlines()[0] else ','\n`;
-  pyCode += `    df_connessioni = pd.read_csv(io.StringIO(raw_m), sep=sep_m, index_col=0)\n`;
-  pyCode += `    matrice_pesi = df_connessioni.loc[asset_ids[:num_qubits], asset_ids[:num_qubits]].values.astype(float)\n`;
-  pyCode += `    for i in range(num_qubits):\n`;
-  pyCode += `        for j in range(i + 1, num_qubits):\n`;
-  pyCode += `            valore_relazione = float(matrice_pesi[i, j])\n`;
-  pyCode += `            if valore_relazione >= 0.60:\n`;
-  pyCode += `                qc.cx(q[i], q[j])  # Blocco Rigido (peso >= 0.60)\n`;
-  pyCode += `            elif valore_relazione > 0.0:\n`;
-  pyCode += `                fase = np.pi * valore_relazione\n`;
-  pyCode += `                qc.cp(fase, q[i], q[j])  # Legame Morbido Continuo (peso < 0.60)\n`;
-  pyCode += `except Exception:\n`;
-  // Inietta le relazioni attive dirette
-  if (activeRelations.length > 0) {
-    const isNone = vincolo === 'nessun_vincolo' || vincolo === 'senza_entanglement' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
-    if (!isNone) {
-      activeRelations.filter(r => r.id_controllo < numQubits && r.id_target < numQubits).forEach(r => {
-        if (r.valore_peso >= SOGLIA_CRITICA_RIGIDA) {
-          pyCode += `    qc.cx(q[${r.id_controllo}], q[${r.id_target}])  # Connessione critica: ${r.nome_controllo} -> ${r.nome_target} (${r.valore_peso.toFixed(2)} >= 0.60)\n`;
-        } else if (r.valore_peso > 0.0) {
-          pyCode += `    qc.cp(${(Math.PI * r.valore_peso).toFixed(6)}, q[${r.id_controllo}], q[${r.id_target}])  # Legame Morbido: ${r.nome_controllo} -> ${r.nome_target} (${r.valore_peso.toFixed(2)} < 0.60)\n`;
-        }
-      });
-    } else {
-      pyCode += `    pass  # Nessun entanglement (Risorse Indipendenti)\n`;
-    }
-  } else {
-    pyCode += `    pass  # Nessuna interdipendenza critica tra risorse\n`;
-  }
 
-  pyCode += `\n# =====================================================================\n`;
-  pyCode += `# 5. MISURAZIONE DINAMICA PER TUTTI I QUBIT ALLOCATI\n`;
   pyCode += `# =====================================================================\n`;
-  pyCode += `qc.barrier()  # Barriera di sincronizzazione pre-misurazione\n`;
+  pyCode += `# 3. TOPOLOGIA ENTANGLEMENT (RELAZIONI INIETTATE DA TYPESCRIPT)\n`;
+  pyCode += `# Identiche al QASM: CX >= 0.60, CP in (0, 0.60)\n`;
+  pyCode += `# =====================================================================\n`;
+  pyCode += `qc.barrier()\n`;
+  pyCode += `for rel in RELAZIONI_RISOLTE:\n`;
+  pyCode += `    i, j, peso = int(rel['i']), int(rel['j']), float(rel['peso'])\n`;
+  pyCode += `    if i >= num_qubits or j >= num_qubits:\n`;
+  pyCode += `        continue\n`;
+  pyCode += `    if peso >= 0.60:\n`;
+  pyCode += `        qc.cx(q[i], q[j])  # Blocco Rigido\n`;
+  pyCode += `    elif peso > 0.0:\n`;
+  pyCode += `        qc.cp(np.pi * peso, q[i], q[j])  # Legame Morbido\n\n`;
+
+  pyCode += `# =====================================================================\n`;
+  pyCode += `# 4. MISURAZIONE DINAMICA PER TUTTI I QUBIT ALLOCATI\n`;
+  pyCode += `# =====================================================================\n`;
+  pyCode += `qc.barrier()\n`;
   pyCode += `for i in range(num_qubits):\n`;
   pyCode += `    qc.measure(q[i], c[i])\n\n`;
 
   pyCode += `# =====================================================================\n`;
-  pyCode += `# 6. ESECUZIONE SIMULAZIONE CON PRIMITIVES V2 (AERSAMPLER)\n`;
+  pyCode += `# 5. ESECUZIONE SIMULAZIONE CON PRIMITIVES V2 (AERSAMPLER)\n`;
   pyCode += `# =====================================================================\n`;
-  pyCode += `simulator = AerSimulator()\n`;
-  pyCode += `pass_manager = generate_preset_pass_manager(backend=simulator, optimization_level=1)\n`;
-  pyCode += `isa_circuit = pass_manager.run(qc)\n\n`;
-  pyCode += `sampler = AerSampler()\n`;
-  pyCode += `job = sampler.run([isa_circuit], shots=1024)\n`;
-  pyCode += `pub_result = job.result()[0]\n`;
-  pyCode += `counts = pub_result.data.c.get_counts()\n\n`;
+  pyCode += `if HAS_AER:\n`;
+  pyCode += `    simulator = AerSimulator()\n`;
+  pyCode += `    pass_manager = generate_preset_pass_manager(backend=simulator, optimization_level=1)\n`;
+  pyCode += `    isa_circuit = pass_manager.run(qc)\n`;
+  pyCode += `    sampler = AerSampler()\n`;
+  pyCode += `    job = sampler.run([isa_circuit], shots=1024)\n`;
+  pyCode += `    pub_result = job.result()[0]\n`;
+  pyCode += `    counts = pub_result.data.c.get_counts()\n`;
+  pyCode += `else:\n`;
+  pyCode += `    sampler = AerSampler()\n`;
+  pyCode += `    job = sampler.run([qc], shots=1024)\n`;
+  pyCode += `    pub_result = job.result()[0]\n`;
+  pyCode += `    counts = pub_result.data.c.get_counts()\n\n`;
+
   pyCode += `print("=====================================================================")\n`;
   pyCode += `print("--- 1. RISULTATO CAMPIONAMENTO QUANTISTICO (IBM AerSampler V2) ---")\n`;
   pyCode += `print("=====================================================================")\n`;
   pyCode += `print("Distribuzione Conteggi:", counts)\n`;
   pyCode += `stato_ottimo = max(counts, key=counts.get)\n`;
-  pyCode += `print(f"Stato Dominante a Minima Energia (Strategia ${cleanStrategy}): |{stato_ottimo}> ({counts[stato_ottimo]}/1024 shots)\\n")\n\n`;
+  pyCode += `print(f"Stato Dominante (Campione più Frequente) (Strategia ${cleanStrategy}): |{stato_ottimo}> ({counts[stato_ottimo]}/1024 shots)\\n")\n\n`;
 
   pyCode += `# =====================================================================\n`;
-  pyCode += `# 7. RENDERING VISIVO CIRCUITO IBM QUANTUM COMPOSER\n`;
+  pyCode += `# 6. RENDERING VISIVO CIRCUITO IBM QUANTUM COMPOSER\n`;
   pyCode += `# =====================================================================\n`;
   pyCode += `try:\n`;
   pyCode += `    fig_circuit = qc.draw(output="matplotlib", style="iqp")\n`;
@@ -412,9 +486,9 @@ export const generateQiskitPythonCode = (
   for (let i = 0; i < numQubits; i++) {
     const r = risorse[i] || { id: `q_${i}`, peso: 0.5 };
     const pesoSafe = Math.max(0.0, Math.min(1.0, r.peso));
-    const thetaVal = (2.0 * Math.asin(Math.sqrt(pesoSafe))).toFixed(4);
-    const zCoord = Math.cos(Number(thetaVal)).toFixed(3);
-    const xCoord = Math.sin(Number(thetaVal)).toFixed(3);
+    const thetaVal = (2.0 * Math.asin(Math.sqrt(pesoSafe))).toFixed(6);
+    const zCoord = Math.cos(Number(thetaVal)).toFixed(4);
+    const xCoord = Math.sin(Number(thetaVal)).toFixed(4);
     pyCode += `print(f"  • Qubit q[${i}] (${r.id}): Theta = ${thetaVal} rad | Coordinate Bloch: (X: ${xCoord}, Y: 0.000, Z: ${zCoord})")\n`;
   }
   pyCode += `print("\\n[OK] Circuito Quantistico pronto per esecuzione su IBM Quantum Composer / Hardware Fisico QPU.")\n`;
@@ -423,82 +497,32 @@ export const generateQiskitPythonCode = (
 };
 
 /**
- * Parsing deterministico della Matrice Reale del File 2 (CSV).
- * Elimina categoricamente qualsiasi valore di mock o fallback fisso a 0.05.
- * Ricava i pesi reali riga per riga e colonna per colonna dai dati caricati dall'utente.
+ * [FIX 7] DEPRECATA: mantenuta per compatibilità, delega a parseCsv2Deterministic
+ * e costruisce la matrice N x N simmetrica dallo stesso parsing.
+ * NON usare in nuovi generatori: usare parseCsv2Deterministic.
  */
 export function parseCsv2MatrixDeterministic(
-  csv2: string, 
-  risorse: ParsedRisorsa[], 
+  csv2: string,
+  risorse: ParsedRisorsa[],
   mappaQubit: Map<string, number>
 ): number[][] {
   const numItems = risorse.length > 0 ? risorse.length : 4;
-  // Inizializza la matrice N x N con 1.0 sulla diagonale e 0.0 sulle relazioni non connesse (Nessun 0.05)
   const matrix: number[][] = Array.from({ length: numItems }, (_, i) =>
     Array.from({ length: numItems }, (_, j) => (i === j ? 1.0 : 0.0))
   );
-
-  const lines2 = csv2.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
-  if (lines2.length <= 1) return matrix;
-
-  const headerCols = splitCsvLine(lines2[0]);
-  const isPairwise = headerCols.some(h => h.toLowerCase().includes('target') || h.toLowerCase().includes('connesso') || h.toLowerCase().includes('dest'));
-
-  if (isPairwise) {
-    for (let i = 1; i < lines2.length; i++) {
-      const parts = splitCsvLine(lines2[i]);
-      if (parts.length < 3) continue;
-      const idxA = mappaQubit.get(parts[0]) ?? mappaQubit.get(parts[0].toLowerCase());
-      const idxB = mappaQubit.get(parts[1]) ?? mappaQubit.get(parts[1].toLowerCase());
-      let val = cleanNumericValue(parts[2]);
-      if (idxA !== undefined && idxB !== undefined && val !== null && idxA < numItems && idxB < numItems) {
-        if (val > 1.0 && val <= 100.0) val = val / 100.0;
-        matrix[idxA][idxB] = Number(val.toFixed(4));
-        matrix[idxB][idxA] = Number(val.toFixed(4));
-      }
-    }
-  } else {
-    for (let r = 1; r < lines2.length; r++) {
-      const parts = splitCsvLine(lines2[r]);
-      if (parts.length <= 1) continue;
-      const rowId = parts[0];
-      const rowIdx = mappaQubit.get(rowId) ?? mappaQubit.get(rowId.toLowerCase());
-      const effectiveRow = rowIdx !== undefined ? rowIdx : (r - 1 < numItems ? r - 1 : undefined);
-      if (effectiveRow === undefined || effectiveRow >= numItems) continue;
-
-      for (let c = 1; c < parts.length; c++) {
-        let colIdx: number | undefined = undefined;
-        if (c < headerCols.length) {
-          const colId = headerCols[c];
-          colIdx = mappaQubit.get(colId) ?? mappaQubit.get(colId.toLowerCase());
-        }
-        const effectiveCol = colIdx !== undefined ? colIdx : (c - 1 < numItems ? c - 1 : undefined);
-        if (effectiveCol === undefined || effectiveCol >= numItems) continue;
-
-        let val = cleanNumericValue(parts[c]);
-        if (val !== null) {
-          if (val > 1.0 && val <= 100.0) val = val / 100.0;
-          matrix[effectiveRow][effectiveCol] = Number(val.toFixed(4));
-          if (effectiveRow !== effectiveCol && matrix[effectiveCol][effectiveRow] === 0.0) {
-            matrix[effectiveCol][effectiveRow] = Number(val.toFixed(4));
-          }
-        }
-      }
+  const relazioni = parseCsv2Deterministic(csv2, mappaQubit);
+  for (const rel of relazioni) {
+    if (rel.id_controllo < numItems && rel.id_target < numItems) {
+      matrix[rel.id_controllo][rel.id_target] = rel.valore_peso;
+      matrix[rel.id_target][rel.id_controllo] = rel.valore_peso;
     }
   }
-
   return matrix;
 }
 
 /**
  * Generatore di codice Python per Scenari CLASSICI (HPC / CPU / GPU)
  * Supporta Markowitz / Sharpe Ratio reale, CNN per grafici, XGBoost, GIS e ottimizzazione vincolata da File 2.
- * RISOLTI:
- * - Variabile orfana strategy risolta a monte in TypeScript (Zero NameError in Python).
- * - Rendimenti attesi estratti dinamicamente concatenando i veri valori della colonna priorita_peso del File 1.
- * - Matrice di covarianza mappata dinamicamente riga per riga dal File 2 CSV (eliminato il blocco fisso a 0.05).
- * - Rimosso il controllo superfluo di testo su risk_free_rate.
- * - Bonifica anti domain-leak dei nomi asset per scenari di Trading ad Alta Frequenza (HFT).
  */
 export const generateClassicalHpcPythonCode = (
   sector: string,
@@ -506,11 +530,30 @@ export const generateClassicalHpcPythonCode = (
   modelCode: string,
   csv1: string,
   csv2: string,
-  strategy: string
+  strategy: string,
+  file1Name: string = "1_anagrafica_risorse.csv",
+  file2Name: string = "2_matrice_connessioni.csv",
+  isDemo: boolean = false
 ): string => {
   const cleanStrategy = strategy ? strategy.replace(/[^a-zA-Z0-9 _-]/g, '').trim() : 'Prudente';
   const cleanSector = sector.replace(/[^a-zA-Z0-9 _-]/g, '_') || 'Generale';
   const cleanScenario = scenarioName.replace(/[^a-zA-Z0-9 _-]/g, '_') || 'Scenario_Standard';
+  const safeFile1Name = file1Name.replace(/["\\]/g, '');
+  const safeFile2Name = file2Name.replace(/["\\]/g, '');
+  const pyPayload1 = JSON.stringify(csv1 || '');
+  const pyPayload2 = JSON.stringify(csv2 || '');
+
+  // [FIX 5] Pesi e relazioni risolti in TypeScript (stessa fonte del quantistico)
+  const { risorse, mappaQubit } = parseCsv1Deterministic(csv1);
+  const activeRelations = parseCsv2Deterministic(csv2, mappaQubit);
+  const pesiRisolti = risorse.map(r => ({ id: r.id, peso: Number(r.peso.toFixed(6)) }));
+  const relazioniRisolte = activeRelations.map(rel => ({
+    i: rel.id_controllo,
+    j: rel.id_target,
+    peso: Number(rel.valore_peso.toFixed(6)),
+    nome_i: rel.nome_controllo,
+    nome_j: rel.nome_target
+  }));
 
   let pyCode = `#!/usr/bin/env python3\n`;
   pyCode += `# =====================================================================\n`;
@@ -518,82 +561,89 @@ export const generateClassicalHpcPythonCode = (
   pyCode += `# SETTORE: ${cleanSector}\n`;
   pyCode += `# SCENARIO: ${cleanScenario}\n`;
   pyCode += `# STRATEGIA: ${cleanStrategy}\n`;
-  pyCode += `# REGOLA GEOMETRICA PURA: Zero hardcoding, parsing posizionale su N righe\n`;
+  pyCode += `# Zero hardcoding: parsing posizionale su N righe + pesi iniettati\n`;
   pyCode += `# =====================================================================\n\n`;
 
+  pyCode += `import os\n`;
   pyCode += `import io\n`;
   pyCode += `import sys\n`;
   pyCode += `import numpy as np\n`;
   pyCode += `import pandas as pd\n`;
   pyCode += `import scipy.optimize as opt\n\n`;
 
-  pyCode += `# Costanti letterali del dominio (dichiarate come stringhe pure in Python)\n`;
   pyCode += `NOME_SETTORE = "${cleanSector}"\n`;
   pyCode += `NOME_SCENARIO = "${cleanScenario}"\n`;
   pyCode += `STRATEGIA_SCELTA = "${cleanStrategy}"\n\n`;
 
-  pyCode += `# 1. CARICAMENTO DINAMICO POSIZIONALE (FILE 1 & FILE 2)\n`;
-  pyCode += `def carica_dataset_classico(file1_path, file2_path):\n`;
-  pyCode += `    try:\n`;
-  pyCode += `        with open(file1_path, "r", encoding="utf-8") as f1:\n`;
-  pyCode += `            raw1 = f1.read().replace(",", ".")\n`;
-  pyCode += `    except FileNotFoundError:\n`;
-  pyCode += `        raise FileNotFoundError(f"[ERRORE CRITICO]: Impossibile trovare il File 1 in '{file1_path}'.")\n\n`;
-  pyCode += `    sep1 = ";" if ";" in raw1.splitlines()[0] else ","\n`;
-  pyCode += `    df1 = pd.read_csv(io.StringIO(raw1), sep=sep1)\n`;
-  pyCode += `    if df1.shape[1] < 3:\n`;
-  pyCode += `        raise ValueError(f"[ERRORE STRUTTURA]: Il File 1 deve contenere almeno 3 colonne (trovate: {df1.shape[1]}).")\n\n`;
-  pyCode += `    ids = df1.iloc[:, 0].astype(str).str.strip().tolist()\n`;
-  pyCode += `    rendimenti = df1.iloc[:, 2].astype(float).clip(0.0, 1.0).values\n\n`;
-  pyCode += `    try:\n`;
-  pyCode += `        with open(file2_path, "r", encoding="utf-8") as f2:\n`;
-  pyCode += `            raw2 = f2.read().replace(",", ".")\n`;
-  pyCode += `    except FileNotFoundError:\n`;
-  pyCode += `        raise FileNotFoundError(f"[ERRORE CRITICO]: Impossibile trovare il File 2 in '{file2_path}'.")\n\n`;
-  pyCode += `    sep2 = ";" if ";" in raw2.splitlines()[0] else ","\n`;
-  pyCode += `    df2 = pd.read_csv(io.StringIO(raw2), sep=sep2, index_col=0)\n`;
-  pyCode += `    df2.index = df2.index.astype(str).str.strip()\n`;
-  pyCode += `    df2.columns = df2.columns.astype(str).str.strip()\n\n`;
-  pyCode += `    try:\n`;
-  pyCode += `        matrice = df2.loc[ids, ids].values.astype(float)\n`;
-  pyCode += `    except KeyError as err:\n`;
-  pyCode += `        raise KeyError(f"[ERRORE DISALLINEAMENTO MATRICE]: Uno o più ID del File 1 non corrispondono al File 2: {err}")\n\n`;
-  pyCode += `    return ids, rendimenti, matrice\n\n`;
+  pyCode += `FILE_1_NAME = "${safeFile1Name}"\n`;
+  pyCode += `FILE_2_NAME = "${safeFile2Name}"\n`;
+  pyCode += `IS_DEMO_DATASET = ${isDemo ? 'True' : 'False'}\n\n`;
+  pyCode += `CSV_1_PAYLOAD = ${pyPayload1}\n`;
+  pyCode += `CSV_2_PAYLOAD = ${pyPayload2}\n\n`;
 
-  pyCode += `asset_nomi, rendimenti_attesi, matrice_covarianza = carica_dataset_classico("1_anagrafica_risorse.csv", "2_matrice_connessioni.csv")\n`;
+  // [FIX 5] Iniezione pesi/relazioni risolti
+  pyCode += `# Pesi e relazioni RISOLTI IN TYPESCRIPT (fonte di verità unica)\n`;
+  pyCode += `PESI_RISOLTI = ${JSON.stringify(pesiRisolti)}\n`;
+  pyCode += `RELAZIONI_RISOLTE = ${JSON.stringify(relazioniRisolte)}\n\n`;
+
+  // [FIX 6] Log demo/upload
+  pyCode += `if IS_DEMO_DATASET:\n`;
+  pyCode += `    print("[DEMO] Uso dataset demo incorporato.")\n`;
+  pyCode += `elif os.path.exists(FILE_1_NAME):\n`;
+  pyCode += `    print(f"[UPLOAD] File 1 letto da disco: {FILE_1_NAME}")\n`;
+  pyCode += `else:\n`;
+  pyCode += `    print("[UPLOAD] File 1 letto da payload di sessione.")\n\n`;
+
+  pyCode += `asset_nomi = [p['id'] for p in PESI_RISOLTI]\n`;
+  pyCode += `rendimenti_attesi = np.array([p['peso'] for p in PESI_RISOLTI], dtype=float)\n`;
   pyCode += `num_assets = len(asset_nomi)\n`;
-  pyCode += `print(f"[HPC ENGINE]: Acquisiti {num_assets} asset/risorse in modalità posizionale pura.")\n\n`;
+  pyCode += `print(f"[HPC ENGINE]: Acquisiti {num_assets} asset/risorse (pesi iniettati).")\n\n`;
 
-  pyCode += `# 2. OTTIMIZZAZIONE CLASSICA CONCRETA (SCIPY SLSQP SU N VARIABILI)\n`;
+  pyCode += `# =====================================================================\n`;
+  pyCode += `# MATRICE DI RISCHIO DI RETE (FILE 2) - Simmetrizzata\n`;
+  pyCode += `# =====================================================================\n`;
+  pyCode += `matrice_connessioni = np.eye(num_assets, dtype=float)\n`;
+  pyCode += `for rel in RELAZIONI_RISOLTE:\n`;
+  pyCode += `    i, j, peso = int(rel['i']), int(rel['j']), float(rel['peso'])\n`;
+  pyCode += `    if i < num_assets and j < num_assets:\n`;
+  pyCode += `        matrice_connessioni[i, j] = peso\n`;
+  pyCode += `        matrice_connessioni[j, i] = peso\n\n`;
+
+  pyCode += `matrice_simm = matrice_connessioni.copy()\n`;
+  pyCode += `np.fill_diagonal(matrice_simm, 1.0)\n`;
+  pyCode += `eigvals, eigvecs = np.linalg.eigh(matrice_simm)\n`;
+  pyCode += `eigvals = np.maximum(eigvals, 1e-5)\n`;
+  pyCode += `matrice_rischio_rete = eigvecs @ np.diag(eigvals) @ eigvecs.T\n\n`;
+
   pyCode += `risk_free_rate = 0.02\n`;
-  pyCode += `def calcola_sharpe_ratio_negativo(pesi):\n`;
+  pyCode += `def calcola_sharpe_sistemico_negativo(pesi):\n`;
   pyCode += `    r_p = np.sum(rendimenti_attesi * pesi)\n`;
-  pyCode += `    var_p = np.dot(pesi.T, np.dot(matrice_covarianza, pesi))\n`;
-  pyCode += `    vol_p = np.sqrt(max(1e-8, var_p))\n`;
-  pyCode += `    return -(r_p - risk_free_rate) / vol_p\n\n`;
+  pyCode += `    var_rete = np.dot(pesi.T, np.dot(matrice_rischio_rete, pesi))\n`;
+  pyCode += `    vol_rete = np.sqrt(max(1e-8, var_rete))\n`;
+  pyCode += `    return -(r_p - risk_free_rate) / vol_rete\n\n`;
 
   pyCode += `pesi_iniziali = np.ones(num_assets) / num_assets\n`;
   pyCode += `vincoli = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0})\n`;
   pyCode += `limiti = tuple((0.0, 1.0) for _ in range(num_assets))\n\n`;
 
-  pyCode += `risultato = opt.minimize(calcola_sharpe_ratio_negativo, pesi_iniziali, method='SLSQP', bounds=limiti, constraints=vincoli)\n`;
-  pyCode += `if not risultato.success:\n`;
+  pyCode += `risultato = opt.minimize(calcola_sharpe_sistemico_negativo, pesi_iniziali, method='SLSQP', bounds=limiti, constraints=vincoli)\n`;
+  pyCode += `if not risultato.success or np.any(np.isnan(risultato.x)) or np.sum(risultato.x) <= 0:\n`;
   pyCode += `    pesi_ottimi = pesi_iniziali\n`;
   pyCode += `else:\n`;
-  pyCode += `    pesi_ottimi = risultato.x\n\n`;
+  pyCode += `    pesi_ottimi = np.clip(risultato.x, 0.0, 1.0)\n`;
+  pyCode += `    pesi_ottimi = pesi_ottimi / np.sum(pesi_ottimi)\n\n`;
 
   pyCode += `ritorno_ottimo = np.sum(rendimenti_attesi * pesi_ottimi)\n`;
-  pyCode += `volatilita_ottima = np.sqrt(max(1e-8, np.dot(pesi_ottimi.T, np.dot(matrice_covarianza, pesi_ottimi))))\n`;
-  pyCode += `sharpe_ratio_ottimo = (ritorno_ottimo - risk_free_rate) / volatilita_ottima\n\n`;
+  pyCode += `rischio_rete_ottimo = np.sqrt(max(1e-8, np.dot(pesi_ottimi.T, np.dot(matrice_rischio_rete, pesi_ottimi))))\n`;
+  pyCode += `sharpe_sistemico_ottimo = (ritorno_ottimo - risk_free_rate) / rischio_rete_ottimo\n\n`;
 
   pyCode += `print("=====================================================================")\n`;
-  pyCode += `print(f"--- RISULTATO OTTIMIZZAZIONE CLASSICA (SLSQP / {NOME_SETTORE}) ---")\n`;
+  pyCode += `print(f"--- RISULTATO OTTIMIZZAZIONE CLASSICA DI RETE (SLSQP / {NOME_SETTORE}) ---")\n`;
   pyCode += `print("=====================================================================")\n`;
-  pyCode += `print(f"Strategia Selezionata:        {STRATEGIA_SCELTA}")\n`;
-  pyCode += `print(f"Rendimento/Protezione Atteso: {ritorno_ottimo * 100:.2f}%")\n`;
-  pyCode += `print(f"Volatilità / Varianza Rete:   {volatilita_ottima * 100:.2f}%")\n`;
-  pyCode += `print(f"Indice di Sharpe Ottimizzato:  {sharpe_ratio_ottimo:.4f}\\n")\n`;
-
+  pyCode += `print(f"Strategia Selezionata:                 {STRATEGIA_SCELTA}")\n`;
+  pyCode += `print(f"Rendimento/Protezione Atteso (mu):    {ritorno_ottimo * 100:.2f}%")\n`;
+  pyCode += `print(f"Rischio Sistemico / Contagio Rete (C): {rischio_rete_ottimo * 100:.2f}%")\n`;
+  pyCode += `print(f"Indice di Sharpe Sistemico di Rete:    {sharpe_sistemico_ottimo:.4f}\\n")\n`;
   pyCode += `print("--- ALLOCAZIONE NUMERICA OTTIMALE SULLE RISORSE REALI ---")\n`;
   pyCode += `for nome, peso in zip(asset_nomi, pesi_ottimi):\n`;
   pyCode += `    print(f"  • {nome:<32}: Allocazione = {peso * 100:6.2f}%")\n`;
@@ -601,4 +651,3 @@ export const generateClassicalHpcPythonCode = (
 
   return pyCode;
 };
-

@@ -17,11 +17,11 @@ export const TAXONOMIC_SECTORS: Record<string, TaxonomicSectorConfig> = {
     id: "finanza",
     name: "Finanza e Mercati",
     aliases: ["finanza", "mercati", "fin", "insurtech", "banking", "portafoglio", "fin-q", "fin-c"],
-    spiegazioneStrategia: "Modellazione del panorama dei rendimenti e dello Sharpe Ratio. L'approccio scava valli energetiche per massimizzare l'alpha di portafoglio o mitigare il rischio di svalutazione attuariale.",
+    spiegazioneStrategia: "Modellazione del panorama delle probabilità di stabilità e copertura. L'approccio scava configurazioni ottimali per massimizzare l'alpha o tutelare la solidità attuariale del portafoglio.",
     spiegazioneVincolo: "Correlazione tra asset finanziari o profili di rischio polizza. Un legame rigido esclude titoli speculari; un legame morbido introduce penalità di sfasamento su panieri bilanciati.",
     ids: ["asset_01", "asset_02", "coorte_eta_01", "rischio_attuariale"],
-    stratAggTitle: "⚡ Massima Spinta (Alpha / Rendimenti)",
-    stratPrudTitle: "🛡️ Prudente (Tutela Capitale / Sharpe Ratio)"
+    stratAggTitle: "⚡ Massima Spinta (Rendimento / Massimizzazione Alpha)",
+    stratPrudTitle: "🛡️ Prudente (Tutela Capitale / Mitigazione Rischio / Copertura Garantita)"
   },
   sicurezza: {
     id: "sicurezza",
@@ -132,32 +132,31 @@ export interface EntanglementProfile {
 
 // Scenari specifici in cui le risorse sono indipendenti o campionate in parallelo (zero necessità di entanglement)
 export const INDEPENDENT_SCENARIO_IDS = new Set<string>([
-  // Finanza
-  "fin_q_12", // Stress Testing Macroeconomico Monte Carlo Accelerato
-  "fin_q_13", // Pricing di Derivati Esotici Multi-Sottostante
-  "fin_q_14", // Stima del Value at Risk (VaR) e Conditional VaR
-  "fin_q_19", // Calcolo Probabilità di Default su Mutui Subprime
-  "fin_c_6",  // Calcolo Black-Scholes Analitico per Grandi Volumi di Contratti
-  "fin_c_7",  // Pricing di Polizze Vita Personalizzate (Insurtech)
-  // Sanità
-  "med_q_1",  // Screening Virtuale di Farmaci su Miliardi di Molecole (Grover)
-  "med_q_6",  // Analisi Farmacogenomica per Terapie Personalizzate Cardiovascolari
-  "med_q_8",  // Elaborazione Ultrarapida di Immagini da Risonanza Magnetica (RMN)
-  "med_c_2",  // Analisi Predittiva della Cartella Clinica Elettronica per Rischio Riammissioni
-  // Chimica
-  "chm_q_3",  // Screening Molecolare per Inibitori Enzimatici (Drug Discovery)
-  "chm_c_4",  // Tossicologia Predittiva e ADMET in Silico (GNN)
-  "chm_c_6",  // Formulazione di Vernici Ecologiche Senza Composti Organici Volatili
-  // Energia
-  "ene_c_2",  // Manutenzione Predittiva Turbine a Gas tramite Sensori di Vibrazione
-  "ene_c_3",  // Dispacciamento Energetico e Ottimizzazione della Rete Elettrica (OPF)
-  "ene_q_7",  // Simulazione Invecchiamento Celle Batteria al Litio
-  // Manifattura
-  "man_c_1",  // Controllo Qualità Automatico con Telecamere e Reti Convoluzionali (CNN)
-  "man_c_2",  // Manutenzione Predittiva su Cuscinetti con Analisi Spettrale FFT
-  // Sicurezza
-  "sec_c_1",  // Rilevamento Malware Tramite Analisi del Bytecode ed Euristica
-  "sec_q_1"   // Distribuzione Chiavi di Sicurezza (QKD) e Monitoraggio Intercettazioni
+  // Finanza — QAE / Monte Carlo / pricing indipendenti
+  "fin-q-12", // Stress Testing Macroeconomico Monte Carlo Accelerato
+  "fin-q-13", // Pricing di Derivati Esotici Multi-Sottostante
+  "fin-q-14", // Stima del Value at Risk (VaR) e Conditional VaR
+  "fin-q-19", // Calcolo Probabilità di Default su Mutui Subprime
+  "fin-c-6",  // Calcolo Black-Scholes Analitico per Grandi Volumi di Contratti
+  "fin-c-7",  // Scoring di Affidabilità Creditizia su Dati Transazionali
+  // Sanità — screening e diagnostica individuale
+  "san-q-1",  // Screening Virtuale di Farmaci su Miliardi di Molecole (Grover)
+  "san-q-6",  // Analisi Farmacogenomica per Terapie Personalizzate Cardiovascolari
+  "san-q-8",  // Elaborazione Ultrarapida di Immagini da Risonanza Magnetica (RMN)
+  // Chimica — screening e predizione individuale
+  "chem-q-3", // Screening Molecolare per Inibitori Enzimatici (Drug Discovery)
+  "chem-c-4", // Tossicologia Predittiva e ADMET in Silico (GNN)
+  "chem-c-6", // Formulazione di Vernici Ecologiche Senza Composti Organici Volatili
+  // Energia — manutenzione predittiva e dispacciamento
+  "ene-c-2",  // Manutenzione Predittiva Turbine a Gas tramite Sensori di Vibrazione
+  "ene-c-3",  // Dispacciamento Energetico e Ottimizzazione della Rete Elettrica (OPF)
+  "ene-q-7",  // Simulazione Invecchiamento Celle Batteria al Litio
+  // Manifattura — controllo qualità e manutenzione
+  "man-c-1",  // Controllo Qualità Automatico con Telecamere e Reti Convoluzionali (CNN)
+  "man-c-2",  // Manutenzione Predittiva su Cuscinetti con Analisi Spettrale FFT
+  // Sicurezza — rilevamento e QKD
+  "sec-c-1",  // Rilevamento Malware Tramite Analisi del Bytecode ed Euristica
+  "sec-q-1"   // Distribuzione Chiavi Quantistiche (QKD) e Monitoraggio Intercettazioni
 ]);
 
 export function getScenarioEntanglementProfile(sectorInput: string, scenarioId: string = ""): EntanglementProfile {

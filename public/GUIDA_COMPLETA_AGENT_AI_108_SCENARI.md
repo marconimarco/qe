@@ -31,6 +31,10 @@ Durante il collaudo intensivo dell'Agent AI e la prova delle varie casistiche az
 | **Script Python Qiskit** | Errore a runtime `NameError: name 'io' is not defined` all'avvio dello script. | `pd.read_csv(io.StringIO(...))` veniva invocato senza includere l'istruzione `import io` negli header dello script generato. | Inserito `import io` all'inizio di tutti i generatori di codice Python Qiskit deterministici. |
 | **Chat Google Gemini** | Blocchi o fallback automatico improvviso durante l'intervista guidata. | Utilizzo di alias deprecati (`gemini-2.5-flash`, `gemini-3.5-flash`) e mancata gestione del picco di carico (503 / 429). | Implementata pipeline resiliente a 3 livelli: `gemini-3.8-flash` (primario) $\rightarrow$ `gemini-3.1-flash-lite` (secondario) $\rightarrow$ `gemini-flash-latest` (terziario) con retry esponenziale. |
 | **Entanglement Automatico** | Nessun vincolo applicato con file CSV europei. | Con pesi a `0` (causati dal bug di parsing della virgola), la soglia critica $\ge 0.60$ non veniva mai raggiunta. | Con il ripristino di `cleanNumericValue`, le connessioni $\ge 0.60$ generano regolarmente porte `qc.cx(q[i], q[j])` e quelle intermedie generano rotazioni `qc.cp(fase, q[i], q[j])`. |
+| **Separatori CSV (.replace)** | Distruzione delle colonne con CSV separati da virgole standard. | `f.read().replace(',', '.')` convertiva tutti i delimitatori di colonna `,` in `.`, fondendo la riga in una singola stringa. | Eliminato il replace indiscriminato sull'intero testo; la lettura usa `pd.read_csv` con separatore rilevato, e il replace decimale viene eseguito solo sulle singole celle numeriche. |
+| **TypeError df2.shape in min()** | `TypeError: '<' not supported between instances of 'tuple' and 'int'` durante il fallback. | Passaggio della tupla `df2.shape` all'interno della funzione `min()`. | Convertito in `min(len(ids), int(df2.shape[0]), int(df2.shape[1]))`. |
+| **Inclusione ID in Matrice** | Matrice corrotta contenente stringhe `asset_01` anziché float. | Slicing posizionale `df2.iloc[:min_len, :min_len]` su file senza indice assegnato. | Rilevamento automatico colonna ID e assegnazione come indice; nel fallback posizionale viene usato `select_dtypes(include=[np.number])` per escludere rigorosamente stringhe. |
+| **Simmetria Dimensionale SLSQP** | Asimmetria tra vettore rendimenti ($N$) e matrice di rischio ($M$). | Mancata sincronizzazione tra slicing dell'indice e slicing delle colonne. | Allineamento bidirezionale per intersezione esatta ID, con vettore rendimenti e matrice sempre dimensionati esattamente a $N$ e $N \times N$. |
 
 ---
 
@@ -125,16 +129,20 @@ Successivamente viene inserita una barriera di isolamento `qc.barrier()` prima d
 
 ---
 
-## 5. MOTORE MATEMATICO CLASSICO HPC (SCIPY SLSQP)
+## 5. MOTORE MATEMATICO CLASSICO HPC (SCIPY SLSQP SU RETE)
 
 Per gli scenari industriali con dataset molto grandi ($>127$ righe) o che operano su architetture convenzionali CPU/GPU:
 1. **Algoritmo:** Sequential Least Squares Programming (`scipy.optimize.minimize(..., method='SLSQP')`).
-2. **Funzione Obiettivo:** Massimizzazione dello Sharpe Ratio reale di Markowitz:
-   $$\max_{w} \text{SR} = \frac{w^T \mu - r_f}{\sqrt{w^T \Sigma w}}$$
-   dove $\mu$ è il vettore dei rendimenti del File 1, $\Sigma$ è la matrice di covarianza/connessione del File 2, e $r_f = 0.02$ è il risk-free rate.
-3. **Vincoli di Bilancio:**
+2. **Funzione Obiettivo:** Massimizzazione dello Sharpe Ratio Sistemico di Rete:
+   $$\max_{w} \text{SR}_{\text{sistemico}} = \frac{w^T \mu - r_f}{\sqrt{\max(10^{-8}, w^T C_{\text{reg}} w)}}$$
+   dove $\mu$ è il vettore dei rendimenti/pesi estratti dalla colonna `priorita_peso` (Indice 5 o rilevamento dinamico) del File 1, $C_{\text{reg}}$ è la matrice di interdipendenza sistemica di rete derivata dal File 2 regolarizzata per proiezione spettrale, e $r_f = 0.02$ è il risk-free rate.
+3. **Interpretazione di Rete del File 2:**
+   La matrice del File 2 non è trattata come una pura covarianza di prezzo decontestualizzata, bensì come **Matrice delle Connessioni e Interdipendenza Sistemica di Rete**:
+   * Nel calcolo quantistico mappa le porte CX (accoppiamento rigido $\ge 0.60$) e CP (fase morbida continua).
+   * Nel calcolo classico HPC il termine quadratico $w^T C_{\text{reg}} w$ quantifica la concentrazione del rischio di contagio di rete: se due nodi sono fortemente connessi ($C_{ij} \ge 0.60$), sovrappesare entrambi amplifica il rischio sistemico. L'ottimizzatore SLSQP penalizza tali cluster favorendo la diversificazione di rete.
+4. **Vincoli di Bilancio:**
    $$\sum_{i=1}^{N} w_i = 1.0, \quad 0 \le w_i \le 1.0 \quad \forall i$$
-4. **Stress Test su 108 Scenari:** Il codice generato esegue la simulazione su 108 shock macroeconomici sintetici di volatilità per testare la robustezza dell'allocazione.
+5. **Stress Test su 108 Scenari:** Il codice generato esegue la simulazione su 108 shock macroeconomici sintetici di volatilità per testare la robustezza dell'allocazione.
 
 ---
 
@@ -291,12 +299,35 @@ L'Agent AI copre integralmente **108 scenari aziendali specializzati** raggruppa
 
 ## 8. SPECIFICHE DI INPUT FILE 1 E FILE 2
 
-Per garantire l'elaborazione deterministica senza errori di colonna, il parser si basa sulla **geometria posizionale**:
+Per garantire l'elaborazione deterministica senza errori di colonna, il parser e gli script Python adottano una **risoluzione dinamica posizionale**:
 
 ### File 1: Anagrafica Risorse (`1_anagrafica_risorse.csv`)
-* **Colonna 0:** Identificativo alfanumerico univoco della risorsa (es. `asset_01`, `linea_a`, `enzima_x`, `nodo_milano`).
-* **Colonna 1:** Descrizione / Nome commerciale leggibile.
-* **Colonna 2:** Valore numerico di peso, probabilità o saturazione (es. `0.85` o `0,85` o `85%`).
+
+Il sistema supporta nativamente sia il formato aziendale completo a 6 colonne, sia il formato compatto a 3 colonne:
+
+#### Formato Standard a 6 Colonne (Consigliato per Finanza e Mercati):
+* **Indice 0 (`id_risorsa`):** Identificativo alfanumerico univoco (es. `asset_01`, `asset_02`).
+* **Indice 1 (`nome`):** Denominazione commerciale leggibile (es. `Titolo Governativo Benchmark`).
+* **Indice 2 (`categoria`):** Settore o classe di appartenenza (stringa testuale, es. `titoli_equity`, `reddito_fisso`).
+* **Indice 3 (`sottocategoria`):** Dettaglio categoria (es. `benchmark_sovrano`).
+* **Indice 4 (`ticker`):** Simbolo finanziario o codice univoco (es. `BTP_10Y`).
+* **Indice 5 (`priorita_peso`):** Valore numerico di peso o rendimento atteso (`0.85`, `0.70`, `0.60`, `0.90` o con virgola europea `0,85`).
+
+```csv
+id_risorsa,nome,categoria,sottocategoria,ticker,priorita_peso
+asset_01,Titolo Governativo Benchmark,reddito_fisso,benchmark_sovrano,BTP_10Y,0.85
+asset_02,Obbligazione Corporate Investment Grade,reddito_fisso,corporate_ig,CORP_BBB,0.70
+asset_03,Fondo Azionario High Alpha,titoli_equity,high_alpha,EQ_ALPHA,0.60
+asset_04,Derivato di Copertura Volatilità,derivati_copertura,tail_hedging,VIX_HEDGE,0.90
+```
+
+> **Risoluzione Automatica nel Codice Python e TypeScript:**
+> Il codice punta direttamente all'**Indice 5** (o ricerca la colonna `priorita_peso`), isolando la colonna numerica ed evitando categoricamente il crash `ValueError: could not convert string to float` che deriverebbe dall'estrarre la colonna testuale `categoria` all'Indice 2.
+
+#### Formato Compatto a 3 Colonne:
+* **Indice 0:** `id_risorsa`
+* **Indice 1:** `nome_commerciale`
+* **Indice 2:** `priorita_peso`
 
 ```csv
 id_risorsa,nome_commerciale,priorita_peso
@@ -306,13 +337,13 @@ asset_03,Fondo Azionario High Alpha,0.60
 asset_04,Derivato di Copertura Volatilità,0.90
 ```
 
-### File 2: Matrice Connessioni / Covarianza (`2_matrice_connessioni.csv`)
-* Matrice quadrata $N \times N$ simmetrica.
+### File 2: Matrice delle Connessioni e Interdipendenza di Rete (`2_matrice_connessioni.csv`)
+* Matrice quadrata $N \times N$ simmetrica (oppure a coppie relazionali).
 * L'intestazione di colonna deve contenere gli stessi identici ID del File 1.
-* I valori sulle righe e colonne indicano il grado di interazione:
-  * `0.00`: Risorse indipendenti.
-  * Tra `0.01` e `0.59`: Legame morbido continuo (Porta CP / Sfasamento continuo).
-  * $\ge 0.60$: Blocco rigido critico (Porta Controlled-NOT / CX).
+* I valori numerici rappresentano l'intensità di connessione tra nodi:
+  * `0.00`: Nodi indipendenti.
+  * Tra `0.01` e `0.59`: Legame continuo morbido (nel quantistico porta CP / sfasamento; nel classico termine di correlazione sistemica).
+  * $\ge 0.60$: Blocco rigido critico (nel quantistico porta Controlled-NOT / CX; nel classico forte penalità di cluster $w^T C_{\text{reg}} w$).
 
 ```csv
 id_risorsa,asset_01,asset_02,asset_03,asset_04
