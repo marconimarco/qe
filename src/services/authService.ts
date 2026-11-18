@@ -101,13 +101,6 @@ export const ALL_APP_ICONS: AppIconPermission[] = [
     description: 'Suite di sicurezza NIST: Crypto-Locker, Key-Gen e Quantum-Safe Chat.'
   },
   {
-    id: 'medical_screening',
-    name: 'Medical Screening',
-    category: 'core',
-    icon: 'Sparkles',
-    description: 'Modulo di screening biomedico quantistico e analisi predittiva biomarker.'
-  },
-  {
     id: 'realq',
     name: 'Specifiche e Guida RealQ',
     category: 'system',
@@ -175,8 +168,6 @@ export const SEED_ADMIN_VIEW_TIME = new Date(_BASE_SEED_TIME - 35 * 60 * 1000).t
 // 2. DEMO (Sessione di 14 Giorni Fa - 2 Settimane Fa)
 const DEMO_SESSION_OFFSET_MS = 14 * 86400 * 1000;
 export const SEED_DEMO_LOGIN_TIME = new Date(_BASE_SEED_TIME - DEMO_SESSION_OFFSET_MS).toISOString();
-export const SEED_DEMO_VIEW1_TIME = new Date(_BASE_SEED_TIME - DEMO_SESSION_OFFSET_MS + 3 * 60 * 1000).toISOString();
-export const SEED_DEMO_VIEW2_TIME = new Date(_BASE_SEED_TIME - DEMO_SESSION_OFFSET_MS + 15 * 60 * 1000).toISOString();
 
 // 3. ANALYST (Sessione di 30 Giorni Fa - 1 Mese Fa)
 const ANALYST_SESSION_OFFSET_MS = 30 * 86400 * 1000;
@@ -864,32 +855,6 @@ export const SEED_ACCESS_LOGS: UserAccessLog[] = [
     allowedIconsSnapshot: ALL_APP_ICON_IDS,
     allowedCategoriesSnapshot: ALL_AGENT_AI_CATEGORY_IDS
   },
-  {
-    id: 'log_seed_004',
-    userId: 'usr_demo_003',
-    username: 'demo',
-    userRole: 'user',
-    timestamp: SEED_DEMO_VIEW1_TIME,
-    type: 'view_page',
-    actionName: 'Visualizzazione Medical Screening',
-    viewDetail: 'Pagina Salute - Screening Predittivo Multi-Organo, Scanner Olografico & Effetto Domino',
-    targetId: 'medical_screening',
-    ipAddress: '10.0.4.88 (VPN Ospite)',
-    deviceInfo: 'Sessione Utente • Firefox / Desktop'
-  },
-  {
-    id: 'log_seed_005',
-    userId: 'usr_demo_003',
-    username: 'demo',
-    userRole: 'user',
-    timestamp: SEED_DEMO_VIEW2_TIME,
-    type: 'view_page',
-    actionName: 'Visualizzazione Mappa Reazioni a Catena',
-    viewDetail: 'Apertura dettaglio Effetto Domino: 18 Quadranti Fisiopatologici e Sequenza a 3 Passi',
-    targetId: 'domino_map',
-    ipAddress: '10.0.4.88 (VPN Ospite)',
-    deviceInfo: 'Sessione Utente • Firefox / Desktop'
-  },
   // Sessione Analyst (ieri - 25 ore fa)
   {
     id: 'log_seed_006',
@@ -963,12 +928,15 @@ export function reconcileAndSanitizeStorage(): void {
     let logsChanged = false;
     let usersChanged = false;
 
+    // Rimuove eventuali vecchi seed log del modulo Medical Screening dismesso
+    const prevLogLen = logs.length;
+    logs = logs.filter(l => l.id !== 'log_seed_004' && l.id !== 'log_seed_005' && l.targetId !== 'medical_screening' && l.targetId !== 'domino_map');
+    if (logs.length !== prevLogLen) logsChanged = true;
+
     // Riallinea i seed log storici affinché ogni utente abbia i suoi log esattamente nella sessione di accesso
     logs = logs.map(l => {
       // Demo (14 giorni fa - 2 settimane fa)
       if (l.id === 'log_seed_003' && l.timestamp !== SEED_DEMO_LOGIN_TIME) { logsChanged = true; return { ...l, timestamp: SEED_DEMO_LOGIN_TIME }; }
-      if (l.id === 'log_seed_004' && l.timestamp !== SEED_DEMO_VIEW1_TIME) { logsChanged = true; return { ...l, timestamp: SEED_DEMO_VIEW1_TIME }; }
-      if (l.id === 'log_seed_005' && l.timestamp !== SEED_DEMO_VIEW2_TIME) { logsChanged = true; return { ...l, timestamp: SEED_DEMO_VIEW2_TIME }; }
       // Analyst (30 giorni fa - 1 mese fa)
       if (l.id === 'log_seed_006' && l.timestamp !== SEED_ANALYST_LOGIN_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ANALYST_LOGIN_TIME }; }
       if (l.id === 'log_seed_007' && l.timestamp !== SEED_ANALYST_VIEW1_TIME) { logsChanged = true; return { ...l, timestamp: SEED_ANALYST_VIEW1_TIME }; }
@@ -982,6 +950,10 @@ export function reconcileAndSanitizeStorage(): void {
 
     // Controllo coerenza per ciascun utente in users
     for (const u of users) {
+      if (Array.isArray(u.allowedIcons) && u.allowedIcons.includes('medical_screening')) {
+        u.allowedIcons = u.allowedIcons.filter(id => id !== 'medical_screening');
+        usersChanged = true;
+      }
       if (u.id === 'usr_demo_003') {
         const manualRecentLogin = logs.find(l => l.userId === u.id && !l.id.startsWith('log_seed_') && l.type === 'login' && (Date.now() - new Date(l.timestamp).getTime()) < 86400000);
         if (manualRecentLogin) {

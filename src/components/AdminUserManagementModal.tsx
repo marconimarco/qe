@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Users, UserPlus, UserCheck, UserX, Shield, Edit3, Trash2, Key, 
   Search, Check, AlertCircle, RefreshCw, Lock, Mail, User, ShieldAlert,
-  RotateCcw, Download, Sparkles, Sliders, CheckSquare, Square,
+  RotateCcw, Download, Sliders, CheckSquare, Square,
   Cpu, Terminal, Languages, Code2, HelpCircle, Eye, EyeOff, Copy,
   History, Clock, FileText, Activity, LogIn, LogOut, Globe, Monitor, Laptop,
   Filter, ChevronRight, Info, AlertTriangle, Layers, Calendar, ExternalLink, CheckCircle
@@ -43,7 +43,6 @@ const PERMISSION_ICON_MAP: Record<string, React.ElementType> = {
   Code2,
   ShieldCheck: Shield,
   Lock,
-  Sparkles,
   HelpCircle,
   Key
 };
@@ -1565,14 +1564,14 @@ export default function AdminUserManagementModal({
                                 </div>
                                 <span className="text-[10px] text-gray-400">
                                   {inspectedUser.role === 'admin' 
-                                    ? 'Tutti i 9 Moduli abilitati' 
+                                    ? `Tutti i ${ALL_APP_ICONS.length} Moduli abilitati` 
                                     : `${allowedIconList.length} di ${ALL_APP_ICONS.length} Moduli abilitati`}
                                 </span>
                               </div>
 
                               {inspectedUser.role === 'admin' ? (
                                 <div className="p-2.5 rounded-lg bg-quantum-primary/10 border border-quantum-primary/30 text-quantum-primary text-xs font-sans">
-                                  ✨ <strong>Amministratore Totale:</strong> Questo utente ha visibilità completa su tutti i moduli dell'ecosistema, inclusi Medical Screening (Pagina Salute), Portale Agent AI (108 scenari), IBM Quantum Interface, Noise Management, PQC Suite, Gestione Utenti e Configurazione Chiavi API.
+                                  ✨ <strong>Amministratore Totale:</strong> Questo utente ha visibilità completa su tutti i moduli dell'ecosistema, inclusi Portale Agent AI (108 scenari), IBM Quantum Interface, Noise Management, PQC Suite, Gestione Utenti e Configurazione Chiavi API.
                                 </div>
                               ) : (
                                 <div className="space-y-2">

@@ -22,7 +22,6 @@ import { motion } from 'motion/react';
 import aiStudioPrompt from './promptText.txt?raw';
 import { Check, Copy } from 'lucide-react';
 
-import MedicalScreening from './components/MedicalScreening';
 import QuantumNetNewsButton from './components/QuantumNetNewsButton';
 
 export default function App() {
@@ -166,7 +165,6 @@ function AppContent({
   const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
   const [isIbmInterfaceOpen, setIsIbmInterfaceOpen] = useState(false);
   const [isTestPageOpen, setIsTestPageOpen] = useState(false);
-  const [isBlankPageOpen, setIsBlankPageOpen] = useState(false);
   const [returnToSubMenu, setReturnToSubMenu] = useState<SectorId | null>(null);
   const [sharedQasm, setSharedQasm] = useState<string>('');
   
@@ -230,11 +228,7 @@ function AppContent({
       setIsTestPageOpen(false);
       handleAccessDenied('agent_ai', 'Agent AI');
     }
-    if (isBlankPageOpen && !isIconAllowedForUser(currentUser, 'medical_screening')) {
-      setIsBlankPageOpen(false);
-      handleAccessDenied('medical_screening', 'Medical Screening Analysis');
-    }
-  }, [currentUser, selectedSectorId, isIbmInterfaceOpen, isTestPageOpen, isBlankPageOpen]);
+  }, [currentUser, selectedSectorId, isIbmInterfaceOpen, isTestPageOpen]);
 
   const selectedSector = SECTORS.find(s => s.id === selectedSectorId);
 
@@ -306,7 +300,7 @@ function AppContent({
     setSelectedSectorId(null);
   };
 
-  const isHomePage = !selectedSector && !isIbmInterfaceOpen && !isTestPageOpen && !isBlankPageOpen;
+  const isHomePage = !selectedSector && !isIbmInterfaceOpen && !isTestPageOpen;
 
   return (
     <div 
@@ -539,25 +533,7 @@ function AppContent({
 
       {/* Main container area */}
       <main className="relative z-10 flex-1 flex flex-col">
-        {isBlankPageOpen ? (
-          <MedicalScreening 
-            onBack={() => {
-              logUserAccess({
-                userId: currentUser.id,
-                username: currentUser.username,
-                userRole: currentUser.role,
-                type: 'view_page',
-                actionName: 'Chiusura Medical Screening',
-                viewDetail: 'Ritorno alla Schermata Principale dalla Pagina Salute',
-                targetId: 'home',
-                allowedIconsSnapshot: currentUser.allowedIcons,
-                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
-              });
-              setIsBlankPageOpen(false);
-            }} 
-            currentUser={currentUser}
-          />
-        ) : isTestPageOpen ? (
+        {isTestPageOpen ? (
           <TestPage 
             currentUser={currentUser}
             onBack={() => {
@@ -674,24 +650,6 @@ function AppContent({
                 allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
               });
               setIsTestPageOpen(true);
-            }}
-            onOpenBlank={() => {
-              if (!isIconAllowedForUser(currentUser, 'medical_screening')) {
-                handleAccessDenied('medical_screening', 'Medical Screening Analysis');
-                return;
-              }
-              logUserAccess({
-                userId: currentUser.id,
-                username: currentUser.username,
-                userRole: currentUser.role,
-                type: 'view_page',
-                actionName: 'Apertura Medical Screening',
-                viewDetail: 'Visualizzazione Pagina Salute - Screening Predittivo 14 Qubit & Effetto Domino',
-                targetId: 'medical_screening',
-                allowedIconsSnapshot: currentUser.allowedIcons,
-                allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
-              });
-              setIsBlankPageOpen(true);
             }}
             onAccessDenied={handleAccessDenied}
           />

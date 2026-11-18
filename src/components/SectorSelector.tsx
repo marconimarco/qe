@@ -53,7 +53,6 @@ interface Props {
   onOpenIbm?: () => void;
   onOpenHelp?: () => void;
   onOpenTest?: () => void;
-  onOpenBlank?: () => void;
   onAccessDenied?: (iconId: string, iconName?: string) => void;
 }
 
@@ -65,7 +64,6 @@ export default function SectorSelector({
   onOpenIbm, 
   onOpenHelp, 
   onOpenTest, 
-  onOpenBlank,
   onAccessDenied
 }: Props) {
   const { t, language } = useTranslation();
@@ -318,62 +316,6 @@ export default function SectorSelector({
                   );
                 })}
               </motion.div>
-
-              {/* Inner Orbit for Blank Page Icon */}
-              {(() => {
-                const isMedicalAllowed = isIconAllowedForUser(currentUser, 'medical_screening');
-                return (
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-25"
-                    animate={{ rotate: -360 }}
-                    transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <motion.button
-                        onClick={() => {
-                          if (!isMedicalAllowed) {
-                            onAccessDenied?.('medical_screening', 'Medical Screening Analysis');
-                            return;
-                          }
-                          onOpenBlank?.();
-                        }}
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{
-                          opacity: isMedicalAllowed ? 1 : 0.65,
-                          scale: 1,
-                          left: '50%',
-                          top: '26%',
-                          translateX: '-50%',
-                          translateY: '-50%'
-                        }}
-                        transition={{ duration: 0.8, type: "spring" }}
-                        whileHover={{ scale: 1.15 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="absolute flex flex-col items-center group z-30 pointer-events-auto"
-                      >
-                        <motion.div
-                          className="flex flex-col items-center select-none text-center relative"
-                          animate={{ rotate: 360 }}
-                          transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
-                        >
-                          {!isMedicalAllowed && (
-                            <div 
-                              className="absolute -top-1 -right-1 p-0.5 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_6px_rgba(239,68,68,0.8)] z-30 animate-pulse"
-                              title="Accesso riservato"
-                            >
-                              <Lock className="w-2 h-2 text-white" />
-                            </div>
-                          )}
-                          <div className={`w-[6vmin] h-[6vmin] max-w-[32px] max-h-[32px] md:w-10 md:h-10 rounded-full border ${!isMedicalAllowed ? 'border-red-500/60 bg-red-950/30' : 'border-white/50 bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:bg-white/40 hover:shadow-[0_0_25px_rgba(255,255,255,0.6)]'} flex items-center justify-center transition-all backdrop-blur-sm relative overflow-hidden`}>
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
-                            <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${!isMedicalAllowed ? 'bg-red-400 shadow-[0_0_8px_rgba(239,68,68,1)]' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,1)]'} rounded-full animate-pulse`} />
-                          </div>
-                        </motion.div>
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                );
-              })()}
 
               {/* Central Fixed Sun (Primary Portal - TEST Simulation) */}
               {(() => {
