@@ -301,12 +301,13 @@ function AppContent({
   };
 
   const isHomePage = !selectedSector && !isIbmInterfaceOpen && !isTestPageOpen;
+  const isViewportLockedPage = isHomePage || isTestPageOpen;
 
   return (
     <div 
-      style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
-      className={`bg-quantum-bg selection:bg-quantum-primary selection:text-quantum-bg flex flex-col relative text-white min-h-screen ${
-        isHomePage 
+      style={{ display: 'flex', flexDirection: 'column' }}
+      className={`bg-quantum-bg selection:bg-quantum-primary selection:text-quantum-bg flex flex-col relative text-white ${
+        isViewportLockedPage 
           ? 'h-screen max-h-screen overflow-hidden' 
           : 'min-h-screen overflow-x-hidden overflow-y-auto scrollbar-hide'
       }`}
@@ -532,7 +533,7 @@ function AppContent({
       </header>
 
       {/* Main container area */}
-      <main className="relative z-10 flex-1 flex flex-col">
+      <main className={`relative z-10 flex-1 flex flex-col ${isViewportLockedPage ? 'min-h-0 overflow-hidden' : ''}`}>
         {isTestPageOpen ? (
           <TestPage 
             currentUser={currentUser}

@@ -613,7 +613,7 @@ export default function TestPage({
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Copia dell'intera trascrizione dell'intervista negli appunti
+  // Copia dell'intera trascrizione dell'intervista negli appunti e download automatico in .txt
   const handleCopyInterview = () => {
     if (messages.length === 0) return;
     const fullInterviewText = messages.map(m => {
@@ -621,7 +621,32 @@ export default function TestPage({
       return `[${sender}]\n${m.text}\n`;
     }).join('\n----------------------------------------\n\n');
 
-    navigator.clipboard.writeText(fullInterviewText);
+    try {
+      navigator.clipboard?.writeText(fullInterviewText)?.catch(() => {});
+    } catch {}
+
+    try {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+      const sectorSlug = selectedSector
+        ? '_' + selectedSector.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+        : '';
+      const filename = `intervista_agent_ai${sectorSlug}_${timestamp}.txt`;
+
+      const blob = new Blob([fullInterviewText], { type: 'text/plain;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Errore durante il download del file TXT:', err);
+    }
+
     setCopiedInterview(true);
     setTimeout(() => setCopiedInterview(false), 2200);
   };
@@ -1626,8 +1651,8 @@ ${pythonSnippet}
   const currentSectorData = selectedSector && SECTOR_DATA[selectedSector] ? SECTOR_DATA[selectedSector] : null;
 
   return (
-    <div className="flex flex-col flex-1 w-full h-full text-white bg-slate-950 pb-16 sm:pb-20">
-      <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/10 bg-slate-900/80 backdrop-blur">
+    <div className="flex flex-col flex-1 min-h-0 w-full h-full text-white bg-slate-950 pb-12 sm:pb-14 overflow-hidden">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-2.5 border-b border-white/10 bg-slate-900/80 backdrop-blur">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
@@ -1664,45 +1689,11 @@ ${pythonSnippet}
           )}
           <button
             onClick={handleCopyInterview}
-            className="px-3 py-1.5 border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 hover:text-cyan-200 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 shadow-sm"
-            title="Copia l'intera trascrizione dell'intervista negli appunti"
+            className="px-3 py-1.5 border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 hover:text-cyan-200 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+            title="Copia l'intera trascrizione dell'intervista negli appunti e scarica il file .txt"
           >
             {copiedInterview ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
-            <span className="font-semibold">{copiedInterview ? "Intervista Copiata!" : "Copia Intervista"}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              const link = document.createElement('a');
-              link.href = '/GUIDA_COMPLETA_AGENT_AI_104_SCENARI.md';
-              link.download = 'GUIDA_COMPLETA_AGENT_AI_104_SCENARI.md';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            className="px-3 py-1.5 border border-purple-500/40 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 hover:text-purple-200 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-            title="Scarica la guida completa e il dossier tecnico sui 104 scenari"
-          >
-            <Download className="w-3.5 h-3.5 text-purple-400" />
-            <span className="font-semibold hidden md:inline">Guida 104 Scenari (.md)</span>
-            <span className="font-semibold md:hidden">Guida (.md)</span>
-          </button>
-
-          <button
-            onClick={() => {
-              const link = document.createElement('a');
-              link.href = '/AUDIT_TECNICO_AGENT_AI_QUANTUM_ENGINE.md';
-              link.download = 'AUDIT_TECNICO_AGENT_AI_QUANTUM_ENGINE.md';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            className="px-3 py-1.5 border border-cyan-500/50 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 hover:text-white rounded-md transition-all font-mono text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-            title="Scarica il report integrale di Audit Tecnico (Sezioni 0-6)"
-          >
-            <Download className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-semibold hidden md:inline">Audit Tecnico (.md)</span>
-            <span className="font-semibold md:hidden">Audit (.md)</span>
+            <span className="font-semibold">{copiedInterview ? "Copiata & Scaricata (.txt)!" : "Copia Intervista"}</span>
           </button>
 
           {(targetAlgoritmo !== 'IDLE' || currentPhase === '5_done') && (
@@ -1726,13 +1717,17 @@ ${pythonSnippet}
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden justify-center bg-slate-950/50 w-full px-4 py-2 sm:py-3">
+      <div className="flex flex-1 min-h-0 overflow-hidden justify-center bg-slate-950/50 w-full px-4 py-2 sm:py-3">
         <div 
-          style={{ maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto', paddingLeft: '1rem', paddingRight: '1rem' }}
-          className="w-full max-w-4xl mx-auto h-full flex flex-col border border-white/15 rounded-2xl relative bg-slate-950/90 shadow-[0_10px_50px_rgba(0,0,0,0.85)] overflow-hidden"
+          style={{ maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto' }}
+          className="w-full max-w-4xl mx-auto h-full min-h-0 flex flex-col border border-white/15 rounded-2xl relative bg-slate-950/90 shadow-[0_10px_50px_rgba(0,0,0,0.85)] overflow-hidden"
         >
           
-          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3.5">
+          <div className={
+            currentPhase === '0_cat'
+              ? 'shrink-0 max-h-[30%] overflow-y-auto scrollbar-hide p-4 sm:p-5 flex flex-col gap-3'
+              : 'flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5'
+          }>
             {messages.map((msg, i) => {
               const isCsvUploadMsg = msg.text.includes('[CARICAMENTO FILE CSV') || msg.text.includes('[CARICAMENTO DATASET DEMO');
               const isCsvConfirm = msg.text.includes('[CONFERMA UFFICIALE: FILE CSV') || msg.text.includes('[CONFERMA: DATASET CSV DEMO');
@@ -1779,61 +1774,77 @@ ${pythonSnippet}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t border-white/10 bg-slate-900/90 p-3.5 flex flex-col gap-2.5">
+          <div className={
+            currentPhase === '0_cat'
+              ? 'flex-1 min-h-0 border-t border-white/10 bg-slate-900/90 p-4 sm:p-5 flex flex-col justify-between gap-3 overflow-hidden'
+              : 'shrink-0 max-h-[64vh] overflow-y-auto border-t border-white/10 bg-slate-900/90 p-3.5 sm:p-4 flex flex-col gap-2.5'
+          }>
             
-            {currentPhase === '0_cat' && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs font-mono text-cyan-300 font-semibold">
-                  <span className="flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-400" /> Clicca la tua Categoria Aziendale (Inizializzazione Qubit):
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-normal">7 settori • 104 scenari totali</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {Object.keys(SECTOR_DATA).map((sector) => {
-                    const count = SECTOR_DATA[sector].scenarios.length;
-                    const isAllowed = isAgentAiCategoryAllowedForUser(liveUser, sector);
-                    return (
-                      <button
-                        key={sector}
-                        onClick={() => {
-                          if (!isAllowed) {
-                            setCategoryDeniedModal({ isOpen: true, sectorName: sector });
-                            return;
-                          }
-                          handleQuickClick(sector);
-                        }}
-                        disabled={isLoading}
-                        className={`px-3 py-2.5 rounded-lg text-left font-mono text-xs transition-all flex items-center justify-between group shadow-sm cursor-pointer ${
-                          isAllowed
-                            ? 'bg-slate-800/90 hover:bg-cyan-950/80 hover:border-cyan-500/60 border border-white/15 text-white'
-                            : 'bg-red-950/20 hover:bg-red-950/40 border border-red-500/30 text-gray-300 opacity-80 hover:opacity-100 hover:border-red-500/60'
-                        }`}
-                        title={isAllowed ? `Accedi alla categoria ${sector}` : `Accesso riservato dall'amministratore: non hai i permessi per ${sector}`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="text-base shrink-0">{SECTOR_DATA[sector].icon}</span>
-                          <span className={`truncate font-medium ${isAllowed ? 'group-hover:text-cyan-300 text-slate-100' : 'text-gray-400 group-hover:text-red-300'}`}>
-                            {sector}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                          {!isAllowed && (
-                            <span className="flex items-center gap-1 text-[9px] font-mono text-red-400 bg-red-500/15 border border-red-500/30 px-1.5 py-0.5 rounded font-bold">
-                              <Lock className="w-2.5 h-2.5" />
-                              <span className="hidden sm:inline">Bloccato</span>
+            {currentPhase === '0_cat' && (() => {
+              const sectors = Object.keys(SECTOR_DATA);
+              return (
+                <div className="flex-1 min-h-0 flex flex-col gap-3">
+                  <div className="shrink-0 flex items-center justify-between text-xs font-mono text-cyan-300 font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" /> Clicca la tua Categoria Aziendale (Inizializzazione Qubit):
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-normal">7 settori • 104 scenari totali</span>
+                  </div>
+                  <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-4 gap-2.5 sm:gap-4 overflow-y-auto sm:overflow-visible scrollbar-hide">
+                    {sectors.map((sector, idx) => {
+                      const count = SECTOR_DATA[sector].scenarios.length;
+                      const focusTags = Array.from(new Set(SECTOR_DATA[sector].scenarios.map(s => s.focus))).slice(0, 3).join(' • ');
+                      const isAllowed = isAgentAiCategoryAllowedForUser(liveUser, sector);
+                      const isLastOdd = idx === sectors.length - 1 && sectors.length % 2 === 1;
+                      return (
+                        <button
+                          key={sector}
+                          onClick={() => {
+                            if (!isAllowed) {
+                              setCategoryDeniedModal({ isOpen: true, sectorName: sector });
+                              return;
+                            }
+                            handleQuickClick(sector);
+                          }}
+                          disabled={isLoading}
+                          className={`px-4 py-3 rounded-xl text-left font-mono text-xs transition-all flex items-center justify-between gap-3 group shadow-sm cursor-pointer ${
+                            isLastOdd ? 'sm:col-span-2' : ''
+                          } ${
+                            isAllowed
+                              ? 'bg-slate-800/90 hover:bg-cyan-950/80 hover:border-cyan-500/60 border border-white/15 text-white'
+                              : 'bg-red-950/20 hover:bg-red-950/40 border border-red-500/30 text-gray-300 opacity-80 hover:opacity-100 hover:border-red-500/60'
+                          }`}
+                          title={isAllowed ? `Accedi alla categoria ${sector}` : `Accesso riservato dall'amministratore: non hai i permessi per ${sector}`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-xl shrink-0">{SECTOR_DATA[sector].icon}</span>
+                            <div className="flex flex-col min-w-0">
+                              <span className={`truncate font-semibold text-xs sm:text-[13px] ${isAllowed ? 'group-hover:text-cyan-300 text-slate-100' : 'text-gray-400 group-hover:text-red-300'}`}>
+                                {sector}
+                              </span>
+                              <span className="truncate text-[10px] text-slate-400 font-normal mt-0.5">
+                                {focusTags}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {!isAllowed && (
+                              <span className="flex items-center gap-1 text-[9px] font-mono text-red-400 bg-red-500/15 border border-red-500/30 px-1.5 py-0.5 rounded font-bold">
+                                <Lock className="w-2.5 h-2.5" />
+                                <span className="hidden sm:inline">Bloccato</span>
+                              </span>
+                            )}
+                            <span className="text-[10px] text-cyan-300/90 font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
+                              {count} scenari
                             </span>
-                          )}
-                          <span className="text-[10px] text-slate-400 font-mono px-1.5 py-0.5 rounded bg-white/5">
-                            {count}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {currentPhase === '1_scen' && currentSectorData && (() => {
               const query = scenarioSearch.toLowerCase().trim();
@@ -2202,7 +2213,7 @@ ${pythonSnippet}
               </div>
             )}
 
-            <div className="flex items-center gap-2 pt-1">
+            <div className="shrink-0 flex items-center gap-2 pt-1">
               <input 
                 type="text"
                 value={input}
