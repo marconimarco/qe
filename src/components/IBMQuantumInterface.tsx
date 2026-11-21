@@ -52,6 +52,9 @@ cx q[1], q[2];
 measure q -> c;`);
 
   const [apiToken, setApiToken] = useState<string>('');
+  const [showApiToken, setShowApiToken] = useState<boolean>(false);
+  const [tokenMissingError, setTokenMissingError] = useState<boolean>(false);
+  const apiTokenInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<string | null>(null);
@@ -290,9 +293,12 @@ measure q -> c;`);
       return;
     }
     if (!apiToken.trim()) {
+      setTokenMissingError(true);
+      apiTokenInputRef.current?.focus();
       addLog("Error: IBM Quantum API Token missing.", "error");
       return;
     }
+    setTokenMissingError(false);
 
     setIsLoading(true);
     setFinalResults(null);
@@ -484,12 +490,12 @@ measure q -> c;`);
   }, [pollingActive, jobId, circuitCode, usePqc]);
 
   return (
-    <div className="min-h-screen p-3 sm:p-6 max-w-7xl mx-auto pb-32 relative text-white">
+    <div className="flex flex-col flex-1 min-h-0 w-full max-w-7xl mx-auto px-3 sm:px-6 pt-2 sm:pt-3 pb-14 sm:pb-16 relative text-white overflow-hidden">
       {/* Title block */}
-      <nav className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+      <nav className="shrink-0 flex items-center justify-between mb-2 border-b border-white/5 pb-2">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1 group"
+          className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1 group cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-mono text-[10px] sm:text-xs tracking-widest uppercase">Back to Home Page</span>
@@ -500,21 +506,21 @@ measure q -> c;`);
         </div>
       </nav>
 
-      <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="shrink-0 mb-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-display font-black tracking-tight text-white uppercase mb-2">
+          <h1 className="text-xl sm:text-3xl font-display font-black tracking-tight text-white uppercase mb-0.5">
             <span className="quantum-gradient-text">IBM Quantum</span> {t('ibm_title')}
           </h1>
-          <p className="text-xs text-gray-400 font-mono tracking-wide max-w-3xl leading-relaxed">
+          <p className="text-[11px] text-gray-400 font-mono tracking-wide max-w-3xl leading-snug">
             {t('ibm_subtitle')}
           </p>
         </div>
 
         {/* PQC Global Mode Toggle */}
-        <div className="bg-black/60 border border-quantum-primary/30 p-3 rounded-2xl backdrop-blur-md flex items-center justify-between gap-4 shrink-0 shadow-[0_0_25px_rgba(0,242,255,0.1)]">
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl border transition-all ${usePqc ? 'bg-quantum-primary/20 border-quantum-primary text-quantum-primary shadow-[0_0_15px_rgba(0,242,255,0.3)]' : 'bg-white/5 border-white/10 text-gray-500'}`}>
-              <Lock className="w-5 h-5" />
+        <div className="bg-black/60 border border-quantum-primary/30 px-3 py-2 rounded-2xl backdrop-blur-md flex items-center justify-between gap-4 shrink-0 shadow-[0_0_25px_rgba(0,242,255,0.1)]">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-xl border transition-all ${usePqc ? 'bg-quantum-primary/20 border-quantum-primary text-quantum-primary shadow-[0_0_15px_rgba(0,242,255,0.3)]' : 'bg-white/5 border-white/10 text-gray-500'}`}>
+              <Lock className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -529,7 +535,7 @@ measure q -> c;`);
 
           <button 
             onClick={() => setUsePqc(!usePqc)}
-            className={`w-12 h-6 rounded-full p-1 transition-colors relative ${usePqc ? 'bg-quantum-primary' : 'bg-white/20'}`}
+            className={`w-12 h-6 rounded-full p-1 transition-colors relative cursor-pointer ${usePqc ? 'bg-quantum-primary' : 'bg-white/20'}`}
           >
             <motion.div 
               animate={{ x: usePqc ? 24 : 0 }}
@@ -540,10 +546,14 @@ measure q -> c;`);
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-y-auto lg:overflow-hidden scrollbar-hide">
         {/* Left column: Inputs */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="quantum-card bg-black/40 backdrop-blur-md relative overflow-hidden group border-white/10 hover:border-quantum-primary/30 transition-all p-5">
+        <div className="lg:col-span-7 flex flex-col gap-3 min-h-0">
+          <div className={`shrink-0 quantum-card bg-black/40 backdrop-blur-md relative overflow-hidden group transition-all p-3.5 sm:p-4 ${
+            tokenMissingError
+              ? 'border-amber-500/80 shadow-[0_0_25px_rgba(245,158,11,0.2)]'
+              : 'border-white/10 hover:border-quantum-primary/30'
+          }`}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-black uppercase tracking-widest text-white font-mono flex items-center gap-2">
                 <Key className="w-4 h-4 text-quantum-primary" />
@@ -561,23 +571,42 @@ measure q -> c;`);
             
             <div className="relative">
               <input 
-                type="password"
+                ref={apiTokenInputRef}
+                type={showApiToken ? "text" : "password"}
                 value={apiToken}
-                onChange={(e) => setApiToken(e.target.value)}
+                onChange={(e) => {
+                  setApiToken(e.target.value);
+                  if (e.target.value.trim()) setTokenMissingError(false);
+                }}
                 placeholder={t('ibm_paste_token_placeholder')}
-                className="w-full bg-quantum-bg border border-white/10 rounded-xl px-4 py-3 text-xs text-quantum-primary font-mono placeholder-gray-600 focus:border-quantum-primary focus:outline-none transition-all"
+                className={`w-full bg-quantum-bg border rounded-xl px-4 py-3 pr-11 text-xs text-quantum-primary font-mono placeholder-gray-600 focus:outline-none transition-all ${
+                  tokenMissingError
+                    ? 'border-amber-500 focus:border-amber-400'
+                    : 'border-white/10 focus:border-quantum-primary'
+                }`}
               />
-              <div className="absolute right-3 top-3 pointer-events-none opacity-30">
-                <Zap className="w-4 h-4 text-quantum-primary" />
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowApiToken(!showApiToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-quantum-primary p-1 transition-colors cursor-pointer"
+                title={showApiToken ? "Nascondi Token" : "Mostra Token"}
+              >
+                {showApiToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-            <p className="text-[10px] text-gray-500 font-mono mt-2 leading-relaxed">
-              {t('ibm_token_note')}
-            </p>
+            {tokenMissingError ? (
+              <p className="text-[10px] text-amber-400 font-mono mt-2 leading-relaxed font-semibold">
+                ⚠️ Inserisci la tua API Key / IBM Quantum Token qui sopra per inviare il circuito quantistico alla QPU IBM.
+              </p>
+            ) : (
+              <p className="text-[10px] text-gray-500 font-mono mt-2 leading-relaxed">
+                {t('ibm_token_note')}
+              </p>
+            )}
           </div>
 
-          <div className="quantum-card bg-black/40 backdrop-blur-md border-white/10 p-5 flex flex-col h-[520px]">
-            <div className="flex items-center justify-between mb-4">
+          <div className="quantum-card bg-black/40 backdrop-blur-md border-white/10 p-3.5 sm:p-4 flex flex-col flex-1 min-h-0">
+            <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 mb-2.5">
               <h3 className="text-xs font-black uppercase tracking-widest text-white font-mono flex items-center gap-2">
                 <TerminalIcon className="w-4 h-4 text-quantum-primary" />
                 {t('ibm_quantum_code_title')}
@@ -616,10 +645,10 @@ measure q -> c;`);
               value={circuitCode}
               onChange={(e) => setCircuitCode(e.target.value)}
               placeholder={t('ibm_code_placeholder')}
-              className="flex-1 w-full bg-quantum-bg border border-white/10 rounded-xl p-4 text-xs font-mono text-white leading-relaxed focus:border-quantum-primary focus:outline-none focus:ring-1 focus:ring-quantum-primary/20 resize-none"
+              className="flex-1 min-h-0 w-full bg-quantum-bg border border-white/10 rounded-xl p-3 text-xs font-mono text-white leading-relaxed focus:border-quantum-primary focus:outline-none focus:ring-1 focus:ring-quantum-primary/20 resize-none scrollbar-hide"
             />
 
-            <div className="mt-4 pt-4 border-t border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="shrink-0 mt-3 pt-3 border-t border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono text-gray-500 uppercase">
                   {t('ibm_tag_circuit')} {circuitCode.includes('OPENQASM') ? 'OPENQASM 2.0' : 'JSON SCHEMA'}
@@ -634,7 +663,7 @@ measure q -> c;`);
               <button 
                 onClick={executeSend}
                 disabled={isLoading}
-                className="btn-quantum bg-quantum-primary/10 flex items-center justify-center gap-2 px-6 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-black text-xs tracking-widest text-quantum-primary hover:text-quantum-bg font-mono"
+                className="btn-quantum bg-quantum-primary/10 flex items-center justify-center gap-2 px-5 py-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-black text-xs tracking-widest text-quantum-primary hover:text-quantum-bg font-mono cursor-pointer"
               >
                 {isLoading ? (
                   <RefreshCw className="w-4 h-4 animate-spin text-quantum-primary group-hover:text-quantum-bg" />
@@ -648,7 +677,7 @@ measure q -> c;`);
 
           {/* PQC Sent Vault Details Drawer */}
           {pqcTxData && (
-            <div className="quantum-card bg-gradient-to-br from-quantum-primary/10 to-black/80 border-quantum-primary/30 p-5 space-y-4">
+            <div className="shrink-0 quantum-card bg-gradient-to-br from-quantum-primary/10 to-black/80 border-quantum-primary/30 p-3.5 space-y-2.5 max-h-44 overflow-y-auto scrollbar-hide">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-quantum-primary" />
@@ -711,10 +740,10 @@ measure q -> c;`);
         </div>
 
         {/* Right column: Logs & Results */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5 flex flex-col gap-3 min-h-0">
           {/* Logs terminal */}
-          <div className="quantum-card bg-black/70 border-white/10 p-5 flex flex-col h-[320px] relative">
-            <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+          <div className="quantum-card bg-black/70 border-white/10 p-3.5 sm:p-4 flex flex-col h-[195px] sm:h-[215px] shrink-0 relative">
+            <div className="shrink-0 flex items-center justify-between mb-2 border-b border-white/10 pb-2">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-500" />
                 <span className="w-2 h-2 rounded-full bg-yellow-500" />
@@ -753,13 +782,13 @@ measure q -> c;`);
           </div>
 
           {/* Job Details & Calculated Quantum Registers */}
-          <div className="quantum-card bg-black/40 border-white/10 p-5">
-            <h3 className="text-xs font-black uppercase tracking-widest text-white font-mono flex items-center gap-2 mb-4">
+          <div className="quantum-card bg-black/40 border-white/10 p-3.5 sm:p-4 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <h3 className="shrink-0 text-xs font-black uppercase tracking-widest text-white font-mono flex items-center gap-2 mb-3">
               <Clock className="w-4 h-4 text-quantum-primary" />
               {t('ibm_register_status_results')}
             </h3>
 
-            <div className="space-y-4 font-mono">
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-3 font-mono">
               <div className="grid grid-cols-2 gap-3 text-[10px] bg-white/5 p-3 rounded-lg border border-white/5">
                 <div>
                   <p className="text-gray-500 uppercase">{t('ibm_generated_job_id')}</p>

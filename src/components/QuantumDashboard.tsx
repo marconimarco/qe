@@ -614,10 +614,20 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
 
   // Remove intermediate screen
   
+  const isMitigationLocked = sector.id === 'mitigation';
+
   return (
-    <div className="min-h-screen p-3 sm:p-6 max-w-screen-2xl mx-auto pb-32">
+    <div className={
+      isMitigationLocked
+        ? 'flex flex-col flex-1 min-h-0 w-full max-w-screen-2xl mx-auto px-3 sm:px-6 pt-2 sm:pt-3 pb-14 sm:pb-16 overflow-hidden'
+        : 'min-h-screen p-3 sm:p-6 max-w-screen-2xl mx-auto pb-32'
+    }>
       
-      <nav className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 sm:mb-8 gap-3 sm:gap-0">
+      <nav className={
+        isMitigationLocked
+          ? 'shrink-0 flex items-center justify-between mb-2 gap-2'
+          : 'flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 sm:mb-8 gap-3 sm:gap-0'
+      }>
         <div className="flex items-center gap-4">
           <button 
             onClick={resetSelection}
@@ -665,7 +675,11 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
         </div>
       </nav>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 sm:gap-6 items-start">
+      <div className={
+        isMitigationLocked
+          ? 'flex-1 min-h-0 flex flex-col overflow-hidden'
+          : 'grid grid-cols-1 xl:grid-cols-4 gap-4 sm:gap-6 items-start'
+      }>
         {/* Sidebar Controls */}
         {!sector.isSpecial && sector.id !== 'quantumbi' && sector.id !== 'finance' && sector.id !== 'insurance' && (
           <div className="xl:col-span-1 space-y-4 sm:space-y-6 lg:sticky lg:top-6">
@@ -887,7 +901,11 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
         )}
 
         {/* Main Simulation Area */}
-        <div className={(sector.isSpecial || sector.id === 'quantumbi' || sector.id === 'finance' || sector.id === 'insurance') ? "xl:col-span-4" : "xl:col-span-3"}>
+        <div className={
+          isMitigationLocked
+            ? 'flex-1 min-h-0 flex flex-col overflow-hidden'
+            : ((sector.isSpecial || sector.id === 'quantumbi' || sector.id === 'finance' || sector.id === 'insurance') ? 'xl:col-span-4' : 'xl:col-span-3')
+        }>
           <AnimatePresence mode="wait">
             {sector.id === 'mitigation' ? (
               <motion.div
@@ -895,6 +913,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
+                className="flex-1 min-h-0 flex flex-col overflow-hidden"
               >
                 <OptimizeDenoise />
               </motion.div>

@@ -446,11 +446,10 @@ export default function HelpModal({
               <div className="p-4 bg-black/40 border border-white/10 rounded-2xl space-y-2">
                 <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
                   <Key className="w-4 h-4 text-cyan-400" />
-                  <span>Configuring Google API Key & IBM Token</span>
+                  <span>Configuring IBM Quantum Token</span>
                 </div>
                 <p className="text-[11px] text-gray-400 leading-relaxed font-mono">
-                  • <strong className="text-gray-200">Google API Key:</strong> Click the "API Key" button on the top right to configure your Gemini key. This enables AI code generation and interactive quantum assistant features.<br />
-                  • <strong className="text-gray-200">IBM Quantum Token:</strong> Obtain your API token from <a href="https://quantum.ibm.com/" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">quantum.ibm.com</a> and insert it within the IBM Quantum Gateway module to dispatch jobs directly to physical QPUs.
+                  • <strong className="text-gray-200">IBM Quantum API Key / Token:</strong> Obtain your API token from <a href="https://quantum.ibm.com/" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">quantum.ibm.com</a>. Once you have generated your quantum circuit, enter the token directly on the <strong className="text-gray-200">Send to IBM</strong> page to dispatch jobs to physical QPUs. Classical HPC calculations do not require any IBM token.
                 </p>
               </div>
             </div>

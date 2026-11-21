@@ -4,7 +4,7 @@ import {
   ArrowLeft, Send, Terminal, Loader2, Sparkles, Cpu, RotateCcw, 
   CheckCircle2, Layers, Zap, Shield, Database, Activity, Compass, 
   HelpCircle, ChevronRight, Sliders, Upload, Copy, Check, Calendar, 
-  FileText, FileCheck, Search, Download, Lock, AlertTriangle
+  FileText, FileCheck, Search, Download, Lock, AlertTriangle, Play
 } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -1279,7 +1279,7 @@ export default function TestPage({
             currentStrategy
           );
 
-          replyText = replyText.replace(jsonMatch[0], () => finalExplanation);
+          replyText = replyText.replace(jsonMatch[0], () => finalExplanation).replace(/```[\s\S]*?```/g, '').trim();
           nextPhase = '5_done';
           setShowEndModal(true);
         } catch (e) {
@@ -1312,7 +1312,7 @@ export default function TestPage({
             currentStrategy
           );
 
-          fallbackReply = fallbackReply.replace(jsonMatch[0], () => finalExplanation);
+          fallbackReply = fallbackReply.replace(jsonMatch[0], () => finalExplanation).replace(/```[\s\S]*?```/g, '').trim();
           nextPhase = '5_done';
           setShowEndModal(true);
         } catch (e) {
@@ -1393,17 +1393,9 @@ export default function TestPage({
 • **Strategia Energetica / Ottimizzazione:** ${effectiveStrategy}
 • **Elaborazione Dati:** Matrice CSV elaborata con solver numerico vettorizzato ad alte prestazioni.
 
-💡 *Questo scenario opera interamente in modalità classica convenzionale. Lo script Python sottostante è pronto per l'esecuzione su sistemi HPC o localmente.*`;
+💡 *Questo scenario opera interamente in modalità classica convenzionale. Il Manifesto JSON e lo script Python completi sono disponibili nel **Pop-up Risultati**.*`;
 
-      return `${summaryText}
-
-\`\`\`json
-${jsonString}
-\`\`\`
-
-\`\`\`python
-${classicalPyCode}
-\`\`\``;
+      return summaryText;
     }
 
     setFinalQasm(generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy));
@@ -1471,16 +1463,7 @@ if (matchRy) {
 
     return `${uiText}
 
-\`\`\`json
-${jsonString}
-\`\`\`
-
-\`\`\`qasm
-${qasmSnippet}
-\`\`\`
-\`\`\`python
-${pythonSnippet}
-\`\`\``;
+💡 *Il Manifesto JSON, il circuito OpenQASM 3.0 e lo script Qiskit Python completi sono disponibili nel **Pop-up Risultati**.*`;
   };
 
   const handleSend = () => {
@@ -2195,7 +2178,7 @@ ${pythonSnippet}
                 <span className="text-xs font-mono text-emerald-300 flex items-center gap-1.5 font-semibold">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Intervista completata. Simulatore Sfera di Bloch e Telemetria attivi.
                 </span>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button
                     onClick={() => setShowEndModal(true)}
                     className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs font-mono rounded transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.25)] cursor-pointer"
@@ -2203,6 +2186,24 @@ ${pythonSnippet}
                     <Activity className="w-3.5 h-3.5" />
                     <span>Pop-up Risultati</span>
                   </button>
+                  {selectedScenario?.type !== 'classical' && selectedInfra !== 'classical' && (
+                    <button
+                      onClick={() => {
+                        setShowEndModal(false);
+                        const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente');
+                        if (setSharedQasm) {
+                          setSharedQasm(qCode);
+                        }
+                        if (onOpenIbm) {
+                          onOpenIbm();
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-extrabold text-xs font-mono rounded border border-cyan-200 transition-all flex items-center gap-1.5 shadow-[0_0_18px_rgba(34,211,238,0.65)] animate-pulse cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>SEND TO IBM QUANTUM</span>
+                    </button>
+                  )}
                   <button
                     onClick={handleResetInterview}
                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-mono text-white rounded border border-white/20 transition-all cursor-pointer"

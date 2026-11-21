@@ -168,7 +168,7 @@ export default function OptimizeDenoise() {
   };
 
   return (
-    <div className="space-y-8 mt-8 pb-32">
+    <div className="flex flex-col flex-1 min-h-0 gap-3 overflow-hidden">
       {/* Header Section */}
       <ApiKeyModal
         isOpen={isKeyModalOpen}
@@ -177,7 +177,7 @@ export default function OptimizeDenoise() {
       />
 
       {errorMsg && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs flex items-center justify-between gap-3">
+        <div className="shrink-0 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
             <span>{errorMsg}</span>
@@ -191,28 +191,28 @@ export default function OptimizeDenoise() {
         </div>
       )}
 
-      <div className="p-5 sm:p-6 bg-quantum-primary/5 border border-quantum-primary/20 rounded-2xl flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-4 sm:gap-6 text-center sm:text-left">
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-quantum-primary/20 flex items-center justify-center shrink-0">
-          <Wand2 className="w-7 h-7 sm:w-8 sm:h-8 text-quantum-primary" />
+      <div className="shrink-0 p-3.5 sm:p-4 bg-quantum-primary/5 border border-quantum-primary/20 rounded-2xl flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-3 sm:gap-5 text-center sm:text-left">
+        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-quantum-primary/20 flex items-center justify-center shrink-0">
+          <Wand2 className="w-5 h-5 sm:w-6 sm:h-6 text-quantum-primary" />
         </div>
         <div>
-          <h2 className="text-xl sm:text-2xl font-display font-bold text-white uppercase tracking-tight">{t('geminiExpert')}</h2>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-2xl leading-relaxed">
+          <h2 className="text-lg sm:text-xl font-display font-bold text-white uppercase tracking-tight">{t('geminiExpert')}</h2>
+          <p className="text-xs text-gray-400 mt-0.5 max-w-2xl leading-snug">
             {t('geminiExpertDesc')}
           </p>
         </div>
       </div>
 
-      <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 w-full sm:w-fit">
+      <div className="shrink-0 flex bg-white/5 border border-white/10 rounded-xl p-1 w-full sm:w-fit">
         <button 
           onClick={() => setActiveTab('optimize')}
-          className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-mono uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'optimize' ? 'bg-quantum-primary text-black shadow-[0_0_20px_rgba(0,242,255,0.3)] font-bold' : 'text-gray-500 hover:text-white'}`}
+          className={`flex-1 sm:flex-none px-4 sm:px-5 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-mono uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'optimize' ? 'bg-quantum-primary text-black shadow-[0_0_20px_rgba(0,242,255,0.3)] font-bold' : 'text-gray-500 hover:text-white'}`}
         >
           <FileCode className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> {t('seniorProtocol')}
         </button>
         <button 
           onClick={() => setActiveTab('denoise')}
-          className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-mono uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'denoise' ? 'bg-quantum-primary text-black shadow-[0_0_20px_rgba(0,242,255,0.3)] font-bold' : 'text-gray-500 hover:text-white'}`}
+          className={`flex-1 sm:flex-none px-4 sm:px-5 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-mono uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'denoise' ? 'bg-quantum-primary text-black shadow-[0_0_20px_rgba(0,242,255,0.3)] font-bold' : 'text-gray-500 hover:text-white'}`}
         >
           <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> {t('denoisePostJob')}
         </button>
@@ -225,12 +225,12 @@ export default function OptimizeDenoise() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+            className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch overflow-y-auto lg:overflow-hidden scrollbar-hide"
           >
             {/* Input Side */}
-            <div className="space-y-4">
-              <div className="quantum-card h-full bg-black/60 border-white/10 flex flex-col">
-                <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col h-full min-h-0">
+              <div className="quantum-card flex-1 min-h-0 bg-black/60 border-white/10 flex flex-col p-4">
+                <div className="shrink-0 flex items-center justify-between mb-3">
                   <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest flex items-center gap-2">
                     <Terminal className="w-4 h-4" /> {t('dirtyCode')}
                   </h3>
@@ -240,12 +240,12 @@ export default function OptimizeDenoise() {
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder={t('pythonCodePlaceholder')}
-                  className="flex-1 w-full bg-white/5 border border-white/5 rounded-lg p-4 font-mono text-xs text-blue-200 placeholder:text-gray-700 focus:border-quantum-primary transition-colors resize-none min-h-[300px] outline-none"
+                  className="flex-1 min-h-0 w-full bg-white/5 border border-white/5 rounded-lg p-3.5 font-mono text-xs text-blue-200 placeholder:text-gray-700 focus:border-quantum-primary transition-colors resize-none outline-none scrollbar-hide"
                 />
                 <button 
                   onClick={handleOptimize}
                   disabled={isProcessing || !code}
-                  className="mt-6 w-full py-4 bg-quantum-primary text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:shadow-[0_0_30px_rgba(0,242,255,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="shrink-0 mt-3 w-full py-3 bg-quantum-primary text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:shadow-[0_0_30px_rgba(0,242,255,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {isProcessing ? <Sparkles className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                   {isProcessing ? t('processingProtocol') : t('regenerateCode')}
@@ -254,7 +254,7 @@ export default function OptimizeDenoise() {
             </div>
 
             {/* Results Side */}
-            <div className="space-y-6">
+            <div className="flex flex-col h-full min-h-0 overflow-y-auto scrollbar-hide gap-3">
               {results ? (
                 <>
                   <div className="quantum-card border-quantum-primary/30 bg-quantum-primary/5">
@@ -307,11 +307,11 @@ export default function OptimizeDenoise() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+            className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch overflow-y-auto lg:overflow-hidden scrollbar-hide"
           >
             {/* Input Side (Dirty Data) */}
-            <div className="quantum-card bg-black/60 border-white/10 flex flex-col h-full min-h-[400px]">
-              <div className="flex items-center justify-between mb-4">
+            <div className="quantum-card bg-black/60 border-white/10 flex flex-col h-full min-h-0 p-4">
+              <div className="shrink-0 flex items-center justify-between mb-3">
                 <h3 className="text-xs font-mono text-gray-500 uppercase">{t('rawInputData')}</h3>
                 <label className="flex items-center gap-1.5 px-2 py-1 bg-white/5 border border-white/10 rounded cursor-pointer hover:bg-white/10 transition-colors">
                   <Download className="w-3.5 h-3.5 text-quantum-primary" />
@@ -333,17 +333,17 @@ export default function OptimizeDenoise() {
                   />
                 </label>
               </div>
-              <div className="flex-1 bg-white/5 rounded-lg p-4 font-mono text-xs text-red-300">
+              <div className="flex-1 min-h-0 bg-white/5 rounded-lg p-3.5 font-mono text-xs text-red-300 flex flex-col">
                 <textarea 
                   value={dirtyData}
                   onChange={(e) => setDirtyData(e.target.value)}
-                  className="w-full h-full bg-transparent outline-none resize-none"
+                  className="w-full flex-1 min-h-0 bg-transparent outline-none resize-none scrollbar-hide"
                 />
               </div>
               <button 
                 onClick={handleDenoise}
                 disabled={isProcessing}
-                className="mt-6 w-full py-4 bg-quantum-primary text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:shadow-[0_0_30px_rgba(0,242,255,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="shrink-0 mt-3 w-full py-3 bg-quantum-primary text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:shadow-[0_0_30px_rgba(0,242,255,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 {isProcessing ? <Sparkles className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
                 {isProcessing ? t('calculatingCorrection') : t('applyMitigation')}
@@ -351,7 +351,7 @@ export default function OptimizeDenoise() {
             </div>
 
             {/* Mitigated Side */}
-            <div className="space-y-6">
+            <div className="flex flex-col h-full min-h-0 overflow-y-auto scrollbar-hide gap-3">
               {mitigatedData ? (
                 <>
                   <div className="quantum-card border-green-500/30 bg-green-500/5">
