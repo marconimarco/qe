@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { 
   ArrowLeft, 
   Play, 
@@ -509,7 +510,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
     
         // 2. Extension check
         const extension = file.name.split('.').pop()?.toLowerCase();
-        if (extension !== 'csv' && extension !== 'json') {
+        if (extension !== 'csv' && extension !== 'json' && extension !== 'xlsx' && extension !== 'xls') {
           setFileError({
             title: t('unsupportedFormat'),
             message: t('unsupportedFormatMessage'),
@@ -521,17 +522,33 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
     setIsSimulating(true);
     setError(null);
 
+    const isExcel = extension === 'xlsx' || extension === 'xls';
     const reader = new FileReader();
     reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const lowerContent = content.toLowerCase();
-      
-      const lines = content.split('\n').filter(l => l.trim().length > 0);
-      
-        if (extension === 'csv' && lines.length > 0) {
-          const firstLineCols = lines[0].split(',').length;
-          const isInconsistent = lines.slice(1, 5).some(line => line.split(',').length !== firstLineCols);
-          
+      try {
+        let content = '';
+        if (isExcel) {
+          const buffer = e.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          if (!firstSheet) {
+            setIsSimulating(false);
+            setFileError({ title: t('noDataFound'), message: t('noDataFoundMessage'), type: 'generic' });
+            return;
+          }
+          content = XLSX.utils.sheet_to_csv(workbook.Sheets[firstSheet]);
+        } else {
+          content = ((e.target?.result as string) || '').replace(/^\uFEFF/, '');
+        }
+        const lowerContent = content.toLowerCase();
+        const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0 && !l.trim().startsWith('#'));
+        const firstLine = lines[0] || '';
+        const delim = firstLine.includes(';') ? ';' : (firstLine.includes('\t') ? '\t' : ',');
+
+        if ((extension === 'csv' || isExcel) && lines.length > 0) {
+          const firstLineCols = firstLine.split(delim).length;
+          const isInconsistent = lines.slice(1, 5).some(line => line.split(delim).length !== firstLineCols);
+
           if (isInconsistent || firstLineCols < 1) {
             setIsSimulating(false);
             setFileError({
@@ -543,23 +560,31 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
           }
         }
 
-      const hasHeaders = lowerContent.includes('price') || lowerContent.includes('asset name') || lowerContent.includes('nome');
-      
+        const hasHeaders =
+          lowerContent.includes('price') ||
+          lowerContent.includes('asset') ||
+          lowerContent.includes('nome') ||
+          lowerContent.includes('name') ||
+          lowerContent.includes('id') ||
+          lowerContent.includes('risorsa') ||
+          lowerContent.includes('ticker') ||
+          lowerContent.includes('symbol');
+
         setTimeout(() => {
           if (!hasHeaders && mode === 'File-Driven') {
              setError(t('missingColumns'));
              setIsSimulating(false);
              return;
           }
-  
+
           setFileName(file.name);
-          
+
           // Extract up to 10 asset names for the textarea
           const names = lines.slice(1, 11).map(line => {
-            const parts = line.split(',');
-            return parts[0].replace(/"/g, '').trim();
+            const parts = line.split(delim);
+            return parts[0].replace(/^["']|["']$/g, '').trim();
           }).filter(n => n.length > 0);
-          
+
           if (names.length === 0) {
             setIsSimulating(false);
             setFileError({
@@ -570,14 +595,22 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
             return;
           }
 
-        if (mode === null) {
-          setFileAssets(names);
-          setMode('File-Driven');
-        } else {
-          setUserPrompt(names.join(', '));
-        }
+          if (mode === null) {
+            setFileAssets(names);
+            setMode('File-Driven');
+          } else {
+            setUserPrompt(names.join(', '));
+          }
+          setIsSimulating(false);
+        }, 1500);
+      } catch {
         setIsSimulating(false);
-      }, 1500);
+        setFileError({
+          title: t('fileReadError') || "Errore Lettura",
+          message: t('fileReadMessage') || "Si è verificato un errore durante la lettura del file. Potrebbe essere danneggiato.",
+          type: 'generic'
+        });
+      }
     };
     
       reader.onerror = () => {
@@ -589,7 +622,11 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
         });
       };
 
-    reader.readAsText(file);
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -634,7 +671,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
             className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1"
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 h-5" />
-            <span className="font-mono text-[10px] sm:text-sm tracking-widest uppercase">BACK TO HOME PAGE</span>
+            <span className="font-mono text-[10px] sm:text-sm tracking-widest uppercase">{t('dash_back_home')}</span>
           </button>
           {['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(sector.id) && (
             <button 
@@ -642,7 +679,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
               className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors py-1 px-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20"
             >
               <ArrowLeft className="w-3 h-3" />
-              <span className="font-mono text-[9px] sm:text-xs tracking-widest uppercase font-bold">Back to Home Page</span>
+              <span className="font-mono text-[9px] sm:text-xs tracking-widest uppercase font-bold">{t('dash_back_home')}</span>
             </button>
           )}
         </div>
@@ -651,10 +688,10 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
             id="dashboard-help-btn"
             onClick={() => onOpenHelp ? onOpenHelp() : (onSectorChange ? onSectorChange('realq') : null)}
             className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors py-1 group cursor-pointer"
-            title="Help Center & Guide"
+            title={t('dash_help_tooltip')}
           >
             <HelpCircle className="w-4 h-4 sm:w-5 h-5 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-[10px] sm:text-xs tracking-widest uppercase hidden md:inline">HELP</span>
+            <span className="font-mono text-[10px] sm:text-xs tracking-widest uppercase hidden md:inline">{t('dash_help_label')}</span>
           </button>
           {activeJobId && (
             <motion.div 
@@ -728,7 +765,7 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
                                   <span className="text-quantum-primary/80 font-bold tracking-widest">{t('csv')}</span>
                                 </div>
                               </button>
-                              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".csv,.json" />
+                              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".csv,.xlsx,.xls,.json" />
                             </div>
                             
                             <div className={`text-[8px] sm:text-[9px] font-bold font-mono transition-colors flex flex-col items-start sm:items-end leading-tight w-full sm:w-auto ${

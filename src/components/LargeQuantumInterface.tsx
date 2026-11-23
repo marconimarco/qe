@@ -41,8 +41,8 @@ export default function LargeQuantumInterface() {
       { state: '|0100⟩', probability: 1.5 },
       { state: '|0101⟩', probability: 42.8 },
       { state: '|1010⟩', probability: 28.4 },
-      { state: '|1100⟩', probability: 12.1 },
-      { state: '|1111⟩', probability: 8.3 },
+      { state: '|1100⟩', probability: 12.0 },
+      { state: '|1111⟩', probability: 8.0 },
     ]
   });
 
@@ -66,25 +66,36 @@ export default function LargeQuantumInterface() {
   const handleRunSimulation = () => {
     setIsSimulating(true);
     setTimeout(() => {
-      // Calculate realistic probability shifts based on inputs
+      // Calculate realistic normalized probability shifts summing to exact 100.0%
       const multiplier = (inflationRate + gdpStress/10 + interestRates) / 10;
-      const baseProb = Math.min(85, Math.max(10, 42.8 * multiplier));
-      const secondProb = Math.max(5, 40 - baseProb / 2);
-      
+      const baseProb = Math.min(72, Math.max(15, 42.8 * multiplier));
+      const secondProb = Math.max(8, 38 - baseProb * 0.35);
+      const rawWeights = [
+        { state: '|0000⟩', w: 1 + Math.random() * 4 },
+        { state: '|0010⟩', w: 1 + Math.random() * 4 },
+        { state: '|0100⟩', w: 0.5 + Math.random() * 2.5 },
+        { state: '|0101⟩', w: baseProb },
+        { state: '|1010⟩', w: secondProb },
+        { state: '|1100⟩', w: Math.max(2, 18 - secondProb * 0.3) },
+        { state: '|1111⟩', w: 3 + Math.random() * 5 },
+      ];
+      const totalW = rawWeights.reduce((acc, item) => acc + item.w, 0);
+      let runningSum = 0;
+      const normalizedProbs = rawWeights.map((item, idx) => {
+        if (idx === rawWeights.length - 1) {
+          return { state: item.state, probability: parseFloat(Math.max(0, 100 - runningSum).toFixed(1)) };
+        }
+        const pct = parseFloat(((item.w / totalW) * 100).toFixed(1));
+        runningSum += pct;
+        return { state: item.state, probability: pct };
+      });
+
       setSimulationResult({
         advantageScore: parseFloat((85 + Math.random() * 14).toFixed(1)),
         classicalTimeS: Math.round(1000 + (inflationRate * 120)),
         quantumTimeS: parseFloat((0.08 + Math.random() * 0.1).toFixed(3)),
         fidelity: parseFloat((99.5 + Math.random() * 0.4).toFixed(2)),
-        probabilities: [
-          { state: '|0000⟩', probability: parseFloat((Math.random() * 6).toFixed(1)) },
-          { state: '|0010⟩', probability: parseFloat((Math.random() * 5).toFixed(1)) },
-          { state: '|0100⟩', probability: parseFloat((Math.random() * 3).toFixed(1)) },
-          { state: '|0101⟩', probability: parseFloat(baseProb.toFixed(1)) },
-          { state: '|1010⟩', probability: parseFloat(secondProb.toFixed(1)) },
-          { state: '|1100⟩', probability: parseFloat((20 - secondProb/2).toFixed(1)) },
-          { state: '|1111⟩', probability: parseFloat((5 + Math.random() * 5).toFixed(1)) },
-        ]
+        probabilities: normalizedProbs
       });
       setIsSimulating(false);
     }, 1200);
@@ -98,9 +109,9 @@ from qiskit_aer.primitives import SamplerV2 as AerSampler
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
 # Macro & Risk Parameters
-inflation = ${inflationRate} / 100.0
-gdp_shock = ${gdpStress} / 100.0
-rates = ${interestRates} / 100.0
+inflation = np.clip(${inflationRate} / 100.0, 0.0, 1.0)
+gdp_shock = np.clip(${gdpStress} / 100.0, 0.0, 1.0)
+rates = np.clip(${interestRates} / 100.0, 0.0, 1.0)
 
 # 1. Initialize 4-qubit circuit
 qc = QuantumCircuit(4, 4, name="QuantumOptCircuit")
@@ -118,8 +129,8 @@ qc.h(3)
 qc.cx(3, 0)
 qc.p(np.pi / 4, 1)
 
-# 4. Final measurement
-qc.measure_all()
+# 4. Final measurement on declared classical register c
+qc.measure(range(4), range(4))
 
 # 5. Execution on AerSimulator with Qiskit 1.x / 2.x Primitive SamplerV2
 simulator = AerSimulator()
@@ -129,7 +140,7 @@ isa_circuit = pass_manager.run(qc)
 sampler = AerSampler()
 job = sampler.run([isa_circuit], shots=1024)
 pub_result = job.result()[0]
-counts = pub_result.data.meas.get_counts()
+counts = pub_result.data.c.get_counts()
 
 print("Optimal state sequence found (SamplerV2 counts):", counts)`;
 
@@ -145,29 +156,29 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="quantum-card p-4 flex items-center justify-between bg-black/40 border border-white/10 rounded-xl relative overflow-hidden backdrop-blur-md">
           <div className="space-y-1">
-            <span className="text-[9px] font-mono uppercase tracking-widest text-[#00f2ff]/60">Quantum Advantage Status</span>
+            <span className="text-[9px] font-mono uppercase tracking-widest text-[#00f2ff]/60">{t('large_adv_status')}</span>
             <div className="text-2xl font-bold font-display text-white">{simulationResult.advantageScore}%</div>
-            <p className="text-[8px] text-gray-500 font-mono">VS CLASSICAL ALGORITHMS</p>
+            <p className="text-[8px] text-gray-500 font-mono">{t('large_vs_classical')}</p>
           </div>
           <Cpu className="w-8 h-8 text-quantum-primary animate-pulse" />
         </div>
         
         <div className="quantum-card p-4 flex items-center justify-between bg-black/40 border border-white/10 rounded-xl overflow-hidden backdrop-blur-md">
           <div className="space-y-1">
-            <span className="text-[9px] font-mono uppercase tracking-widest text-purple-400">Time Complexity Ratio</span>
+            <span className="text-[9px] font-mono uppercase tracking-widest text-purple-400">{t('large_time_ratio')}</span>
             <div className="text-xl font-bold font-display text-white">
               {simulationResult.classicalTimeS}s <span className="text-gray-500 text-xs">vs</span> {simulationResult.quantumTimeS}s
             </div>
-            <p className="text-[8px] text-gray-500 font-mono">CLASSICAL VS QUANTUM HARDWARE</p>
+            <p className="text-[8px] text-gray-500 font-mono">{t('large_cl_vs_q')}</p>
           </div>
           <TrendingUp className="w-8 h-8 text-quantum-secondary" />
         </div>
 
         <div className="quantum-card p-4 flex items-center justify-between bg-black/40 border border-white/10 rounded-xl overflow-hidden backdrop-blur-md">
           <div className="space-y-1">
-            <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-400">System Fidelity</span>
+            <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-400">{t('large_sys_fidelity')}</span>
             <div className="text-2xl font-bold font-display text-emerald-400">{simulationResult.fidelity}%</div>
-            <p className="text-[8px] text-gray-500 font-mono">ERROR RATE ESTIMATION</p>
+            <p className="text-[8px] text-gray-500 font-mono">{t('large_err_est')}</p>
           </div>
           <Activity className="w-8 h-8 text-emerald-500" />
         </div>
@@ -179,7 +190,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2 border-b border-white/5 pb-3">
               <Sliders className="w-4 h-4 text-quantum-primary" />
-              <h3 className="text-xs uppercase font-mono tracking-wider text-white font-bold">Scenario Parameters</h3>
+              <h3 className="text-xs uppercase font-mono tracking-wider text-white font-bold">{t('large_params')}</h3>
             </div>
 
             {/* Presets */}
@@ -192,7 +203,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
                     : 'bg-black/40 border-white/5 text-gray-400 hover:border-white/20'
                 }`}
               >
-                Standard
+                {t('large_preset_std')}
               </button>
               <button 
                 onClick={() => loadPreset('high_inflation')}
@@ -202,7 +213,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
                     : 'bg-black/40 border-white/5 text-gray-400 hover:border-white/20'
                 }`}
               >
-                Inflation
+                {t('large_preset_inf')}
               </button>
               <button 
                 onClick={() => loadPreset('global_recession')}
@@ -212,14 +223,14 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
                     : 'bg-black/40 border-white/5 text-gray-400 hover:border-white/20'
                 }`}
               >
-                Recession
+                {t('large_preset_rec')}
               </button>
             </div>
 
             {/* Inflation Slider */}
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] font-mono uppercase text-gray-400">
-                <span>Inflation rate</span>
+                <span>{t('large_inflation')}</span>
                 <span className="text-[#00f2ff] font-bold">{inflationRate}%</span>
               </div>
               <input 
@@ -233,7 +244,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
             {/* GDP Stress Slider */}
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] font-mono uppercase text-gray-400">
-                <span>GDP Stress multiplier</span>
+                <span>{t('large_gdp')}</span>
                 <span className="text-[#00f2ff] font-bold">{gdpStress}%</span>
               </div>
               <input 
@@ -247,7 +258,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
             {/* Central Bank Interest Rates Slider */}
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] font-mono uppercase text-gray-400">
-                <span>Central Bank Rates</span>
+                <span>{t('large_rates')}</span>
                 <span className="text-[#00f2ff] font-bold">{interestRates}%</span>
               </div>
               <input 
@@ -269,7 +280,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
             ) : (
               <Play className="w-4 h-4 fill-current text-[#00f2ff]" />
             )}
-            {isSimulating ? 'Esecuzione Calcolo...' : 'Simula Scenari Macro'}
+            {isSimulating ? t('large_running') : t('large_run_btn')}
           </button>
         </div>
 
@@ -285,7 +296,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
                   : 'border-transparent text-gray-500 hover:text-white'
               }`}
             >
-              State Probability Distribution
+              {t('large_tab_dist')}
             </button>
             <button
               onClick={() => setActiveTab('code')}
@@ -295,7 +306,7 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
                   : 'border-transparent text-gray-500 hover:text-white'
               }`}
             >
-              Auto-Generated Qiskit
+              {t('large_tab_qiskit')}
             </button>
           </div>
 
@@ -347,12 +358,12 @@ print("Optimal state sequence found (SamplerV2 counts):", counts)`;
                       {copied ? (
                         <>
                           <Check className="w-3 h-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied!</span>
+                          <span className="text-emerald-400">{t('copied')}</span>
                         </>
                       ) : (
                         <>
                           <Copy className="w-3 h-3" />
-                          <span>Copy</span>
+                          <span>{t('copy')}</span>
                         </>
                       )}
                     </button>

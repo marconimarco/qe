@@ -231,7 +231,7 @@ export default function IndustrialScadaUpload() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const content = event.target?.result as string;
+      const content = ((event.target?.result as string) || '').replace(/^\uFEFF/, '');
       setUploadedFile(file);
       setFileContent(content);
       setSuccessMessage(`File "${file.name}" caricato in memoria con successo (${(file.size / 1024).toFixed(1)} KB).`);

@@ -487,18 +487,33 @@ async function startServer() {
     }
   });
 
-  function generateArchitectChatReply(messages: any[], systemPrompt: string): string {
+  const getLangInstruction = (langRaw?: string): string => {
+    const l = (langRaw || 'it').toLowerCase().slice(0, 2);
+    const map: Record<string, string> = {
+      it: 'CRITICAL LANGUAGE OVERRIDE: You MUST respond 100% in ITALIAN (Italiano). Even if parts of the system instructions or history are in English or another language, every explanation, question, and label you write MUST be in natural business/technical Italian.',
+      en: 'CRITICAL LANGUAGE OVERRIDE: You MUST respond 100% in ENGLISH. Even if parts of the system instructions or history are in Italian or another language, every explanation, question, and label you write MUST be in natural business/technical English.',
+      zh: 'CRITICAL LANGUAGE OVERRIDE: You MUST respond 100% in SIMPLIFIED CHINESE (简体中文). Even if parts of the system instructions or history are in Italian or English, every explanation, question, and label you write MUST be in natural Simplified Chinese.',
+      de: 'CRITICAL LANGUAGE OVERRIDE: You MUST respond 100% in GERMAN (Deutsch). Even if parts of the system instructions or history are in Italian or English, every explanation, question, and label you write MUST be in natural business/technical German.',
+      fr: 'CRITICAL LANGUAGE OVERRIDE: You MUST respond 100% in FRENCH (Français). Even if parts of the system instructions or history are in Italian or English, every explanation, question, and label you write MUST be in natural business/technical French.',
+      ja: 'CRITICAL LANGUAGE OVERRIDE: You MUST respond 100% in JAPANESE (日本語). Even if parts of the system instructions or history are in Italian or English, every explanation, question, and label you write MUST be in natural business/technical Japanese.',
+    };
+    return map[l] || map.en;
+  };
+
+  function generateArchitectChatReply(messages: any[], systemPrompt: string, language: string = 'it'): string {
     const prompt = systemPrompt || "";
+    const lang = (language || 'it').toLowerCase().slice(0, 2);
     const lastMsg = messages && messages.length > 0 ? messages[messages.length - 1].text || "" : "";
     const lowerLast = lastMsg.toLowerCase();
+
+    const L = (map: Record<string, string>) => map[lang] || map.en;
 
     // 1. If it's the PEPSIGHT interview for QuantumAgentsInterface
     if (prompt.includes("PEPSIGHT") || prompt.includes("intervistatore")) {
       const numMatches = lastMsg.match(/(?:\d+[.,]?\d*|\.\d+)\s*%?/g) || [];
-      const hasElements = lastMsg.includes(',') || lastMsg.includes('HUB') || lastMsg.includes('CLIENTE') || lastMsg.includes('NODO') || lastMsg.includes('LINEA') || lastMsg.includes('FORNITORE') || lastMsg.includes('ASSET');
-      const isPrudenceAnswer = ['alta', 'prudenza', 'bilanciato', 'tollerante', '1', '2', '3'].some(p => lowerLast.includes(p));
+      const hasElements = lastMsg.includes(',') || ['hub', 'client', 'nodo', 'node', 'linea', 'line', 'fornitor', 'supplier', 'asset'].some(k => lowerLast.includes(k));
+      const isPrudenceAnswer = ['alta', 'high', 'hoch', 'haute', '高', 'prudenza', 'prud', 'bilanc', 'balanc', 'ausgewogen', 'équilibr', '均衡', 'toller', 'toleran', 'aggress', '宽松', '寛容', '1', '2', '3'].some(p => lowerLast.includes(p));
 
-      // Extract elements from history or last message
       let foundElements = ["CLIENTE_A", "CLIENTE_B", "FORNITORE_1", "HUB_MILANO"];
       for (const m of messages) {
         if (m.role === 'user' && m.text) {
@@ -510,18 +525,16 @@ async function startServer() {
         }
       }
 
-      // Determine prudence
-      let prudence = "Bilanciato";
+      let prudence = L({ it: "Bilanciato", en: "Balanced", zh: "均衡", de: "Ausgewogen", fr: "Équilibré", ja: "バランス" });
       let thresh = 0.35;
-      if (lowerLast.includes('1') || lowerLast.includes('alta') || lowerLast.includes('high')) {
-        prudence = "Alta Prudenza";
+      if (lowerLast.includes('1') || lowerLast.includes('alta') || lowerLast.includes('high') || lowerLast.includes('hoch') || lowerLast.includes('haute') || lowerLast.includes('高')) {
+        prudence = L({ it: "Alta Prudenza", en: "High Prudence", zh: "高稳健", de: "Hohe Vorsicht", fr: "Haute Prudence", ja: "高慎重" });
         thresh = 0.15;
-      } else if (lowerLast.includes('3') || lowerLast.includes('toller') || lowerLast.includes('aggress')) {
-        prudence = "Tollerante";
+      } else if (lowerLast.includes('3') || lowerLast.includes('toller') || lowerLast.includes('aggress') || lowerLast.includes('toleran') || lowerLast.includes('宽') || lowerLast.includes('寛')) {
+        prudence = L({ it: "Tollerante", en: "Tolerant", zh: "宽松型", de: "Tolerant", fr: "Tolérant", ja: "許容型" });
         thresh = 0.50;
       }
 
-      // If user is at question 3 or provided prudence or provided complete info
       if (isPrudenceAnswer || (numMatches.length >= 1 && messages.length >= 4)) {
         const defaultSats = [45.0, 60.0, 75.0, 30.0, 50.0];
         const defaultMetrics = [2.5, 3.7, 4.9, 6.1, 4.2];
@@ -537,46 +550,68 @@ async function startServer() {
         });
         pepsightData += `[END_PEPSIGHT_DATA]`;
 
-        return `Ho raccolto e convalidato tutti i parametri per l'analisi del modello quantistico:\n\n` +
-          `• **Variabili Inserite:** ${foundElements.join(', ')}\n` +
-          `• **Profilo Operativo:** ${prudence} (Soglia d'allarme globale impostata a ${(thresh * 100).toFixed(0)}%)\n` +
-          `• **Stato Canale:** Matrice di saturazione e vettori di stato pronti per la compilazione del circuito.\n\n` +
-          pepsightData;
+        return L({
+          it: `Ho raccolto e convalidato tutti i parametri per l'analisi del modello quantistico:\n\n• **Variabili Inserite:** ${foundElements.join(', ')}\n• **Profilo Operativo:** ${prudence} (Soglia d'allarme globale impostata a ${(thresh * 100).toFixed(0)}%)\n• **Stato Canale:** Matrice di saturazione e vettori di stato pronti per la compilazione del circuito.\n\n`,
+          en: `All parameters for quantum model analysis have been collected and validated:\n\n• **Variables Entered:** ${foundElements.join(', ')}\n• **Operating Profile:** ${prudence} (Global alarm threshold set to ${(thresh * 100).toFixed(0)}%)\n• **Channel State:** Saturation matrix and state vectors ready for circuit compilation.\n\n`,
+          zh: `已收集并验证量子模型分析所需的全部参数：\n\n• **输入变量：** ${foundElements.join(', ')}\n• **运行配置：** ${prudence}（全局告警阈值设为 ${(thresh * 100).toFixed(0)}%）\n• **通道状态：** 饱和度矩阵与状态向量已就绪，可编译量子电路。\n\n`,
+          de: `Alle Parameter für die Quantenmodell-Analyse wurden erfasst und validiert:\n\n• **Erfasste Variablen:** ${foundElements.join(', ')}\n• **Betriebsprofil:** ${prudence} (Globale Alarmschwelle: ${(thresh * 100).toFixed(0)}%)\n• **Kanalstatus:** Sättigungsmatrix und Zustandsvektoren bereit für die Schaltkreis-Kompilierung.\n\n`,
+          fr: `Tous les paramètres d'analyse du modèle quantique ont été collectés et validés :\n\n• **Variables saisies :** ${foundElements.join(', ')}\n• **Profil opérationnel :** ${prudence} (Seuil d'alarme global fixé à ${(thresh * 100).toFixed(0)}%)\n• **État du canal :** Matrice de saturation et vecteurs d'état prêts pour la compilation du circuit.\n\n`,
+          ja: `量子モデル解析のすべてのパラメータを収集・検証しました：\n\n• **入力変数：** ${foundElements.join(', ')}\n• **運用プロファイル：** ${prudence}（グローバル警告閾値：${(thresh * 100).toFixed(0)}%）\n• **チャネル状態：** 飽和行列と状態ベクトルが回路コンパイル可能な状態です。\n\n`,
+        }) + pepsightData;
       }
 
-      // If user provided elements (Question 1)
       if (hasElements || messages.length <= 2) {
-        return `Perfetto, ho registrato le variabili aziendali per l'analisi: **${foundElements.join(', ')}**.\n\n` +
-          `👉 **DOMANDA 2 (Percentuali di Saturazione):**\n` +
-          `Quali percentuali di saturazione o carico desideri assegnare a ciascuna variabile? ` +
-          `(Puoi inserire una serie di valori separati da virgola, es. \`45%, 60%, 75%, 30%\`, oppure una soglia base per tutte come \`35%\`).`;
+        return L({
+          it: `Perfetto, ho registrato le variabili aziendali per l'analisi: **${foundElements.join(', ')}**.\n\n👉 **DOMANDA 2 (Percentuali di Saturazione):**\nQuali percentuali di saturazione o carico desideri assegnare a ciascuna variabile? (es. \`45%, 60%, 75%, 30%\`, oppure \`35%\`).`,
+          en: `Recorded the enterprise variables for analysis: **${foundElements.join(', ')}**.\n\n👉 **QUESTION 2 (Saturation Percentages):**\nWhat saturation or load percentages do you assign to each variable? (e.g. \`45%, 60%, 75%, 30%\`, or \`35%\`).`,
+          zh: `已记录用于分析的企业变量：**${foundElements.join(', ')}**。\n\n👉 **问题 2（饱和度/负载百分比）：**\n您希望为每个变量分配多少饱和度百分比？（例如 \`45%, 60%, 75%, 30%\`，或统一输入 \`35%\`）。`,
+          de: `Unternehmensvariablen für die Analyse erfasst: **${foundElements.join(', ')}**.\n\n👉 **FRAGE 2 (Sättigungsprozentsätze):**\nWelche Sättigungs- oder Lastprozentsätze möchten Sie jeder Variable zuweisen? (z. B. \`45%, 60%, 75%, 30%\` oder \`35%\`).`,
+          fr: `Variables d'entreprise enregistrées pour l'analyse : **${foundElements.join(', ')}**.\n\n👉 **QUESTION 2 (Pourcentages de saturation) :**\nQuels pourcentages de saturation ou de charge souhaitez-vous attribuer à chaque variable ? (ex. \`45%, 60%, 75%, 30%\`, ou \`35%\`).`,
+          ja: `解析用の企業変数を登録しました：**${foundElements.join(', ')}**。\n\n👉 **質問 2（飽和率・負荷率）：**\n各変数にどの飽和率・負荷率（%）を割り当てますか？（例：\`45%, 60%, 75%, 30%\`、または共通値 \`35%\`）。`,
+        });
       }
 
-      // If user provided saturations (Question 2)
       if (numMatches.length > 0) {
-        return `Ottimo, percentuali di saturazione associate alle variabili!\n\n` +
-          `👉 **DOMANDA 3 (Livello di Prudenza):**\n` +
-          `Quale livello di prudenza desideri impostare per l'analisi quantistica?\n` +
-          `1. **Alta Prudenza** (Massima protezione, soglia 15%)\n` +
-          `2. **Bilanciato** (Rischio controllato, soglia 35%)\n` +
-          `3. **Tollerante** (Soglia 50%)\n\n` +
-          `*(Digita 1, 2 o 3)*`;
+        return L({
+          it: `Ottimo, percentuali di saturazione associate alle variabili!\n\n👉 **DOMANDA 3 (Livello di Prudenza):**\n1. **Alta Prudenza** (soglia 15%)\n2. **Bilanciato** (soglia 35%)\n3. **Tollerante** (soglia 50%)\n\n*(Digita 1, 2 o 3)*`,
+          en: `Saturation percentages linked to variables!\n\n👉 **QUESTION 3 (Prudence Level):**\n1. **High Prudence** (15% threshold)\n2. **Balanced** (35% threshold)\n3. **Tolerant** (50% threshold)\n\n*(Type 1, 2, or 3)*`,
+          zh: `饱和度百分比已关联至各变量！\n\n👉 **问题 3（稳健等级）：**\n1. **高稳健**（阈值 15%）\n2. **均衡**（阈值 35%）\n3. **宽松**（阈值 50%）\n\n*（请输入 1、2 或 3）*`,
+          de: `Sättigungsprozentsätze verknüpft!\n\n👉 **FRAGE 3 (Vorsichtsstufe):**\n1. **Hohe Vorsicht** (Schwelle 15%)\n2. **Ausgewogen** (Schwelle 35%)\n3. **Tolerant** (Schwelle 50%)\n\n*(Geben Sie 1, 2 oder 3 ein)*`,
+          fr: `Pourcentages de saturation associés !\n\n👉 **QUESTION 3 (Niveau de prudence) :**\n1. **Haute Prudence** (seuil 15%)\n2. **Équilibré** (seuil 35%)\n3. **Tolérant** (seuil 50%)\n\n*(Tapez 1, 2 ou 3)*`,
+          ja: `飽和率を変数に関連付けました！\n\n👉 **質問 3（慎重度レベル）：**\n1. **高慎重**（閾値 15%）\n2. **バランス**（閾値 35%）\n3. **許容型**（閾値 50%）\n\n*（1、2、または 3 を入力してください）*`,
+        });
       }
 
-      return `Ho recepito la tua indicazione. Per proseguire con la calibrazione guidata, puoi specificare le variabili aziendali (es. 2-5 nomi) o il livello di saturazione desiderato.`;
+      return L({
+        it: `Ho recepito la tua indicazione. Per proseguire con la calibrazione guidata, puoi specificare le variabili aziendali (es. 2-5 nomi) o il livello di saturazione desiderato.`,
+        en: `Understood. To continue guided calibration, please specify your business variables (e.g. 2-5 names) or the target saturation level.`,
+        zh: `已收到您的指令。要继续引导校准，请指定 2-5 个业务变量名称或目标饱和度等级。`,
+        de: `Verstanden. Um mit der geführten Kalibrierung fortzufahren, nennen Sie bitte 2–5 Unternehmensvariablen oder den gewünschten Sättigungsgrad.`,
+        fr: `Bien reçu. Pour poursuivre la calibration guidée, veuillez indiquer vos variables métier (2 à 5 noms) ou le niveau de saturation souhaité.`,
+        ja: `承知しました。ガイド付きキャリブレーションを続行するため、企業変数（2〜5個）または目標飽和率を指定してください。`,
+      });
     }
 
-    // 2. If it's a general question or quantum assistant prompt
+    // 2. General assistant prompt
     if (prompt.includes("Assistente Quantistico") || prompt.includes("Quantum")) {
-      return `Nel modello quantistico Pepsight, le variabili aziendali vengono codificate in qubit nello spazio di Hilbert.\n\n` +
-        `• **Ampiezza (Rotazione RY):** Mappa la percentuale di saturazione o probabilità di ciascun elemento.\n` +
-        `• **Entanglement (Porte C-NOT):** Correlazione logica tra i nodi adiacenti per propagare gli stati critici.\n` +
-        `• **Fase (Angolo RZ/P):** Differenziazione delle dinamiche temporali e dei ritardi.\n\n` +
-        `Tutte le porte logiche vengono sintetizzate in codice OpenQASM 2.0 compatibile con le QPU IBM Quantum.`;
+      return L({
+        it: `Nel modello quantistico, le variabili aziendali vengono codificate in qubit nello spazio di Hilbert.\n\n• **Ampiezza (Rotazione RY):** Mappa la percentuale di saturazione o probabilità di ciascun elemento.\n• **Entanglement (Porte C-NOT):** Correlazione logica tra nodi adiacenti.\n• **Fase (Angolo RZ/P):** Differenziazione delle dinamiche temporali.\n\nTutte le porte vengono sintetizzate in OpenQASM 2.0 / 3.0 compatibile con le QPU IBM Quantum.`,
+        en: `In the quantum model, enterprise variables are encoded into qubits in Hilbert space.\n\n• **Amplitude (RY Rotation):** Maps each element's saturation or probability.\n• **Entanglement (CNOT Gates):** Logical correlation across adjacent nodes.\n• **Phase (RZ/P Angle):** Differentiation of temporal dynamics.\n\nAll gates are synthesized into OpenQASM 2.0 / 3.0 compatible with IBM Quantum QPUs.`,
+        zh: `在该量子模型中，企业变量被编码为希尔伯特空间中的量子比特。\n\n• **振幅（RY 旋转）：** 映射各元素的饱和度或概率。\n• **纠缠（CNOT 门）：** 相邻节点间的逻辑关联。\n• **相位（RZ/P 角度）：** 刻画时间动态变化。\n\n所有逻辑门均编译为兼容 IBM Quantum QPU 的 OpenQASM 2.0 / 3.0 代码。`,
+        de: `Im Quantenmodell werden Unternehmensvariablen im Hilbertraum auf Qubits kodiert.\n\n• **Amplitude (RY-Rotation):** Bildet Sättigung oder Wahrscheinlichkeit jedes Elements ab.\n• **Verschränkung (CNOT-Gatter):** Logische Korrelation benachbarter Knoten.\n• **Phase (RZ/P-Winkel):** Differenzierung zeitlicher Dynamiken.\n\nAlle Gatter werden zu IBM-Quantum-kompatiblem OpenQASM 2.0 / 3.0 synthetisiert.`,
+        fr: `Dans le modèle quantique, les variables métier sont encodées en qubits dans l'espace de Hilbert.\n\n• **Amplitude (Rotation RY) :** Cartographie la saturation ou probabilité de chaque élément.\n• **Intrication (Portes CNOT) :** Corrélation logique entre nœuds adjacents.\n• **Phase (Angle RZ/P) :** Différenciation des dynamiques temporelles.\n\nToutes les portes sont synthétisées en OpenQASM 2.0 / 3.0 compatible avec les QPU IBM Quantum.`,
+        ja: `量子モデルでは、企業変数がヒルベルト空間の量子ビットへとエンコードされます。\n\n• **振幅（RY 回転）：** 各要素の飽和率または確率をマッピングします。\n• **もつれ（CNOT ゲート）：** 隣接ノード間の論理相関。\n• **位相（RZ/P 角度）：** 時系列ダイナミクスの差異化。\n\n全ゲートは IBM Quantum QPU 互換の OpenQASM 2.0 / 3.0 にコンパイルされます。`,
+      });
     }
 
-    // 3. Fallback generic
-    return `Il sistema quantistico Pepsight ha ricevuto la tua richiesta ed è operativo in modalità autonoma ad alte prestazioni. Procedi pure con il prossimo step della calibrazione.`;
+    return L({
+      it: `Il sistema quantistico ha ricevuto la tua richiesta ed è operativo. Procedi pure con il prossimo step della calibrazione.`,
+      en: `The quantum system received your request and is operational. Please proceed with the next calibration step.`,
+      zh: `量子系统已收到您的请求并正常运行。请继续下一步校准配置。`,
+      de: `Das Quantensystem hat Ihre Anfrage erhalten und ist betriebsbereit. Fahren Sie mit dem nächsten Kalibrierungsschritt fort.`,
+      fr: `Le système quantique a reçu votre demande et est opérationnel. Veuillez passer à l'étape suivante.`,
+      ja: `量子システムはリクエストを受信し正常に稼働しています。次のキャリブレーション手順へお進みください。`,
+    });
   }
 
   // Modelli candidati in ordine di priorità per massima velocità e reattività (sub-second)
@@ -610,7 +645,7 @@ async function startServer() {
   // --- QUANTUM BI AI CHAT ---
   app.post("/api/quantum-bi/chat", async (req, res) => {
     let keyUsed = '';
-    const { messages, systemPrompt } = req.body || {};
+    const { messages, systemPrompt, language: reqLang = 'it' } = req.body || {};
     try {
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messaggi non validi" });
@@ -662,7 +697,7 @@ async function startServer() {
       keyUsed = clientObj.keyUsed;
       const aiClient = clientObj.client;
       if (!aiClient) {
-        const reply = generateArchitectChatReply(messages, systemPrompt);
+        const reply = generateArchitectChatReply(messages, systemPrompt, reqLang);
         return res.status(200).json({ 
           success: true,
           text: reply,
@@ -706,7 +741,8 @@ async function startServer() {
         `- NON GENERARE MAI CSV O CODICE QASM (nemmeno nei blocchi \`\`\`qasm). È SEVERAMENTE VIETATO.\n` +
         `- NON INVENTARE NOMI, VARIABILI O PERCENTUALI.\n` +
         `- SE L'UTENTE HA FORNITO LE SUE RISPOSTE (nomi, percentuali, soglia, prudenza), DEVI FERMARTI E RESTITUIRE **ESCLUSIVAMENTE** IL BLOCCO JSON (senza aggiungere alcun commento prima o dopo). IGNORA QUALSIASI VECCHIO QASM NELLA CRONOLOGIA E NON TENTARE DI CORREGGERLO:\n\n` +
-        `[DATI_QUANTISTICI]{"settore": "...", "scenario": "...", "elementi": ["Nome1", "Nome2"], "saturazioni": [30, 25], "soglia_allarme": 25, "prudenza": "Alta Prudenza"}`;
+        `[DATI_QUANTISTICI]{"settore": "...", "scenario": "...", "elementi": ["Nome1", "Nome2"], "saturazioni": [30, 25], "soglia_allarme": 25, "prudenza": "Alta Prudenza"}\n\n` +
+        getLangInstruction(reqLang);
 
       while (attempts < maxAttempts) {
         try {
@@ -760,10 +796,10 @@ async function startServer() {
             let csv = "Elemento,Saturazione (%),Theta (Rad)\n";
             const thetas = [];
             for (let i = 0; i < n; i++) {
-              const pStr = String(saturazioni[i] || 0).replace(/[^0-9.]/g, '');
-              const P = parseFloat(pStr) || 0;
-              // User specified formula: theta = 2 * arcsin(sqrt(P/100))
-              const theta = (2 * Math.asin(Math.sqrt(P / 100))).toFixed(3);
+              const pStr = String(saturazioni[i] || 0).replace(',', '.').replace(/[^0-9.]/g, '');
+              const P = Math.max(0, Math.min(100, parseFloat(pStr) || 0));
+              // Exact quantum amplitude formula: theta = 2 * arcsin(sqrt(clip(P/100, 0, 1)))
+              const theta = (2 * Math.asin(Math.sqrt(P / 100))).toFixed(6);
               thetas.push(theta);
               csv += `${elementi[i]},${P}%,${theta}\n`;
             }
@@ -782,9 +818,9 @@ async function startServer() {
                 qasm += `cx q[${i}], q[${i+1}]; // Correlazione logica tra ${elementi[i]} e ${elementi[i+1]}\n`;
             }
             
-            const sogliaStr = String(dati.soglia_allarme || 0).replace(/[^0-9.]/g, '');
-            const soglia = parseFloat(sogliaStr) || 0;
-            const thresholdTheta = (2 * Math.asin(Math.sqrt(soglia / 100))).toFixed(3);
+            const sogliaStr = String(dati.soglia_allarme || 0).replace(',', '.').replace(/[^0-9.]/g, '');
+            const soglia = Math.max(0, Math.min(100, parseFloat(sogliaStr) || 0));
+            const thresholdTheta = (2 * Math.asin(Math.sqrt(soglia / 100))).toFixed(6);
             qasm += `\n// Step 3: Valutazione Prudenza (${dati.prudenza}) e Allarme Soglia (${soglia}%)\n`;
             qasm += `ry(${thresholdTheta}) q[${n}]; // Ancilla allarme\n`;
             qasm += `cx q[${n-1}], q[${n}]; // Propagazione allarme finale\n`;
@@ -794,9 +830,20 @@ async function startServer() {
                 qasm += `measure q[${i}] -> c[${i}];\n`;
             }
 
-            let finalOutput = `I dati sono stati elaborati matematicamente dal Server (TypeScript) con formula esatta senza intervento dell'Intelligenza Artificiale.\n\n`;
-            finalOutput += `**Tabella Dati Deterministic (CSV):**\n\`\`\`csv\n${csv}\`\`\`\n\n`;
-            finalOutput += `**Codice OpenQASM 2.0 Deterministic:**\n\`\`\`qasm\n${qasm}\`\`\`\n`;
+            const langShort = (reqLang || 'it').toLowerCase().slice(0, 2);
+            const serverHeaderMap: Record<string, { msg: string; csvLabel: string; qasmLabel: string }> = {
+              it: { msg: "I dati sono stati elaborati matematicamente dal Server con formula esatta senza intervento dell'Intelligenza Artificiale.", csvLabel: "Tabella Dati Deterministica (CSV):", qasmLabel: "Codice OpenQASM 2.0 Deterministico:" },
+              en: { msg: "Data processed mathematically by the server using the exact amplitude formula.", csvLabel: "Deterministic Data Table (CSV):", qasmLabel: "Deterministic OpenQASM 2.0 Code:" },
+              zh: { msg: "服务器已使用精确量子振幅公式完成数学运算。", csvLabel: "确定性数据表 (CSV)：", qasmLabel: "确定性 OpenQASM 2.0 代码：" },
+              de: { msg: "Die Daten wurden mathematisch vom Server mit der exakten Formel verarbeitet.", csvLabel: "Deterministische Datentabelle (CSV):", qasmLabel: "Deterministischer OpenQASM 2.0 Code:" },
+              fr: { msg: "Les données ont été traitées mathématiquement par le serveur avec la formule exacte.", csvLabel: "Tableau de données déterministe (CSV) :", qasmLabel: "Code OpenQASM 2.0 déterministe :" },
+              ja: { msg: "サーバーが正確な振幅数式を用いてデータを数学的に処理しました。", csvLabel: "決定論的データ表 (CSV)：", qasmLabel: "決定論的 OpenQASM 2.0 コード：" },
+            };
+            const sh = serverHeaderMap[langShort] || serverHeaderMap.en;
+
+            let finalOutput = `${sh.msg}\n\n`;
+            finalOutput += `**${sh.csvLabel}**\n\`\`\`csv\n${csv}\`\`\`\n\n`;
+            finalOutput += `**${sh.qasmLabel}**\n\`\`\`qasm\n${qasm}\`\`\`\n`;
 
             text = text.replace(/\[DATI_QUANTISTICI\]\s*(\{[\s\S]*?\})/, finalOutput);
           }
@@ -816,7 +863,7 @@ async function startServer() {
       }
 
       console.warn("AI Chat resilient fallback triggered:", errorStr.slice(0, 150));
-      const fallbackReply = generateArchitectChatReply(messages || [], systemPrompt || "");
+      const fallbackReply = generateArchitectChatReply(messages || [], systemPrompt || "", reqLang);
       return res.status(200).json({ 
         success: true,
         text: fallbackReply,
@@ -829,7 +876,7 @@ async function startServer() {
 
   app.post("/api/test-chat", async (req, res) => {
     try {
-      const { messages, systemPrompt, apiKey: clientApiKey } = req.body;
+      const { messages, systemPrompt, apiKey: clientApiKey, language: reqLang = 'it' } = req.body;
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messaggi non validi" });
       }
@@ -868,7 +915,7 @@ async function startServer() {
       }
 
       try {
-        const cleanedSystemPrompt = purge(systemPrompt || "");
+        const cleanedSystemPrompt = purge(systemPrompt || "") + "\n\n" + getLangInstruction(reqLang);
         const result = await callGeminiWithFallback(aiClient, {
           contents: contents,
           config: {

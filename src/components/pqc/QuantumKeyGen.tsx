@@ -45,12 +45,12 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
       if (response.data && response.data.publicKey) {
         setKeys(response.data);
       } else {
-        alert('Error: Invalid server response.');
+        alert(t('keygen_invalid_resp'));
       }
     } catch (error: any) {
       console.error('Key generation failed', error);
-      const errorMsg = error.response?.data?.error || 'Error during generation.';
-      alert(`Error: ${errorMsg}`);
+      const errorMsg = error.response?.data?.error || t('keygen_err_gen');
+      alert(errorMsg);
     } finally {
       setIsGenerating(false);
     }
@@ -69,7 +69,7 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
       zeroizeBuffer(privBytes);
       setKeys(null);
       setLiveEntropy(null);
-      alert('Zero-Trace Memory: RAM and volatile state securely purged.');
+      alert(t('keygen_purged_alert'));
     }
   };
 
@@ -97,7 +97,7 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
             }`}
           >
             <Zap className="w-3 h-3" />
-            Hybrid QRNG (Vacuum + TRNG)
+            {t('keygen_ent_hybrid')}
           </button>
           <button
             onClick={() => setEntropySource('quantum_vacuum')}
@@ -108,7 +108,7 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
             }`}
           >
             <Activity className="w-3 h-3" />
-            ANU Optical Vacuum QRNG
+            {t('keygen_ent_vac')}
           </button>
           <button
             onClick={() => setEntropySource('ibm_superconducting_qpu')}
@@ -119,7 +119,7 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
             }`}
           >
             <Cpu className="w-3 h-3" />
-            IBM Qubit Superposition
+            {t('keygen_ent_ibm')}
           </button>
         </div>
       </div>
@@ -143,7 +143,7 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
             className="w-full sm:w-auto px-4 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-mono text-[9px] font-bold uppercase rounded-xl transition-all flex items-center justify-center gap-2"
           >
             <ShieldAlert className="w-3.5 h-3.5" />
-            Purge RAM (Zero-Trace Wipe)
+            {t('keygen_purge_btn')}
           </button>
         )}
       </div>
@@ -157,13 +157,13 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
         >
           <div className="flex items-center gap-2 text-gray-300">
             <Zap className="w-3.5 h-3.5 text-quantum-primary" />
-            <span>Entropy Harvester:</span>
+            <span>{t('keygen_harvester')}</span>
             <span className="text-quantum-primary font-bold">{liveEntropy.sourceName}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-gray-400">Min-Entropy H∞: <strong className="text-emerald-400">{liveEntropy.minEntropyScore}</strong></span>
+            <span className="text-gray-400">{t('keygen_min_entropy')} <strong className="text-emerald-400">{liveEntropy.minEntropyScore}</strong></span>
             <span className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              <ShieldCheck className="w-3 h-3" /> Zero-Trace Memory Active
+              <ShieldCheck className="w-3 h-3" /> {t('keygen_zt_active')}
             </span>
           </div>
         </motion.div>
@@ -201,7 +201,7 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
                   ) : (
                     <div className="flex items-center gap-2">
                       <Copy className="w-4 h-4" />
-                      <span className="text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">Copy</span>
+                      <span className="text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">{t('keygen_copy')}</span>
                     </div>
                   )}
                 </button>
@@ -233,7 +233,7 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
                   ) : (
                     <div className="flex items-center gap-2">
                       <Copy className="w-4 h-4" />
-                      <span className="text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">Copy</span>
+                      <span className="text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">{t('keygen_copy')}</span>
                     </div>
                   )}
                 </button>
@@ -247,9 +247,9 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
         <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-start gap-4">
           <Fingerprint className="w-5 h-5 text-quantum-primary shrink-0" />
           <div>
-            <h4 className="text-[10px] font-bold text-white uppercase mb-1">True QRNG Hardware Entropy</h4>
+            <h4 className="text-[10px] font-bold text-white uppercase mb-1">{t('keygen_true_ent_title')}</h4>
             <p className="text-[9px] text-gray-500 leading-relaxed font-mono uppercase">
-              Iniezione da fluttuazioni quantistiche del vuoto (ANU Optics) e superposition collapse IBM con condizionamento NIST SP 800-90C.
+              {t('keygen_true_ent_desc')}
             </p>
           </div>
         </div>
@@ -263,9 +263,9 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
         <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-start gap-4">
           <RefreshCcw className="w-5 h-5 text-quantum-primary shrink-0" />
           <div>
-            <h4 className="text-[10px] font-bold text-white uppercase mb-1">Zero-Trace RAM Scrubbing</h4>
+            <h4 className="text-[10px] font-bold text-white uppercase mb-1">{t('keygen_zt_scrub_title')}</h4>
             <p className="text-[9px] text-gray-500 leading-relaxed font-mono uppercase">
-              Sovrascrittura attiva a 2 passaggi (FIPS 140-3) e zeroize immediato dei buffer volatili per impedire Cold Boot e heap dump.
+              {t('keygen_zt_scrub_desc')}
             </p>
           </div>
         </div>

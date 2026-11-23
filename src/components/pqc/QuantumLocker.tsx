@@ -134,7 +134,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
     const cleanSec = (secKey || '').trim();
 
     if (!cleanPayload || !cleanEnc || !cleanSec) {
-      setDecryptError('All 3 parameters (Encrypted Payload, Encapsulated Key, and Unlock Key) are required.');
+      setDecryptError(t('locker_err_all_fields'));
       return;
     }
 
@@ -152,7 +152,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
       if (response.data && response.data.decryptedContent !== undefined) {
         setDecryptedResult(response.data.decryptedContent);
       } else {
-        setDecryptError('Empty or invalid response from decryption server.');
+        setDecryptError(t('locker_err_empty_resp'));
       }
     } catch (error: any) {
       console.error('Decryption failed:', error);
@@ -290,7 +290,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                     {t('locker_secure_encryption') || 'Quantum Text & File Encryption'}
                   </h3>
                   <span className="px-2.5 py-1 bg-quantum-primary/10 border border-quantum-primary/30 rounded-lg text-quantum-primary text-[10px] font-mono font-bold">
-                    POST-QUANTUM
+                    {t('locker_post_quantum_badge')}
                   </span>
                 </div>
 
@@ -298,8 +298,8 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                   {/* Textarea for original message */}
                   <div className="space-y-2">
                     <label className="text-[11px] font-mono text-gray-400 uppercase tracking-widest font-bold flex items-center justify-between">
-                      <span>{t('locker_original_text') || 'Original Text to Protect'}</span>
-                      <span className="text-[10px] text-gray-500 font-normal">{inputText.length} chars</span>
+                      <span>{t('locker_original_text')}</span>
+                      <span className="text-[10px] text-gray-500 font-normal">{inputText.length} {t('locker_chars')}</span>
                     </label>
                     <textarea 
                       id="pqc-encrypt-input-text"
@@ -346,11 +346,11 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                           }}
                           className="mt-2 text-[10px] text-red-400 hover:text-red-300 underline font-mono"
                         >
-                          Remove file
+                          {t('locker_remove_file')}
                         </button>
                       ) : (
                         <p className="text-[9px] text-gray-600 mt-1 font-mono uppercase">
-                          {t('locker_max_file_info') || 'Any document, text, or CSV'}
+                          {t('locker_max_file_info')}
                         </p>
                       )}
                     </div>
@@ -369,12 +369,12 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                   {isProcessing ? (
                     <>
                       <RefreshCcw className="w-4 h-4 animate-spin" />
-                      <span>{t('locker_processing_lattice') || 'Generating ML-KEM Keys...'}</span>
+                      <span>{t('locker_processing_lattice')}</span>
                     </>
                   ) : (
                     <>
                       <Lock className="w-4 h-4 fill-current" />
-                      <span>{t('locker_lock_vault_btn') || 'LOCK VAULT (ENCRYPT NOW)'}</span>
+                      <span>{t('locker_lock_vault_btn')}</span>
                     </>
                   )}
                 </button>
@@ -387,17 +387,17 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
                   <h3 className="flex items-center gap-2.5 text-white font-display font-bold uppercase tracking-wider text-sm">
                     <ShieldCheck className="w-4 h-4 text-quantum-primary" />
-                    {t('locker_decipher_gate') || 'Vault Decryption & Unlock Gate'}
+                    {t('locker_decipher_gate')}
                   </h3>
                   {result && (
                     <button
                       id="pqc-load-last-btn"
                       onClick={handleLoadLastEncrypted}
                       className="px-3 py-1.5 bg-quantum-primary/10 hover:bg-quantum-primary/20 border border-quantum-primary/30 rounded-xl text-quantum-primary text-[10px] font-mono font-bold transition-all flex items-center gap-1.5"
-                      title="Auto-fill data from last encryption"
+                      title={t('locker_auto_fill_title')}
                     >
                       <Sparkles className="w-3 h-3" />
-                      Paste Last Encrypted Data
+                      {t('locker_paste_last')}
                     </button>
                   )}
                 </div>
@@ -407,7 +407,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] font-mono text-gray-400 uppercase tracking-widest font-bold">
-                        1. {t('locker_payload_label') || 'Encrypted Payload (Base64)'}
+                        1. {t('locker_payload_label')}
                       </label>
                       <button
                         type="button"
@@ -415,7 +415,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                         className="text-[10px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1"
                       >
                         <FileText className="w-3 h-3" />
-                        Load .vault
+                        {t('locker_load_vault')}
                       </button>
                       <input 
                         type="file" 
@@ -537,11 +537,11 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                     <div className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                       <h3 className="text-white font-display font-black uppercase tracking-wider text-xs sm:text-sm">
-                        Encryption Result
+                        {t('locker_encryption_result')}
                       </h3>
                     </div>
                     <span className="px-3 py-1 bg-emerald-500/15 text-emerald-400 text-[10px] font-mono font-bold rounded-lg border border-emerald-500/30">
-                      SECURE ML-KEM-768
+                      {t('locker_secure_mlkem_badge')}
                     </span>
                   </div>
 
@@ -550,12 +550,12 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-mono font-bold text-quantum-primary uppercase tracking-wider flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5" />
-                        Instant Verification
+                        {t('locker_instant_verif')}
                       </span>
-                      <span className="text-[10px] text-gray-400 font-mono">1-Click Test</span>
+                      <span className="text-[10px] text-gray-400 font-mono">{t('locker_one_click')}</span>
                     </div>
                     <p className="text-xs text-gray-300 font-sans">
-                      Want to test decrypting this phrase right now?
+                      {t('locker_test_phrase')}
                     </p>
                     <button
                       id="pqc-instant-decrypt-btn"
@@ -563,7 +563,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                       className="w-full py-3 bg-quantum-primary hover:bg-cyan-300 text-black font-black uppercase tracking-wider text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
                     >
                       <Unlock className="w-4 h-4" />
-                      <span>Decrypt This Phrase Now</span>
+                      <span>{t('locker_decrypt_now')}</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -572,10 +572,10 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                   <div className="space-y-2 p-4 bg-black/60 border border-white/10 rounded-2xl">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider font-bold">
-                        Encrypted Payload (Base64)
+                        {t('locker_enc_payload_b64')}
                       </span>
                       <span className="text-[9px] font-mono text-quantum-primary">
-                        {result.encryptedPayload.length} bytes
+                        {result.encryptedPayload.length} {t('locker_bytes')}
                       </span>
                     </div>
                     <div className="text-[11px] font-mono text-gray-300 break-all leading-relaxed max-h-28 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20">
@@ -587,15 +587,15 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                         className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
                         {copiedPayload ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        {copiedPayload ? 'Payload Copied!' : 'Copy Encrypted Payload'}
+                        {copiedPayload ? t('locker_payload_copied') : t('locker_copy_payload')}
                       </button>
                       <button 
                         onClick={downloadEncrypted}
                         className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-quantum-primary text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                        title="Download .vault file"
+                        title={t('locker_download_vault')}
                       >
                         <Download className="w-3.5 h-3.5" />
-                        Download .vault
+                        {t('locker_download_vault')}
                       </button>
                     </div>
                   </div>
@@ -604,14 +604,14 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                   <div className="space-y-2 p-4 bg-black/60 border border-white/10 rounded-2xl">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider font-bold">
-                        Encapsulated Key (HEX)
+                        {t('locker_enc_key_hex')}
                       </span>
                       <button 
                         onClick={() => copyText(result.encapsulatedKey, 'encKey')}
                         className="text-[10px] text-quantum-primary hover:underline font-mono flex items-center gap-1 cursor-pointer"
                       >
                         {copiedEncKey ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                        {copiedEncKey ? 'Copied!' : 'Copy'}
+                        {copiedEncKey ? t('locker_copied_short') : t('locker_copy_short')}
                       </button>
                     </div>
                     <div className="text-[10px] font-mono text-quantum-primary break-all max-h-16 overflow-y-auto pr-2">
@@ -624,21 +624,21 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-amber-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
                         <Key className="w-3.5 h-3.5" />
-                        Unlock Secret Key (HEX)
+                        {t('locker_unlock_sec_hex')}
                       </span>
                       <button 
                         onClick={() => copyText(result.unlockKey, 'unlockKey')}
                         className="text-[10px] text-amber-300 hover:underline font-mono flex items-center gap-1 cursor-pointer"
                       >
                         {copiedUnlockKey ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                        {copiedUnlockKey ? 'Copied!' : 'Copy Secret Key'}
+                        {copiedUnlockKey ? t('locker_copied_short') : t('locker_copy_secret_key')}
                       </button>
                     </div>
                     <div className="text-[10px] font-mono text-amber-200/90 break-all max-h-16 overflow-y-auto pr-2">
                       {result.unlockKey}
                     </div>
                     <p className="text-[9px] text-amber-400/80 font-mono pt-1">
-                      ⚠️ Keep this key secure to decrypt your message at any time.
+                      {t('locker_warn_keep')}
                     </p>
                   </div>
                 </motion.div>
@@ -680,14 +680,14 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                       </h3>
                     </div>
                     <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold rounded-lg border border-emerald-500/40">
-                      INTEGRITY VERIFIED 100%
+                      {t('locker_integrity_100')}
                     </span>
                   </div>
 
                   {/* Decrypted Content Box */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider font-bold">
-                      Original Decoded Content:
+                      {t('locker_orig_content')}
                     </label>
                     <div className="p-6 bg-black/80 border border-emerald-500/30 rounded-2xl min-h-48 max-h-80 overflow-y-auto shadow-inner">
                       <p className="text-sm sm:text-base text-emerald-200 leading-relaxed break-words whitespace-pre-wrap font-sans font-medium">
@@ -703,7 +703,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                       className="py-3.5 bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs font-bold uppercase rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {copiedDecrypted ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                      {copiedDecrypted ? 'Copied!' : (t('locker_copy_plaintext') || 'Copy Plaintext')}
+                      {copiedDecrypted ? t('locker_copied_short') : t('locker_copy_plaintext')}
                     </button>
                     <button 
                       onClick={() => {
@@ -718,15 +718,15 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
                       className="py-3.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold uppercase rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Download className="w-4 h-4" />
-                      {t('locker_download_txt') || 'Download .txt'}
+                      {t('locker_download_txt')}
                     </button>
                   </div>
 
                   {/* Footer status */}
                   <div className="flex items-center justify-center gap-4 text-[10px] font-mono text-gray-400 pt-2">
-                    <span>ML-KEM-768 Decapsulation Complete</span>
+                    <span>{t('locker_mlkem_decapsulated')}</span>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>RAM Scrubber FIPS 140-3 Executed</span>
+                    <span>{t('locker_ram_scrubber')}</span>
                   </div>
                 </motion.div>
               )

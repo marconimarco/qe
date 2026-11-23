@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx';
 import aiStudioPrompt from '../promptText.txt?raw';
 import { getStoredApiKey } from '../services/apiKeyService';
 import { getDemoCsvBySector } from "../data/demoCsv";
-import { generateQiskitCode, generateQiskitPythonCode, generateClassicalHpcPythonCode, parseCsv1Deterministic, parseCsv2MatrixDeterministic } from "../data/codeGenerators";
+import { generateQiskitCode, generateQiskitPythonCode, generateClassicalHpcPythonCode, parseCsv1Deterministic, parseCsv2MatrixDeterministic, classifyUploadedCsv, validaMatriceFile2, MAX_QUANTUM_QUBITS } from "../data/codeGenerators";
 import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfile } from "../data/taxonomicEngine";
 import { 
   CurrentUserSession, 
@@ -19,6 +19,10 @@ import {
   getCurrentSession,
   logUserAccess
 } from "../services/authService";
+import { LanguageCode } from '../types';
+import { useTranslation } from '../lib/TranslationContext';
+import { getAgentUi, getLocalizedSectorName } from '../lib/agentAiTranslations';
+import { getLocalizedTestScenario } from '../lib/scenarioTranslations';
 
 export interface SectorScenario {
   id: string;
@@ -45,25 +49,18 @@ export interface ContenitoreQuantistico {
  * Include una valvola di sicurezza Regex per estrarre la verità direttamente dal circuito.
  */
 
-export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, codicePythonDaGemini: string): string {
+export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, codicePythonDaGemini: string, language: LanguageCode = 'it'): string {
+  const ui = getAgentUi(language);
   try {
     const dati: ContenitoreQuantistico = JSON.parse(jsonDaGemini);
-    
-    // ============================================================
-    // [FIX] VALVOLA DI SICUREZZA: estrae il theta REALE dal Python
-    // con 3 strategie in cascata, per resistere a qualsiasi formato
-    // generato da codeGenerators.ts (letterale o variabile).
-    // ============================================================
+
     let rad: number | null = null;
 
-    // Strategia 1: formato letterale qc.ry(2.346194, q[0])
     const matchRy = codicePythonDaGemini.match(/qc\.ry\(([\d.]+),\s*q\[0\]\)/);
     if (matchRy) {
       rad = parseFloat(matchRy[1]);
     }
 
-    // Strategia 2: formato PESI_RISOLTI = [{"id":"asset_01","peso":0.85},...]
-    // Il primo peso è sempre q[0]. theta = 2 * arcsin(sqrt(peso))
     if (rad === null) {
       const matchPesi = codicePythonDaGemini.match(/PESI_RISOLTI\s*=\s*\[\s*\{[^}]*"peso":\s*([\d.]+)/);
       if (matchPesi) {
@@ -72,7 +69,6 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
       }
     }
 
-    // Strategia 3: formato "peso": 0.85 (qualunque occorrenza)
     if (rad === null) {
       const matchAnyPeso = codicePythonDaGemini.match(/"peso":\s*([\d.]+)/);
       if (matchAnyPeso) {
@@ -81,7 +77,6 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
       }
     }
 
-    // Strategia 4: thetas = [...] nel Python
     if (rad === null) {
       const matchThetas = codicePythonDaGemini.match(/thetas\s*=\s*\[([\d.]+)/);
       if (matchThetas) {
@@ -89,113 +84,58 @@ export function renderizzaInterfacciaUniversaleBlindata(jsonDaGemini: string, co
       }
     }
 
-    // Fallback finale + cast a number per TypeScript
-    const radSafe: number = (rad !== null && !isNaN(rad)) 
-      ? rad 
+    const radSafe: number = (rad !== null && !isNaN(rad))
+      ? rad
       : (dati.theta_radianti ?? 0);
 
-    const phiRad = dati.phi_radianti || 0;
-
-    // Calcoli geometrici e probabilistici puri eseguiti dal motore del browser
     const thetaGradi = Math.round((radSafe * 180) / Math.PI);
-    const fasePhiGradi = Math.round((phiRad * 180) / Math.PI);
-    
-    // Formula quantistica dell'ampiezza di probabilità: P(|0>) = cos²(θ/2), P(|1>) = sin²(θ/2)
     const ampiezza0 = Math.round(Math.pow(Math.cos(radSafe / 2), 2) * 100);
     const ampiezza1 = Math.round(Math.pow(Math.sin(radSafe / 2), 2) * 100);
 
-    // TRADUTTORE SEMANTICO UNIVERSALE SU TUTTE LE CATEGORIE AZIENDALI
-    const sLower = dati.settore.toLowerCase();
-    const isPrudente = (dati.strategia || '').toLowerCase().includes('prudent') || (dati.strategia || '').toLowerCase().includes('conservat');
-
-    let labelColonna = "Rendimento/Priorità";
-    let labelStato0 = isPrudente ? "Margine di Solvibilità / Stabilità" : "Componente Base";
-    let labelStato1 = isPrudente ? "Copertura / Capienza Protettiva" : "Attivazione Nominale";
-
-    if (sLower.includes("finanz") || sLower.includes("mercat") || sLower.includes("banc")) {
-      labelColonna = "Copertura / Rischio Attuariale";
-      labelStato0 = isPrudente ? "Rischio Residuo Inadeguatezza" : "Componente Volatilità";
-      labelStato1 = isPrudente ? "Fondo di Copertura / Solvibilità Garantita" : "Rendimento / Alpha Atteso";
-    } else if (sLower.includes("logistic") || sLower.includes("supply") || sLower.includes("trasport")) {
-      labelColonna = "Saturazione Carico / Autonomia";
-      labelStato0 = isPrudente ? "Capienza di Riserva Flotta" : "Inerzia Logistica";
-      labelStato1 = isPrudente ? "Allocazione Protetta" : "Saturazione Hub";
-    } else if (sLower.includes("energi") || sLower.includes("reti") || sLower.includes("grid")) {
-      labelColonna = "Fattore di Erogazione / Backup";
-      labelStato0 = isPrudente ? "Margine di Stabilità Rete" : "Fluttuazione Residua";
-      labelStato1 = isPrudente ? "Capacità di Accumulo / Copertura Picco" : "Erogazione Attiva";
-    } else if (sLower.includes("chimic") || sLower.includes("farmaceutic") || sLower.includes("material")) {
-      labelColonna = "Affinità Molecolare / Stabilità Legame";
-      labelStato0 = isPrudente ? "Stato Fondamentale a Bassa Energia" : "Stato Orbitale a Riposo";
-      labelStato1 = isPrudente ? "Configurazione Conformatica Stabile" : "Eccitazione / Rendimento Reazione";
-    } else if (sLower.includes("sanit") || sLower.includes("genom") || sLower.includes("biomed")) {
-      labelColonna = "Espressione Fisiologica / Marker";
-      labelStato0 = isPrudente ? "Condizione Fisiologica Protetta" : "Componente Silente";
-      labelStato1 = isPrudente ? "Controllo / Sorveglianza Attiva" : "Espressione Target";
-    } else if (sLower.includes("manifattur") || sLower.includes("industr") || sLower.includes("produzion")) {
-      labelColonna = "Affidabilità Linea / Indice Qualità";
-      labelStato0 = isPrudente ? "Tolleranza Sicurezza Impianto" : "Margine di Inattività";
-      labelStato1 = isPrudente ? "Conformità Processo Garantita" : "Efficienza OEE";
-    } else if (sLower.includes("telecomunicazion") || sLower.includes("tlc") || sLower.includes("banda")) {
-      labelColonna = "Banda Trasmissiva / Ridondanza";
-      labelStato0 = isPrudente ? "Margine SNR / Protezione Rumore" : "Rumore Residuo";
-      labelStato1 = isPrudente ? "Throughput Affidabile Garantito" : "Banda Allocata";
-    } else if (sLower.includes("sicurezz") || sLower.includes("cyber") || sLower.includes("crittograf")) {
-      labelColonna = "Resilienza Crittografica / Barriera SIEM";
-      labelStato0 = isPrudente ? "Spazio di Immunità / Protezione Attiva" : "Vulnerabilità Residua";
-      labelStato1 = isPrudente ? "Contromisura Quantistica Operativa" : "Rilevamento Minaccia";
-    } else if (sLower.includes("aerospace") || sLower.includes("difesa") || sLower.includes("spazio")) {
-      labelColonna = "Fattore di Tolleranza / Spinta Nominale";
-      labelStato0 = isPrudente ? "Margine Strutturale Fail-Safe" : "Assetto Inerziale";
-      labelStato1 = isPrudente ? "Affidabilità Sub-Sistema" : "Spinta Orbitale";
-    }
+    const tax = getTaxonomicSector(dati.settore, '', language);
+    const sLower = (dati.settore || '').toLowerCase();
+    const stratLower = (dati.strategia || '').toLowerCase();
+    const isPrudente = stratLower.includes('prudent') || stratLower.includes('conservat') || stratLower.includes('vorsicht') || stratLower.includes('rischio') || stratLower.includes('穩健') || stratLower.includes('稳健') || stratLower.includes('慎重') || stratLower.includes('tutela') || stratLower.includes('protection') || stratLower.includes('schütz') || stratLower.includes('stabilité');
 
     const fisicaEntanglement = dati.entanglement === 'cx'
-      ? 'Blocco Rigido (Porta CX su Connessioni Critiche ≥ 0.60 dal File 2)'
+      ? ui.entCxDesc
       : dati.entanglement === 'cp'
-      ? 'Legame Morbido (Porta CP con Sfasamento Continuo dal File 2)'
-      : 'Risorse Indipendenti (Senza Entanglement - Stato Separabile Puro)';
+      ? ui.entCpDesc
+      : ui.entNoneDesc;
 
-    const descrizioniSettoriali: Record<string, string> = {
-      finanz: "Il modello ha quantificato la stabilità del portafoglio e mitigato i rischi di contagio creditizio e volatilità sistemica tramite correlazioni mirate.",
-      logistic: "Il calcolo ha ottimizzato lo smistamento dei flussi nei nodi critici, neutralizzando i colli di bottiglia e bilanciando la saturazione tra le baie e i vettori AGV/LGV.",
-      energi: "L'analisi ha stabilizzato l'inerzia della rete di distribuzione, armonizzando le fluttuazioni di fornitura rinnovabile con le cabine primarie e i sistemi di accumulo BESS.",
-      chimic: "Il circuito ha calcolato la configurazione a minima energia libera per il docking molecolare, blindando i legami conformazionali rigidi e prevenendo la denaturazione.",
-      produzion: "L'algoritmo ha sincronizzato la cinematica dei giunti robotici con la linea di confezionamento, prevenendo micro-fermi ciclo e preservando l'indice OEE nominale.",
-      manifattur: "L'algoritmo ha sincronizzato la cinematica dei giunti robotici con la linea di confezionamento, prevenendo micro-fermi ciclo e preservando l'indice OEE nominale.",
-      sicurezz: "L'infrastruttura ha instradato la trasmissione sui percorsi di rete a minor latenza, garantendo l'immunità dei nodi da tentativi di intrusione e saturazione.",
-      telecomunicazion: "L'infrastruttura ha instradato la trasmissione sui percorsi di rete a minor latenza, garantendo l'immunità dei nodi da tentativi di intrusione e saturazione.",
-      sanit: "La simulazione ha mappato le interazioni cliniche tra i biomarcatori, isolando gli effetti domino cardiovascolari e metabolici a tutela dell'omeostasi d'organo.",
-      genom: "La simulazione ha mappato le interazioni cliniche tra i biomarcatori, isolando gli effetti domino cardiovascolari e metabolici a tutela dell'omeostasi d'organo."
-    };
-
-    let macroDescrizione = "I calcoli hanno elaborato dinamicamente le ampiezze di stato e la matrice dei vincoli in conformità allo scenario selezionato.";
-    for (const [k, v] of Object.entries(descrizioniSettoriali)) {
-      if (sLower.includes(k)) {
-        macroDescrizione = v;
-        break;
+    let macroDescrizione = ui.defaultMacroDesc;
+    if (ui.sectorMacroDescs[tax.id]) {
+      macroDescrizione = ui.sectorMacroDescs[tax.id];
+    } else {
+      for (const [k, v] of Object.entries(ui.sectorMacroDescs)) {
+        if (sLower.includes(k)) {
+          macroDescrizione = v;
+          break;
+        }
       }
     }
 
-    const outputBase = `### COSA HA OTTENUTO L'UTENTE DA QUESTA ELABORAZIONE
-**Ambito Operativo:** ${dati.settore} | **Scenario:** ${dati.scenario} | **Strategia Applicata:** ${dati.strategia}
+    const localizedSector = getLocalizedSectorName(dati.settore, language);
 
-#### 1. SPIEGAZIONE UMANA DEL CALCOLO QUANTISTICO (Probabilità di Stabilità / Copertura e Vincoli)
-• **Stato Quantistico e Distribuzione di Probabilità:** Il circuito ha codificato i pesi del File 1 sulle ampiezze di stato tramite rotazioni calibrate (θ = ${rad.toFixed(4)} rad / ${thetaGradi}° sul primo asset). ${isPrudente ? `In ottica prudente, la configurazione esprime una stabilità protetta / copertura garantita del **${ampiezza1}%** (a fronte di un rischio residuo circoscritto al **${ampiezza0}%**), orientando il sistema verso la massima resilienza.` : `La configurazione attiva il potenziale nominale al **${ampiezza1}%** con una componente base del **${ampiezza0}%** per massimizzare la reattività operativa.`}
-• **Topologia dei Vincoli ed Entanglement Automatico:** ${fisicaEntanglement}. I nodi critici con interdipendenza strutturale rilevata dalla matrice del File 2 sono stati accoppiati per blindare il portafoglio contro effetti domino e oscillazioni sistemiche.
-• **Sintesi Strategica Quantistica:** ${macroDescrizione}
+    const outputBase = `${ui.reportTitle}
+${ui.reportScope(localizedSector, dati.scenario, dati.strategia)}
 
-#### 2. SPIEGAZIONE UMANA DEL CALCOLO CLASSICO (SciPy SLSQP / Markowitz Sharpe Ratio)
-• **Ottimizzazione di Frontiera:** Il motore numerico convenzionale applica l'algoritmo SLSQP sulla matrice del File 2 e sui vettori del File 1 per identificare la composizione a varianza minima e calcolare l'indice di Sharpe sistemico.
-• **Piano d'Azione Operativo:** I pesi percentuali ottimali derivati indicano l'esatta ricollocazione delle risorse per blindare l'esposizione al rischio e centrare gli obiettivi di rendimento senza eccedere le soglie di tolleranza stabilite.
+${ui.reportSec1Title}
+${ui.reportSec1State(radSafe.toFixed(4), thetaGradi, isPrudente, ampiezza1, ampiezza0)}
+${ui.reportSec1Topo(fisicaEntanglement)}
+${ui.reportSec1Synth(macroDescrizione)}
 
-*Elaborazione dati: Dataset acquisito dinamicamente dal File 1 per l'ampiezza di stato e dalla matrice simmetrica del File 2 per i vincoli di accoppiamento.*`;
+${ui.reportSec2Title}
+${ui.reportSec2Frontier}
+${ui.reportSec2Action}
+
+${ui.reportFooterNote}`;
 
     return outputBase;
 
   } catch (error) {
     console.error("Errore critico pipeline quantistica:", error);
-    return "Errore di sincronizzazione hardware della pipeline quantistica.";
+    return ui.defaultMacroDesc;
   }
 }
 
@@ -224,56 +164,57 @@ export const triggerCsvDownload = (filename: string, content: string) => {
  * 3. Almeno 2 colonne.
  * 4. Una colonna con nome riconoscibile (id_risorsa, id, asset, o parole chiave del peso).
  */
-export function validaFileCaricato(contenuto: string, nomeFile: string): { valido: boolean; messaggio?: string; righe?: number; colonne?: number } {
-  if (!contenuto || !contenuto.trim()) {
-    return { valido: false, messaggio: `Il file "${nomeFile}" è vuoto o illeggibile.` };
+export function validaFileCaricato(contenuto: string, nomeFile: string, language: LanguageCode = 'it'): { valido: boolean; messaggio?: string; righe?: number; colonne?: number } {
+  const ui = getAgentUi(language);
+  const cleanContent = (contenuto || '').replace(/^\uFEFF/, '');
+  if (!cleanContent.trim()) {
+    return { valido: false, messaggio: ui.csvErrEmpty(nomeFile) };
   }
 
   // 1. Righe non-commento
-  const lines = contenuto.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
+  const lines = cleanContent.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
   if (lines.length < 1) {
-    return { valido: false, messaggio: `Il file "${nomeFile}" non contiene righe valide (solo commenti o vuoto).` };
+    return { valido: false, messaggio: ui.csvErrNoValidRows(nomeFile) };
   }
 
   // 2. Almeno 2 righe dati oltre l'intestazione
   if (lines.length < 3) {
-    return { valido: false, messaggio: `Il file "${nomeFile}" contiene solo ${lines.length - 1} riga/e dati (richieste almeno 2 righe dati oltre l'intestazione).` };
+    return { valido: false, messaggio: ui.csvErrFewRows(nomeFile, Math.max(0, lines.length - 1)) };
   }
 
   // 3. Rilevamento delimitatore e verifica colonne (almeno 2 colonne)
   const headerLine = lines[0];
   const delim = headerLine.includes(';') ? ';' : (headerLine.includes('\t') ? '\t' : ',');
-  const headerCols = headerLine.split(delim).map(c => c.trim().toLowerCase().replace(/['"]/g, ''));
+  const headerCols = headerLine.split(delim).map(c => c.trim().toLowerCase().replace(/^['"]|['"]$/g, ''));
 
   if (headerCols.length < 2) {
-    return { valido: false, messaggio: `Il file "${nomeFile}" ha meno di 2 colonne (trovate: ${headerCols.length}). Verifica il separatore di colonna (, o ;).` };
+    return { valido: false, messaggio: ui.csvErrFewCols(nomeFile, headerCols.length) };
   }
 
-  // 4. Una colonna con nome riconoscibile (id_risorsa, id, asset, o parole chiave del peso)
-  const idKeywords = ['id_risorsa', 'id', 'asset', 'item', 'risorsa', 'chiave', 'codice', 'tranche', 'nodo'];
-  const weightKeywords = ['priorita_peso', 'peso', 'weight', 'rendiment', 'score', 'valore', 'probabilit', 'stabilita'];
-
-  const hasIdCol = headerCols.some(col => idKeywords.some(kw => col.includes(kw)));
-  const hasWeightCol = headerCols.some(col => weightKeywords.some(kw => col.includes(kw)));
-
-  if (!hasIdCol && !hasWeightCol) {
+  // 4. Verifica rigorosa con lo stesso parser deterministico usato nella compilazione quantistica/classica
+  try {
+    const { risorse } = parseCsv1Deterministic(cleanContent);
+    if (risorse.length < 2) {
+      return { valido: false, messaggio: ui.csvErrFewRows(nomeFile, risorse.length) };
+    }
+    return {
+      valido: true,
+      messaggio: ui.csvValidSummary(risorse.length, headerCols.length),
+      righe: risorse.length,
+      colonne: headerCols.length
+    };
+  } catch (err: any) {
     return {
       valido: false,
-      messaggio: `Intestazione non valida in "${nomeFile}": nessuna colonna identificativo (${idKeywords.slice(0, 3).join(', ')}) o colonna peso (${weightKeywords.slice(0, 4).join(', ')}) riconosciuta.`
+      messaggio: err?.message || ui.csvErrBadHeaders(nomeFile, 'id_risorsa, id, asset', 'priorita_peso, peso, weight, score')
     };
   }
-
-  const numDataRows = lines.length - 1;
-  return {
-    valido: true,
-    messaggio: `File valido: ${numDataRows} righe dati, ${headerCols.length} colonne, colonna peso riconosciuta.`,
-    righe: numDataRows,
-    colonne: headerCols.length
-  };
 }
 
 // Componente CodeBlock con pulsante per copiare il codice con 1 clic
 export function CodeBlockWithCopy({ code, language, title }: { code: string; language: string; title: string }) {
+  const { language: appLanguage } = useTranslation();
+  const ui = getAgentUi(appLanguage);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -297,12 +238,12 @@ export function CodeBlockWithCopy({ code, language, title }: { code: string; lan
           {copied ? (
             <>
               <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-emerald-400 font-bold">✓ Copiato!</span>
+              <span className="text-emerald-400 font-bold">{ui.copiedCodeBtn}</span>
             </>
           ) : (
             <>
               <Copy className="w-3.5 h-3.5 text-slate-300" />
-              <span>Copia Codice (1 clic)</span>
+              <span>{ui.copyCodeBtn}</span>
             </>
           )}
         </button>
@@ -316,6 +257,8 @@ export function CodeBlockWithCopy({ code, language, title }: { code: string; lan
 
 // Componente pulsante per CSV (Download o Copia)
 function CsvButton({ filename, content, label }: { filename: string; content: string; label: string }) {
+  const { language } = useTranslation();
+  const ui = getAgentUi(language);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -336,7 +279,7 @@ function CsvButton({ filename, content, label }: { filename: string; content: st
          type="button"
          onClick={handleCopy}
          className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 border-l-0 rounded-r text-[11px] font-mono text-slate-300 flex items-center transition-all cursor-pointer"
-         title="Copia il testo negli appunti"
+         title={ui.copyClipboardTooltip}
        >
          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
        </button>
@@ -505,10 +448,20 @@ export default function TestPage({
   setSharedQasm?: (code: string) => void; 
   currentUser?: CurrentUserSession | null;
 }) {
-  const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string }[]>([]);
+  const { language } = useTranslation();
+  const ui = getAgentUi(language);
+  const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string; kind?: 'csv_upload' | 'csv_confirm' | 'sim_complete' | 'demo_csv' }[]>([
+    { role: 'model', text: ui.welcomeMessage }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].role === 'model') {
+      setMessages([{ role: 'model', text: ui.welcomeMessage }]);
+    }
+  }, [language]);
 
   // User and permissions live sync
   const [liveUser, setLiveUser] = useState<CurrentUserSession | null>(currentUser || getCurrentSession());
@@ -564,7 +517,7 @@ export default function TestPage({
   const [uploadedFile1Name, setUploadedFile1Name] = useState<string>('1_anagrafica_risorse.csv');
   const [uploadedFile2Name, setUploadedFile2Name] = useState<string>('2_matrice_connessioni.csv');
   const [isDemoActive, setIsDemoActive] = useState<boolean>(true);
-  const [csvValidation, setCsvValidation] = useState<{ valido: boolean; messaggio?: string; righe?: number; colonne?: number } | null>(null);
+  const [csvValidation, setCsvValidation] = useState<{ valido: boolean; partialMissing?: 'file1' | 'file2'; messaggio?: string; righe?: number; colonne?: number } | null>(null);
   const [customPeriodInput, setCustomPeriodInput] = useState<string>('');
   
   // Date precise personalizzate da calendario (es. dal 01/04/26 al 23/06/26)
@@ -593,12 +546,12 @@ export default function TestPage({
     if (!startDateInput || !endDateInput) return;
     const days = calculateDaysDifference(startDateInput, endDateInput);
     if (!days) {
-      alert("La data di fine deve essere successiva alla data di inizio.");
+      alert(ui.dateErrAlert);
       return;
     }
     const formattedStart = formatDateToIT(startDateInput);
     const formattedEnd = formatDateToIT(endDateInput);
-    handleQuickClick(`Date precise: dal ${formattedStart} al ${formattedEnd} (${days} giorni totali)`);
+    handleQuickClick(ui.preciseDatesMsg(formattedStart, formattedEnd, days));
   };
 
   const [copiedInterview, setCopiedInterview] = useState<boolean>(false);
@@ -617,7 +570,7 @@ export default function TestPage({
   const handleCopyInterview = () => {
     if (messages.length === 0) return;
     const fullInterviewText = messages.map(m => {
-      const sender = m.role === 'model' ? 'Solution Architect AI' : 'Utente';
+      const sender = m.role === 'model' ? 'Solution Architect AI' : ui.userRoleLabel;
       return `[${sender}]\n${m.text}\n`;
     }).join('\n----------------------------------------\n\n');
 
@@ -651,9 +604,9 @@ export default function TestPage({
     setTimeout(() => setCopiedInterview(false), 2200);
   };
 
-  const readUploadedFileToCsvString = (file: File): Promise<string> => {
+  const readUploadedFileToCsvString = (file: File): Promise<{ csv: string; sheetCount: number }> => {
     return new Promise((resolve, reject) => {
-      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      const isExcel = /\.(xlsx|xls)$/i.test(file.name);
       if (isExcel) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -661,9 +614,13 @@ export default function TestPage({
             const buffer = e.target?.result as ArrayBuffer;
             const workbook = XLSX.read(buffer, { type: 'array' });
             const firstSheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[firstSheetName];
-            const csv = XLSX.utils.sheet_to_csv(sheet);
-            resolve(csv);
+            if (!firstSheetName) {
+              reject(new Error('Il file Excel non contiene fogli di lavoro validi.'));
+              return;
+            }
+            const sheet1 = workbook.Sheets[firstSheetName];
+            const csv = (XLSX.utils.sheet_to_csv(sheet1) || '').replace(/^\uFEFF/, '');
+            resolve({ csv, sheetCount: workbook.SheetNames.length });
           } catch (err) {
             reject(err);
           }
@@ -674,9 +631,9 @@ export default function TestPage({
         const reader = new FileReader();
         reader.onload = (e) => {
           if (typeof e.target?.result === 'string') {
-            resolve(e.target.result);
+            resolve({ csv: e.target.result.replace(/^\uFEFF/, ''), sheetCount: 1 });
           } else {
-            resolve('');
+            resolve({ csv: '', sheetCount: 1 });
           }
         };
         reader.onerror = reject;
@@ -685,96 +642,276 @@ export default function TestPage({
     });
   };
 
-  // Gestione caricamento reale file CSV / Excel (.xlsx, .xls)
+  // Gestione caricamento reale file CSV / Excel (.xlsx, .xls) con rilevamento esplicito file mancante
   const handleCsvUpload = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
 
     const filesArray = Array.from(fileList);
-    const parsedInfo = filesArray.map((file) => ({
-      name: file.name,
-      size: (file.size / 1024).toFixed(1) + ' KB',
-      rows: Math.max(12, Math.floor(file.size / 65))
-    }));
-
-    setUploadedFiles(parsedInfo);
 
     try {
-      let fileAnagrafica = filesArray.find(f => {
-        const n = f.name.toLowerCase();
-        return n.includes('1_') || n.includes('anagraf') || n.includes('risors') || n.includes('asset') || n.includes('item');
-      });
-      let fileMatrice = filesArray.find(f => {
-        const n = f.name.toLowerCase();
-        return n.includes('2_') || n.includes('matrice') || n.includes('conness') || n.includes('correlaz') || n.includes('covar');
-      });
+      const loadedFiles = await Promise.all(
+        filesArray.map(async (file) => {
+          const { csv, sheetCount } = await readUploadedFileToCsvString(file);
+          return {
+            name: file.name,
+            size: (file.size / 1024).toFixed(1) + ' KB',
+            csv,
+            sheetCount,
+            kind: classifyUploadedCsv(csv, file.name),
+          };
+        })
+      );
 
-      if (!fileAnagrafica && !fileMatrice) {
-        fileAnagrafica = filesArray[0];
-        fileMatrice = filesArray[1];
-      } else if (fileAnagrafica && !fileMatrice) {
-        fileMatrice = filesArray.find(f => f !== fileAnagrafica);
-      } else if (!fileAnagrafica && fileMatrice) {
-        fileAnagrafica = filesArray.find(f => f !== fileMatrice);
-      }
+      let slot1: typeof loadedFiles[number] | null = null;
+      let slot2: typeof loadedFiles[number] | null = null;
 
-      let validationCheck: { valido: boolean; messaggio?: string; righe?: number; colonne?: number } = { valido: true };
+      if (loadedFiles.length === 1) {
+        const single = loadedFiles[0];
+        let kind = single.kind;
+        if (kind === 'unknown') {
+          const tryF1 = validaFileCaricato(single.csv, single.name, language);
+          if (tryF1.valido) {
+            kind = 'anagrafica';
+          } else {
+            const tryF2 = validaMatriceFile2(single.csv);
+            if (tryF2.valido) kind = 'matrice';
+          }
+        }
+        if (kind === 'matrice') {
+          slot2 = single;
+          if (!isDemoActive && customCsv1Content !== null && uploadedFile1Name) {
+            slot1 = {
+              name: uploadedFile1Name,
+              size: uploadedFiles.find(u => u.name === uploadedFile1Name)?.size || 'in memoria',
+              csv: customCsv1Content,
+              sheetCount: 1,
+              kind: 'anagrafica',
+            };
+          }
+        } else {
+          slot1 = single;
+          if (!isDemoActive && customCsv2Content !== null && customCsv2Content.trim().length > 0 && uploadedFile2Name) {
+            slot2 = {
+              name: uploadedFile2Name,
+              size: uploadedFiles.find(u => u.name === uploadedFile2Name)?.size || 'in memoria',
+              csv: customCsv2Content,
+              sheetCount: 1,
+              kind: 'matrice',
+            };
+          }
+        }
+      } else {
+        const anags = loadedFiles.filter(f => f.kind === 'anagrafica');
+        const mats = loadedFiles.filter(f => f.kind === 'matrice');
+        const unknowns = loadedFiles.filter(f => f.kind === 'unknown');
 
-      if (fileAnagrafica) {
-        setUploadedFile1Name(fileAnagrafica.name);
-        const content1 = await readUploadedFileToCsvString(fileAnagrafica);
-        setCustomCsv1Content(content1);
+        if (anags.length >= 2 || mats.length >= 2) {
+          setCsvValidation({ valido: false, messaggio: ui.csvDuplicateTypeErr });
+          setMessages(prev => [
+            ...prev,
+            { role: 'model', text: `⚠️ **${ui.csvUploadBlockedTitle}**\n\n${ui.csvDuplicateTypeErr}` }
+          ]);
+          return;
+        }
 
-        // Validazione preventiva visiva (Fase 3 - Feedback Utente & Anti-Malformazione)
-        validationCheck = validaFileCaricato(content1, fileAnagrafica.name);
-        setCsvValidation(validationCheck);
-
-        const idx = filesArray.indexOf(fileAnagrafica);
-        if (idx !== -1 && parsedInfo[idx]) {
-          const rowsCount1 = content1.split('\n').filter(l => l.trim().length > 0 && !l.startsWith('#')).length;
-          parsedInfo[idx].rows = Math.max(1, rowsCount1 - 1);
+        if (anags.length === 1 && mats.length === 1) {
+          slot1 = anags[0];
+          slot2 = mats[0];
+        } else if (anags.length === 1 && unknowns.length >= 1) {
+          slot1 = anags[0];
+          slot2 = unknowns[0];
+        } else if (mats.length === 1 && unknowns.length >= 1) {
+          slot1 = unknowns[0];
+          slot2 = mats[0];
+        } else {
+          const tryFirstAsF1 = validaFileCaricato(loadedFiles[0].csv, loadedFiles[0].name, language);
+          if (tryFirstAsF1.valido) {
+            slot1 = loadedFiles[0];
+            slot2 = loadedFiles[1];
+          } else {
+            slot1 = loadedFiles[1];
+            slot2 = loadedFiles[0];
+          }
         }
       }
 
-      if (fileMatrice) {
-        setUploadedFile2Name(fileMatrice.name);
-        const content2 = await readUploadedFileToCsvString(fileMatrice);
-        setCustomCsv2Content(content2);
-        const idx = filesArray.indexOf(fileMatrice);
-        if (idx !== -1 && parsedInfo[idx]) {
-          const rowsCount2 = content2.split('\n').filter(l => l.trim().length > 0 && !l.startsWith('#')).length;
-          parsedInfo[idx].rows = Math.max(1, rowsCount2 - 1);
+      // Caso A: Solo File 1 presente (manca File 2 Matrice)
+      if (slot1 && !slot2) {
+        const check1 = validaFileCaricato(slot1.csv, slot1.name, language);
+        if (!check1.valido) {
+          setCsvValidation(check1);
+          setMessages(prev => [
+            ...prev,
+            { role: 'user', text: `[CSV / EXCEL]\n• ${slot1!.name} (${slot1!.size})`, kind: 'csv_upload' },
+            { role: 'model', text: `⚠️ **${ui.csvUploadBlockedTitle}**\n\n${check1.messaggio}\n\n*${ui.csvUploadBlockedHint}*` }
+          ]);
+          return;
         }
-      }
-      setIsDemoActive(false);
 
-      if (!validationCheck.valido) {
-        const file1Err = parsedInfo[0];
-        const uploadUserMsg = `[CARICAMENTO FILE CSV]\n• ${file1Err?.name || 'file.csv'} (${file1Err?.size || '0 KB'})`;
-        const uploadBotReply = `⚠️ **File CSV Sospetto o Malformato (Avanzamento Bloccato):**\n\n${validationCheck.messaggio}\n\n*Il file caricato non soddisfa i requisiti minimi di formato per la pipeline. Correggi il file o carica uno dei modelli guida qui sotto prima di proseguire.*`;
-        
+        setCustomCsv1Content(slot1.csv);
+        setUploadedFile1Name(slot1.name);
+        setCustomCsv2Content(null);
+        setUploadedFile2Name('');
+        setIsDemoActive(false);
+        setUploadedFiles([{ name: slot1.name, size: slot1.size, rows: check1.righe || 0 }]);
+
+        const missingMsg = ui.csvSingleMissingFile2Msg(slot1.name, check1.righe || 0, slot1.sheetCount);
+        setCsvValidation({
+          valido: false,
+          partialMissing: 'file2',
+          messaggio: missingMsg,
+          righe: check1.righe,
+          colonne: check1.colonne,
+        });
         setMessages(prev => [
           ...prev,
-          { role: 'user', text: uploadUserMsg },
-          { role: 'model', text: uploadBotReply }
+          { role: 'user', text: `[CSV / EXCEL - 1/2]\n• ${slot1!.name} (${slot1!.size})`, kind: 'csv_upload' },
+          { role: 'model', text: `⚠️ **${ui.csvSingleMissingFile2Header}**\n\n${missingMsg}` }
         ]);
-        return; // BLOCCA IL PASSAGGIO ALLA FASE 3A
+        if (currentPhase === '0_cat' || currentPhase === '1_scen') {
+          setCurrentPhase('2_csv');
+        }
+        return;
       }
-    } catch (err) {
+
+      // Caso B: Solo File 2 presente (manca File 1 Anagrafica)
+      if (!slot1 && slot2) {
+        const check2 = validaMatriceFile2(slot2.csv);
+        if (!check2.valido) {
+          const f2Err = ui.csvFile2ErrorMsg(slot2.name, check2.reason);
+          setCsvValidation({ valido: false, messaggio: f2Err });
+          setMessages(prev => [
+            ...prev,
+            { role: 'user', text: `[CSV / EXCEL]\n• ${slot2!.name} (${slot2!.size})`, kind: 'csv_upload' },
+            { role: 'model', text: `⚠️ **${ui.csvUploadBlockedTitle}**\n\n${f2Err}\n\n*${ui.csvUploadBlockedHint}*` }
+          ]);
+          return;
+        }
+
+        setCustomCsv1Content(null);
+        setUploadedFile1Name('');
+        setCustomCsv2Content(slot2.csv);
+        setUploadedFile2Name(slot2.name);
+        setIsDemoActive(false);
+        setUploadedFiles([{ name: slot2.name, size: slot2.size, rows: check2.righe }]);
+
+        const missingMsg = ui.csvSingleMissingFile1Msg(slot2.name, check2.righe, slot2.sheetCount);
+        setCsvValidation({
+          valido: false,
+          partialMissing: 'file1',
+          messaggio: missingMsg,
+          righe: check2.righe,
+          colonne: check2.colonne,
+        });
+        setMessages(prev => [
+          ...prev,
+          { role: 'user', text: `[CSV / EXCEL - 1/2]\n• ${slot2!.name} (${slot2!.size})`, kind: 'csv_upload' },
+          { role: 'model', text: `⚠️ **${ui.csvSingleMissingFile1Header}**\n\n${missingMsg}` }
+        ]);
+        if (currentPhase === '0_cat' || currentPhase === '1_scen') {
+          setCurrentPhase('2_csv');
+        }
+        return;
+      }
+
+      // Caso C: Entrambi File 1 e File 2 presenti
+      if (slot1 && slot2) {
+        const check1 = validaFileCaricato(slot1.csv, slot1.name, language);
+        if (!check1.valido) {
+          setCsvValidation(check1);
+          setMessages(prev => [
+            ...prev,
+            { role: 'user', text: `[CSV / EXCEL]\n• ${slot1!.name} (${slot1!.size})`, kind: 'csv_upload' },
+            { role: 'model', text: `⚠️ **${ui.csvUploadBlockedTitle}**\n\n${check1.messaggio}\n\n*${ui.csvUploadBlockedHint}*` }
+          ]);
+          return;
+        }
+
+        const { mappaQubit } = parseCsv1Deterministic(slot1.csv);
+        const check2 = validaMatriceFile2(slot2.csv, mappaQubit);
+        if (!check2.valido) {
+          const f2Err = ui.csvFile2ErrorMsg(slot2.name, check2.reason);
+          // Manteniamo il File 1 valido in memoria così l'utente deve ricaricare solo il File 2 corretto
+          setCustomCsv1Content(slot1.csv);
+          setUploadedFile1Name(slot1.name);
+          setCustomCsv2Content(null);
+          setUploadedFile2Name('');
+          setIsDemoActive(false);
+          setUploadedFiles([{ name: slot1.name, size: slot1.size, rows: check1.righe || 0 }]);
+          setCsvValidation({
+            valido: false,
+            partialMissing: 'file2',
+            messaggio: f2Err,
+            righe: check1.righe,
+            colonne: check1.colonne,
+          });
+          setMessages(prev => [
+            ...prev,
+            { role: 'user', text: `[CSV / EXCEL]\n• ${slot1!.name} (${slot1!.size})\n• ${slot2!.name} (${slot2!.size})`, kind: 'csv_upload' },
+            { role: 'model', text: `⚠️ **${ui.csvUploadBlockedTitle}**\n\n${f2Err}` }
+          ]);
+          return;
+        }
+
+        const r1Count = check1.righe || 0;
+        const r2Count = check2.relazioniAttive > 0 ? check2.relazioniAttive : check2.righe;
+
+        setCustomCsv1Content(slot1.csv);
+        setUploadedFile1Name(slot1.name);
+        setCustomCsv2Content(slot2.csv);
+        setUploadedFile2Name(slot2.name);
+        setIsDemoActive(false);
+        setCsvValidation({
+          valido: true,
+          messaggio: ui.csvValidSummary(r1Count, check1.colonne || 0),
+          righe: r1Count,
+          colonne: check1.colonne,
+        });
+        setUploadedFiles([
+          { name: slot1.name, size: slot1.size, rows: r1Count },
+          { name: slot2.name, size: slot2.size, rows: r2Count },
+        ]);
+
+        const uploadUserMsg = `[CSV / EXCEL]\n• ${slot1.name} (${slot1.size})\n• ${slot2.name} (${slot2.size})`;
+        const uploadBotReply = ui.csvUploadOkReply(slot1.name, r1Count, slot2.name, r2Count);
+
+        setMessages(prev => [
+          ...prev,
+          { role: 'user', text: uploadUserMsg, kind: 'csv_upload' },
+          { role: 'model', text: uploadBotReply, kind: 'csv_confirm' }
+        ]);
+
+        if (currentPhase === '0_cat' || currentPhase === '1_scen' || currentPhase === '2_csv') {
+          setCurrentPhase('3a_per');
+        }
+      }
+    } catch (err: any) {
       console.error("Errore lettura file caricati:", err);
+      const errMsg = err?.message || 'Errore durante la lettura del file CSV/Excel caricato.';
+      setCsvValidation({ valido: false, messaggio: errMsg });
+      setMessages(prev => [
+        ...prev,
+        { role: 'model', text: `⚠️ **${ui.csvUploadBlockedTitle}**\n\n${errMsg}\n\n*${ui.csvUploadBlockedHint}*` }
+      ]);
     }
+  };
 
-    const file1 = parsedInfo[0];
-    const file2 = parsedInfo[1] || { name: "matrice_correlazioni_default.csv", size: "1.8 KB", rows: 24 };
-
-    const uploadUserMsg = `[FILE CARICATI (CSV / EXCEL)]\n• ${file1.name} (${file1.size})\n• ${file2.name} (${file2.size})`;
-    const uploadBotReply = `✅ **File CSV/Excel caricati e validati!**\n\n• **${file1.name}**: ${file1.rows} risorse trovate (anagrafica).\n• **${file2.name}**: ${file2.rows} relazioni trovate (matrice).\n\n*Supporto nativo integrato per CSV ed Excel con normalizzazione automatica dei decimali.*\n*Nota: le colonne costo_unitario e quantita_disponibile sono informative e non entrano nel calcolo quantistico/classico.*\n\n👉 Passiamo alla **Fase 3: Scegli l'arco di tempo del calcolo**.`;
-
+  const handleProceedWithoutMatrix = () => {
+    if (customCsv1Content === null) return;
+    const rows1 = csvValidation?.righe || parseCsv1Deterministic(customCsv1Content).risorse.length;
+    setCustomCsv2Content('');
+    setUploadedFile2Name('nessuna_matrice_risorse_indipendenti.csv');
+    setIsDemoActive(false);
+    setCsvValidation({
+      valido: true,
+      messaggio: ui.csvValidSummary(rows1, csvValidation?.colonne || 2),
+      righe: rows1,
+      colonne: csvValidation?.colonne || 2,
+    });
     setMessages(prev => [
       ...prev,
-      { role: 'user', text: uploadUserMsg },
-      { role: 'model', text: uploadBotReply }
+      { role: 'model', text: ui.csvProceedWithoutMatrixReply(uploadedFile1Name, rows1), kind: 'csv_confirm' }
     ]);
-
     if (currentPhase === '0_cat' || currentPhase === '1_scen' || currentPhase === '2_csv') {
       setCurrentPhase('3a_per');
     }
@@ -792,7 +929,7 @@ export default function TestPage({
     // Valida positivamente il dataset demo predefinito
     setCsvValidation({
       valido: true,
-      messaggio: "File valido: 8 righe dati, 6 colonne, colonna peso riconosciuta (Dataset Demo).",
+      messaggio: ui.csvValidSummary(8, 6),
       righe: 8,
       colonne: 6
     });
@@ -808,25 +945,13 @@ export default function TestPage({
     ];
     setUploadedFiles(demoFiles);
 
-    const uploadUserMsg = `[DATASET DEMO CSV CARICATO]\n• ${demoFiles[0].name}\n• ${demoFiles[1].name}`;
-    const uploadBotReply = `✅ **Dataset Demo acquisito e scaricato sul tuo computer!**\n\n` +
-      `📥 **File scaricati automaticamente nella tua cartella Download:**\n` +
-      `1. **1_anagrafica_risorse_guida.csv**: Elenco di elementi, costi e scorte con commenti didattici.\n` +
-      `2. **2_matrice_connessioni_guida.csv**: Matrice di relazioni e vincoli tra le risorse.\n\n` +
-      `💡 **Come preparare i tuoi file CSV affinché siano letti perfettamente dal sistema:**\n` +
-      `• **Separatore di colonna:** Usa sempre la **virgola** (\`,\`).\n` +
-      `• **Punti e Virgole per i numeri:** Il parser accetta sia il punto che la virgola come separatore decimale (normalizzazione automatica). Per i nuovi file, si raccomanda l'uso del punto (es. \`100.50\` o \`0.85\`).\n` +
-      `• **Nessun punto per le migliaia:** Scrivi \`15000\` e **NON** \`15.000\`.\n` +
-      `• **Colonne informative:** Le colonne \`costo_unitario\` e \`quantita_disponibile\` sono informative e non entrano nel calcolo quantistico/classico.\n` +
-      `• **Nomi degli ID (es. id_risorsa):** Scrivi tutto in **minuscolo**, con le parole unite dall'**underscore** (\`_\`) senza spazi e senza accenti (es. \`asset_01\`, \`componente_a\`, \`fornitore_nord\`).\n` +
-      `• **Nessun simbolo di valuta:** Inserisci solo numeri puri (es. \`245.80\`), non mettere simboli come \`€\`, \`$\` o lettere \`EUR\`.\n` +
-      `• **Matrice delle connessioni (File 2):** Prima colonna \`id_risorsa\` e intestazioni di colonna con gli stessi identici ID del File 1. Celle con valori decimali tra \`0.00\` (indipendenti), \`0.50\` (legame morbido) e \`1.00\` (blocco rigido / conflitto).\n\n` +
-      `👉 Passiamo ora alla **Fase 3A: Scegli l'arco di tempo del calcolo**.`;
+    const uploadUserMsg = `[DEMO CSV]\n• ${demoFiles[0].name}\n• ${demoFiles[1].name}`;
+    const uploadBotReply = ui.demoReplyBody;
 
     setMessages(prev => [
       ...prev,
-      { role: 'user', text: uploadUserMsg },
-      { role: 'model', text: uploadBotReply }
+      { role: 'user', text: uploadUserMsg, kind: 'csv_upload' },
+      { role: 'model', text: uploadBotReply, kind: 'demo_csv' }
     ]);
 
     if (currentPhase === '0_cat' || currentPhase === '1_scen' || currentPhase === '2_csv') {
@@ -972,117 +1097,90 @@ export default function TestPage({
   }, [theta, phi, targetAlgoritmo]);
 
   // Generate deterministic architectural replies faithful to promptText.txt and Taxonomic Engine V3
-  const generateArchitectResponse = (phase: string, userInput: string): string => {
-    const taxSector = getTaxonomicSector(selectedSector, selectedScenario?.id || "");
+  const generateArchitectResponse = (phase: string, userInput: string, matchedSectorKey?: string, matchedScenario?: SectorScenario | null): string => {
+    const activeSectorKey = matchedSectorKey || selectedSector;
+    const activeScenario = matchedScenario !== undefined ? matchedScenario : selectedScenario;
+    const taxSector = getTaxonomicSector(activeSectorKey, activeScenario?.id || "", language);
 
     if (phase === '0_cat') {
-      const sector = userInput;
-      let reply = `Hai scelto il settore: **${sector}**.\n\n`;
-      reply += `👉 **Fase 1: Scegli lo scenario aziendale**\n`;
-      reply += `Clicca direttamente uno degli scenari qui sotto per iniziare:`;
-      return reply;
+      const displaySector = getLocalizedSectorName(activeSectorKey, language);
+      return ui.phase0Reply(displaySector);
     }
 
     if (phase === '1_scen') {
-      let simpleExplanation = "";
+      const allScenarios = Object.values(SECTOR_DATA).flatMap(d => d.scenarios);
       const lowerInput = userInput.toLowerCase();
-      
-      if (lowerInput.includes('hedging') || (lowerInput.includes('cross-asset') && lowerInput.includes('ottimizzazione'))) {
-        simpleExplanation = `💡 **Inquadramento Operativo:**\n` +
-          `Protezione attiva e bilanciamento del portafoglio analizzando asset correlati per massimizzare il rendimento al minimo costo di copertura.\n\n`;
-      } else {
-        const allScenarios = Object.values(SECTOR_DATA).flatMap(d => d.scenarios);
-        const matched = allScenarios.find(s => lowerInput.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(lowerInput));
-        if (matched) {
-          simpleExplanation = `💡 **Inquadramento Operativo:**\n` +
-            `${matched.description}.\n\n`;
-        }
-      }
+      const matched = activeScenario || allScenarios.find(s => {
+        const locS = getLocalizedTestScenario(s, language);
+        return (
+          lowerInput.includes(s.name.toLowerCase()) ||
+          s.name.toLowerCase().includes(lowerInput) ||
+          lowerInput.includes(locS.name.toLowerCase()) ||
+          locS.name.toLowerCase().includes(lowerInput)
+        );
+      });
 
-      let reply = `Scenario scelto: **${userInput}**.\n\n`;
-      reply += simpleExplanation;
-      reply += `👉 **Fase 2: I tuoi dati (File CSV)**\n`;
-      reply += `Per procedere servono 2 file CSV:\n`;
-      reply += `• **File 1 (Anagrafica Risorse):** Elenco risorse, pesi e costi.\n`;
-      reply += `• **File 2 (Matrice Vincoli):** Matrice di correlazioni, conflitti o sinergie tra risorse.\n\n`;
-      reply += `⚖️ **Capacità Hardware & Freno di Emergenza Qubit:**\n`;
-      reply += `• ⚛️ **Scenario Quantistico (Qiskit / OpenQASM):** Il File 1 può contenere un numero variabile di risorse, ma è impostato un **freno di emergenza massimo a 127 righe**, pari alla capacità fisica dei processori **IBM Quantum Utility-scale (es. chip Eagle / Heron)**. Lo script quantistico allocherà su misura solo i qubit strettamente necessari alle righe caricate, ottimizzando lo spazio di Hilbert e codificando scenari e percentuali di probabilità ($p=|1\\rangle$ e $p=|0\\rangle$) su ciascun qubit tramite rotazioni RY.\n`;
-      reply += `• 💻 **Scenario Classico (HPC NumPy / SciPy):** Nessun vincolo sui qubit: sei libero di caricare file con **migliaia o decine di migliaia di righe** senza alcuna restrizione hardware.\n\n`;
-      reply += `💡 *Puoi caricare i tuoi file personali (fino a 127 righe per il quantistico, illimitati per l'HPC classico), oppure scaricare i dataset modello pre-compilati per questo scenario.*`;
-      return reply;
+      const locMatched = matched ? getLocalizedTestScenario(matched, language) : null;
+      const scenDisplay = locMatched ? locMatched.name : userInput;
+      const scenDesc = locMatched ? locMatched.description : userInput;
+      return ui.phase1Reply(scenDisplay, scenDesc);
     }
 
     if (phase === '2_csv') {
-      let reply = `Dati acquisiti in memoria locale con successo.\n\n`;
-      reply += `👉 **Fase 3A: Arco Temporale del Calcolo**\n`;
-      reply += `Per quale periodo vuoi calcolare la soluzione migliore?\n\n`;
-      reply += `• 📅 **Date Precise da Calendario:** puoi impostare date di inizio e fine specifiche\n`;
-      reply += `• ⏱️ **Finestre Predefinite:** 1 Mese (30 gg), 1 Trimestre (3 mesi), 1 Semestre (6 mesi), 1 Anno (12 mesi)\n\n`;
-      reply += `Scegli l'opzione che preferisci con i selettori qui sotto:`;
-      return reply;
+      return ui.phase2Reply;
     }
 
     if (phase === '3a_per') {
-      let reply = `Periodo impostato: **${userInput}**.\n\n`;
-      reply += `👉 **Fase 3B: Strategia Operativa (Hamiltoniana di Costo / Paesaggio Energetico)**\n\n`;
-      reply += `*${taxSector.spiegazioneStrategia}*\n\n`;
-      reply += `Scegli l'approccio per la funzione di costo:\n`;
-      reply += `1. ⚡ **${taxSector.stratAggTitle}**\n`;
-      reply += `2. 🛡️ **${taxSector.stratPrudTitle}**`;
-      return reply;
+      return ui.phase3aReply(userInput, taxSector.spiegazioneStrategia, taxSector.stratAggTitle, taxSector.stratPrudTitle);
     }
 
     if (phase === '3b_strat') {
-      const isClassicalScenario = selectedScenario?.type === 'classical';
+      const isClassicalScenario = activeScenario?.type === 'classical';
+      const locScen = activeScenario ? getLocalizedTestScenario(activeScenario, language) : null;
+      const scenDisplay = locScen?.name || activeScenario?.name || '';
 
       if (isClassicalScenario) {
-        const algoTarget = 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline');
-        return `Strategia impostata: **${userInput}**.\n\n` +
-          `💻 **Infrastruttura Classica Rilevata:** Lo scenario selezionato (*${selectedScenario?.name}*) opera con modelli matematici convenzionali ad alte prestazioni (HPC/GPU).\n\n` +
-          `✅ *I vincoli di entanglement quantistico (Porte CX/CP) sono automaticamente esclusi poiché non pertinenti al calcolo classico.*\n\n` +
-          `*Elaborazione in corso... Compilazione pipeline classica ad alte prestazioni.*
+        const algoTarget = 'Python_HPC_' + (activeScenario?.modelCode || 'Pipeline');
+        return `${ui.phase3bClassicalReply(userInput, scenDisplay)}
 
 \`\`\`json
 {
   "algoritmo_target": "${algoTarget}",
-  "macro_scenario": "${selectedScenario?.id || 'classico'}",
+  "macro_scenario": "${activeScenario?.id || 'classico'}",
   "vincolo_stile": "nessun_vincolo",
-  "periodo_target": "${selectedPeriod || '1 Trimestre'}",
+  "periodo_target": "${selectedPeriod || ui.presets[1]?.val || '1 Trimestre'}",
   "conferma_avvio": true
 }
 \`\`\``;
       }
 
-      const algoTarget = 'Qiskit_' + (selectedScenario?.modelCode || 'QAOA');
-      return `Strategia scelta: **${userInput}**.\n\n` +
-        `⚛️ **Infrastruttura Quantistica Determinata:** Lo scenario (*${selectedScenario?.name}*) è nativamente configurato per il Computer Quantistico (QPU IBM Qiskit).\n\n` +
-        `🔒 *L'analisi delle interdipendenze (File 2) e l'applicazione dell'entanglement quantistico (Porte CX/CP) sono avvenute automaticamente in background senza passaggi superflui.*\n\n` +
-        `*Elaborazione completata. Apertura del Cruscotto dei Risultati Quantistici con OpenQASM 3.0, Script Qiskit e Sfera di Bloch.*
+      const algoTarget = 'Qiskit_' + (activeScenario?.modelCode || 'QAOA');
+      return `${ui.phase3bQuantumReply(userInput, scenDisplay)}
 
 \`\`\`json
 {
   "algoritmo_target": "${algoTarget}",
-  "macro_scenario": "${selectedScenario?.id || 'quantistico'}",
+  "macro_scenario": "${activeScenario?.id || 'quantistico'}",
   "infrastruttura": "quantum",
-  "periodo_target": "${selectedPeriod || '1 Trimestre'}",
+  "periodo_target": "${selectedPeriod || ui.presets[1]?.val || '1 Trimestre'}",
   "conferma_avvio": true
 }
 \`\`\``;
     }
 
     if (phase === '4a_infra') {
-      return "Procediamo con i vincoli.";
+      return ui.phase4cTitle;
     }
 
     if (phase === '4b_vinc') {
       const qPrefix = selectedInfra === 'quantum' ? 'Qiskit_' : 'Python_HPC_';
-      const algoTarget = qPrefix + (selectedScenario?.modelCode || 'QAOA');
+      const algoTarget = qPrefix + (activeScenario?.modelCode || 'QAOA');
       const msgLower = userInput.toLowerCase();
-      
-      const entProfile = getScenarioEntanglementProfile(selectedSector, selectedScenario?.id || "");
+
+      const entProfile = getScenarioEntanglementProfile(activeSectorKey, activeScenario?.id || "", language);
       let style = entProfile.recommendedVincolo || 'blocco_rigido';
-      
-      if (msgLower.includes('nessun') || msgLower.includes('indipendent') || msgLower.includes('senza') || msgLower.includes('separabile')) {
+
+      if (msgLower.includes('nessun') || msgLower.includes('indipendent') || msgLower.includes('senza') || msgLower.includes('separabile') || msgLower.includes('none')) {
         style = 'nessun_vincolo';
       } else if (msgLower.includes('rigido') || msgLower.includes('hard')) {
         style = 'blocco_rigido';
@@ -1091,25 +1189,55 @@ export default function TestPage({
       } else if (msgLower.includes('applica') || msgLower.includes('entanglement') || msgLower.includes('vincol')) {
         style = 'blocco_rigido';
       }
-      
-      const descrRegola = style === 'nessun_vincolo'
-        ? 'Risorse Indipendenti (Senza Entanglement - Stato Separabile Puro)'
-        : (style === 'blocco_rigido' ? 'Blocco Rigido (Porta CX)' : 'Legame Morbido (Porta CP)');
 
-      return `Regola impostata: **${descrRegola}**.\n\nTutti i parametri quantistici e di business sono configurati.\n\n*Elaborazione in corso... Compilazione modello quantistico.*
+      return `${ui.phase3bQuantumReply(userInput, activeScenario?.name || '')}
 
 \`\`\`json
 {
   "algoritmo_target": "${algoTarget}",
-  "macro_scenario": "${selectedScenario?.id || 'ottimizzazione'}",
+  "macro_scenario": "${activeScenario?.id || 'ottimizzazione'}",
   "vincolo_stile": "${style}",
-  "periodo_target": "${selectedPeriod || '1 Trimestre'}",
+  "periodo_target": "${selectedPeriod || ui.presets[1]?.val || '1 Trimestre'}",
   "conferma_avvio": true
 }
 \`\`\``;
     }
 
-    return "Intervista registrata.";
+    return ui.phase5Banner;
+  };
+
+  const resolveSectorCanonicalKey = (text: string): string => {
+    const trimmed = text.trim();
+    const lower = trimmed.toLowerCase();
+    const keys = Object.keys(SECTOR_DATA);
+    const exact = keys.find(k =>
+      k.toLowerCase() === lower ||
+      getLocalizedSectorName(k, language).toLowerCase() === lower
+    );
+    if (exact) return exact;
+    const partial = keys.find(k =>
+      lower.includes(k.toLowerCase()) ||
+      lower.includes(getLocalizedSectorName(k, language).toLowerCase()) ||
+      k.toLowerCase().includes(lower) ||
+      getLocalizedSectorName(k, language).toLowerCase().includes(lower)
+    );
+    return partial || trimmed;
+  };
+
+  const resolveScenarioCanonical = (text: string): SectorScenario | null => {
+    const lower = text.trim().toLowerCase();
+    const allScenarios = Object.values(SECTOR_DATA).flatMap(d => d.scenarios);
+    return allScenarios.find(s => {
+      const locS = getLocalizedTestScenario(s, language);
+      return (
+        s.name.toLowerCase() === lower ||
+        locS.name.toLowerCase() === lower ||
+        lower.includes(s.name.toLowerCase()) ||
+        s.name.toLowerCase().includes(lower) ||
+        lower.includes(locS.name.toLowerCase()) ||
+        locS.name.toLowerCase().includes(lower)
+      );
+    }) || null;
   };
 
   const executeSend = async (userMessage: string, forcePhaseNext?: '0_cat' | '1_scen' | '2_csv' | '3a_per' | '3b_strat' | '4a_infra' | '4b_vinc' | '4c_depth' | '4d_close' | '5_done') => {
@@ -1122,25 +1250,30 @@ export default function TestPage({
 
     const activePhase = currentPhase;
     let nextPhase = forcePhaseNext || currentPhase;
+    let resolvedSectorForCall = selectedSector;
+    let resolvedScenarioForCall = selectedScenario;
 
     if (activePhase === '0_cat') {
-      const isAllowed = isAgentAiCategoryAllowedForUser(liveUser, userMessage);
+      const canonicalSector = resolveSectorCanonicalKey(userMessage);
+      resolvedSectorForCall = canonicalSector;
+      const isAllowed = isAgentAiCategoryAllowedForUser(liveUser, canonicalSector);
+      const displaySector = getLocalizedSectorName(canonicalSector, language);
       if (!isAllowed) {
         setIsLoading(false);
-        setCategoryDeniedModal({ isOpen: true, sectorName: userMessage });
+        setCategoryDeniedModal({ isOpen: true, sectorName: displaySector });
         setMessages([
           ...messages,
           { role: 'user' as const, text: userMessage },
-          { role: 'model' as const, text: `🔒 **Accesso Categoria Riservato:** Non disponi dei permessi per accedere al settore aziendale **"${userMessage}"**. Rivolgiti all'amministratore di sistema per richiedere l'abilitazione.` }
+          { role: 'model' as const, text: ui.deniedChatMsg(displaySector) }
         ]);
         return;
       }
-      setSelectedSector(userMessage);
-      setAssetSector(userMessage);
+      setSelectedSector(canonicalSector);
+      setAssetSector(canonicalSector);
       nextPhase = '1_scen';
     } else if (activePhase === '1_scen') {
-      const allScenarios = Object.values(SECTOR_DATA).flatMap(d => d.scenarios);
-      const matched = allScenarios.find(s => userMessage.includes(s.name) || s.name.includes(userMessage)) || null;
+      const matched = resolveScenarioCanonical(userMessage);
+      resolvedScenarioForCall = matched;
       setSelectedScenario(matched);
       if (liveUser) {
         logUserAccess({
@@ -1172,8 +1305,8 @@ export default function TestPage({
         setShowEndModal(true);
       } else {
         setSelectedInfra('quantum');
-        const srcCsv1 = customCsv1Content || currentCsv1;
-        const srcCsv2 = customCsv2Content || currentCsv2;
+        const srcCsv1 = customCsv1Content ?? currentCsv1;
+        const srcCsv2 = customCsv2Content ?? currentCsv2;
         let autoVincolo: 'blocco_rigido' | 'legame_morbido' | 'nessun_vincolo' = 'nessun_vincolo';
         if (srcCsv2) {
           try {
@@ -1201,40 +1334,48 @@ export default function TestPage({
         nextPhase = '5_done';
         setShowEndModal(true);
       }
-    } else if (activePhase === '4a_infra' || activePhase === '4b_vinc' || activePhase === '4c_depth' || activePhase === '4d_close' || userMessage.includes('Avvia la simulazione') || userMessage.includes('tutto perfetto')) {
+    } else if (
+      activePhase === '4a_infra' ||
+      activePhase === '4b_vinc' ||
+      activePhase === '4c_depth' ||
+      activePhase === '4d_close' ||
+      userMessage === ui.phase4cBtn ||
+      userMessage.includes('Avvia la simulazione') ||
+      userMessage.includes('tutto perfetto')
+    ) {
       nextPhase = '5_done';
       setShowEndModal(true);
     }
 
-    const isStructuredSelection = 
+    const isStructuredSelection =
       (activePhase === '0_cat' && Boolean(userMessage)) ||
       (activePhase === '1_scen' && Boolean(userMessage)) ||
       (activePhase === '2_csv') ||
       (activePhase === '3a_per') ||
       (activePhase === '3b_strat') ||
-      (activePhase === '4a_infra' || activePhase === '4b_vinc' || activePhase === '4c_depth' || activePhase === '4d_close' || userMessage.includes('Avvia la simulazione') || userMessage.includes('tutto perfetto'));
+      (activePhase === '4a_infra' || activePhase === '4b_vinc' || activePhase === '4c_depth' || activePhase === '4d_close' || userMessage === ui.phase4cBtn || userMessage.includes('Avvia la simulazione') || userMessage.includes('tutto perfetto'));
 
     if (isStructuredSelection) {
       if (activePhase === '3b_strat' || nextPhase === '5_done') {
         const currentStrategy = userMessage || selectedStrategy || 'Prudente';
-        const targetAlgo = selectedScenario?.type === 'classical' 
-          ? 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline') 
+        const targetAlgo = selectedScenario?.type === 'classical'
+          ? 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline')
           : 'Qiskit_' + (selectedScenario?.modelCode || 'QAOA');
         const style = selectedVincolo || 'blocco_rigido';
         const finalExplanation = buildFinalOutcomeExplanation(
           targetAlgo,
           assetSector || selectedSector,
           style,
-          selectedPeriod || '1 Trimestre',
+          selectedPeriod || ui.presets[1]?.val || '1 Trimestre',
           currentStrategy
         );
-        setMessages(prev => [...prev, { role: 'model', text: finalExplanation }]);
+        setMessages(prev => [...prev, { role: 'model', text: finalExplanation, kind: 'sim_complete' }]);
         setCurrentPhase('5_done');
         setIsLoading(false);
         return;
       }
 
-      const directReply = purgeParasiticStrings(generateArchitectResponse(activePhase, userMessage));
+      const directReply = purgeParasiticStrings(generateArchitectResponse(activePhase, userMessage, resolvedSectorForCall, resolvedScenarioForCall));
       setMessages(prev => [...prev, { role: 'model', text: directReply }]);
       setCurrentPhase(nextPhase);
       setIsLoading(false);
@@ -1246,19 +1387,21 @@ export default function TestPage({
       let replyText = '';
 
       const response = await axios.post('/api/test-chat', {
-        messages: newMessages,
+        messages: newMessages.map(({ role, text }) => ({ role, text })),
         systemPrompt: aiStudioPrompt,
-        apiKey: storedKey
+        apiKey: storedKey,
+        language
       });
 
       if (response.data && response.data.success && response.data.text) {
         replyText = response.data.text;
       } else {
-        replyText = generateArchitectResponse(activePhase, userMessage);
+        replyText = generateArchitectResponse(activePhase, userMessage, resolvedSectorForCall, resolvedScenarioForCall);
       }
 
       replyText = purgeParasiticStrings(replyText);
 
+      let isSimDone = false;
       const jsonMatch = replyText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || replyText.match(/(\{[\s\S]*"algoritmo_target"[\s\S]*\})/);
       if (jsonMatch) {
         try {
@@ -1266,32 +1409,34 @@ export default function TestPage({
           const parsed = JSON.parse(jsonMatch[1]);
           const targetAlgo = parsed.algoritmo_target || (selectedInfra === 'quantum' ? 'Qiskit_QAOA' : 'Python_HPC_LSTM');
           const style = parsed.vincolo_stile || selectedVincolo || 'blocco_rigido';
-          
+
           setTargetAlgoritmo(targetAlgo);
           setVincoloStile(style);
-          
+
           const currentStrategy = (activePhase === '3b_strat' ? userMessage : selectedStrategy) || 'Prudente';
           const finalExplanation = buildFinalOutcomeExplanation(
             targetAlgo,
             assetSector || selectedSector,
             style,
-            selectedPeriod || '1 Trimestre',
+            selectedPeriod || ui.presets[1]?.val || '1 Trimestre',
             currentStrategy
           );
 
           replyText = replyText.replace(jsonMatch[0], () => finalExplanation).replace(/```[\s\S]*?```/g, '').trim();
           nextPhase = '5_done';
+          isSimDone = true;
           setShowEndModal(true);
         } catch (e) {
           // parsing error fallback
         }
       }
 
-      setMessages(prev => [...prev, { role: 'model', text: replyText }]);
+      setMessages(prev => [...prev, { role: 'model', text: replyText, ...(isSimDone ? { kind: 'sim_complete' as const } : {}) }]);
       setCurrentPhase(nextPhase);
     } catch (error) {
-      let fallbackReply = purgeParasiticStrings(generateArchitectResponse(activePhase, userMessage));
-      
+      let fallbackReply = purgeParasiticStrings(generateArchitectResponse(activePhase, userMessage, resolvedSectorForCall, resolvedScenarioForCall));
+
+      let isSimDone = false;
       const jsonMatch = fallbackReply.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || fallbackReply.match(/(\{[\s\S]*"algoritmo_target"[\s\S]*\})/);
       if (jsonMatch) {
         try {
@@ -1299,7 +1444,7 @@ export default function TestPage({
           const parsed = JSON.parse(jsonMatch[1]);
           const targetAlgo = parsed.algoritmo_target || (selectedInfra === 'quantum' ? 'Qiskit_QAOA' : 'Python_HPC_LSTM');
           const style = parsed.vincolo_stile || selectedVincolo || 'blocco_rigido';
-          
+
           setTargetAlgoritmo(targetAlgo);
           setVincoloStile(style);
 
@@ -1308,19 +1453,20 @@ export default function TestPage({
             targetAlgo,
             assetSector || selectedSector,
             style,
-            selectedPeriod || '1 Trimestre',
+            selectedPeriod || ui.presets[1]?.val || '1 Trimestre',
             currentStrategy
           );
 
           fallbackReply = fallbackReply.replace(jsonMatch[0], () => finalExplanation).replace(/```[\s\S]*?```/g, '').trim();
           nextPhase = '5_done';
+          isSimDone = true;
           setShowEndModal(true);
         } catch (e) {
           // ignore
         }
       }
 
-      setMessages(prev => [...prev, { role: 'model', text: fallbackReply }]);
+      setMessages(prev => [...prev, { role: 'model', text: fallbackReply, ...(isSimDone ? { kind: 'sim_complete' as const } : {}) }]);
       setCurrentPhase(nextPhase);
     } finally {
       setIsLoading(false);
@@ -1328,20 +1474,14 @@ export default function TestPage({
   };
 
   const buildFinalOutcomeExplanation = (
-    algo: string, 
-    sector: string, 
-    vincolo: string, 
+    algo: string,
+    sector: string,
+    vincolo: string,
     periodo: string,
     stratOverride?: string
   ) => {
     const isNone = vincolo === 'nessun_vincolo' || vincolo.includes('nessun') || vincolo.includes('indipendent') || vincolo.includes('senza');
     const isHard = !isNone && (vincolo === 'blocco_rigido' || vincolo.includes('rigido') || vincolo.includes('hard'));
-
-    const vincoloNome = isNone
-      ? 'Risorse Indipendenti (Senza Entanglement - Stato Separabile Puro)'
-      : (isHard
-        ? 'Blocco Rigido (Porta Controlled-NOT / CX)' 
-        : 'Legame Morbido (Porta di Fase Controllata / CP)');
 
     const effectiveStrategy = stratOverride || selectedStrategy || 'Prudente';
     const effectiveSector = sector || selectedSector || 'Finanza e Mercati';
@@ -1349,8 +1489,12 @@ export default function TestPage({
     const isClassicalScenario = selectedScenario?.type === 'classical' || selectedInfra === 'classical' || algo.startsWith('Python_HPC_');
 
     const { csv1: genCsv1, csv2: genCsv2 } = getDemoCsvBySector(effectiveSector, effectiveScenarioId, vincolo, effectiveStrategy);
-    const sourceCsv1 = customCsv1Content || genCsv1;
-    const sourceCsv2 = customCsv2Content || genCsv2;
+    const sourceCsv1 = customCsv1Content ?? genCsv1;
+    const sourceCsv2 = customCsv2Content ?? genCsv2;
+    const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId, language);
+    const localizedScenarioName = selectedScenario
+      ? getLocalizedTestScenario(selectedScenario, language).name
+      : taxSector.name;
 
     if (isClassicalScenario) {
       const classicalPyCode = generateClassicalHpcPythonCode(
@@ -1369,11 +1513,9 @@ export default function TestPage({
       setTheta(0);
       setPhi(0);
 
-      const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId);
-
       const jsonObj = {
         settore: taxSector.name,
-        scenario: selectedScenario?.name || 'Elaborazione Classica HPC',
+        scenario: localizedScenarioName,
         infrastruttura: "HPC / GPU / CPU Multi-Core",
         modello: selectedScenario?.modelCode || "Machine Learning / Pipeline Classica",
         strategia: effectiveStrategy,
@@ -1386,61 +1528,63 @@ export default function TestPage({
       setFinalJson(jsonString);
       setShowEndModal(true);
 
-      const summaryText = `🎉 **[COMPILAZIONE PIPELINE CLASSICA AD ALTE PRESTAZIONI COMPLETATA]**
-• **Settore:** ${taxSector.name}
-• **Scenario:** ${selectedScenario?.name || 'Elaborazione Classica HPC'} (Algoritmo: ${selectedScenario?.modelCode || 'HPC Pipeline'})
-• **Infrastruttura:** Cluster Classico HPC / GPU Accelerata (Nessun Qubit / Nessun invio a QPU IBM)
-• **Strategia Energetica / Ottimizzazione:** ${effectiveStrategy}
-• **Elaborazione Dati:** Matrice CSV elaborata con solver numerico vettorizzato ad alte prestazioni.
-
-💡 *Questo scenario opera interamente in modalità classica convenzionale. Il Manifesto JSON e lo script Python completi sono disponibili nel **Pop-up Risultati**.*`;
-
-      return summaryText;
+      return ui.classicalDoneSummary(
+        taxSector.name,
+        localizedScenarioName,
+        selectedScenario?.modelCode || 'HPC Pipeline',
+        effectiveStrategy
+      );
     }
 
-    setFinalQasm(generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy));
-    setFinalPython(generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy, uploadedFile1Name, uploadedFile2Name, isDemoActive));
-    const qasmSnippet = generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
+    const qasmOut = generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
     const pythonSnippet = generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy, uploadedFile1Name, uploadedFile2Name, isDemoActive);
-    
-    let thetaRad = 0.5;
-// Prova prima il formato letterale qc.ry(2.346194, q[0])
-const matchRy = pythonSnippet.match(/qc\.ry\(([\d.]+),\s*q\[0\]\)/);
-if (matchRy) {
-  thetaRad = parseFloat(matchRy[1]);
-} else {
-  // Fallback: estrai il primo peso da PESI_RISOLTI e calcola theta
-  const matchPeso = pythonSnippet.match(/"peso":\s*([\d.]+)/);
-  if (matchPeso) {
-    const peso = parseFloat(matchPeso[1]);
-    thetaRad = 2.0 * Math.asin(Math.sqrt(Math.max(0, Math.min(1, peso))));
-  }
-}
+    setFinalQasm(qasmOut);
+    setFinalPython(pythonSnippet);
 
-    const allRyMatches = Array.from(pythonSnippet.matchAll(/qc\.ry\(([\d.]+),\s*q\[\d+\]\)/g)).map(m => parseFloat(parseFloat(m[1]).toFixed(6)));
-    const thetasArray = allRyMatches.length > 0 ? allRyMatches : [parseFloat(thetaRad.toFixed(6))];
-    
+    let thetasArray: number[] = [];
+    try {
+      const { risorse } = parseCsv1Deterministic(sourceCsv1);
+      thetasArray = risorse.slice(0, MAX_QUANTUM_QUBITS).map(r => {
+        const p = Math.max(0.0, Math.min(1.0, r.peso));
+        return parseFloat((2.0 * Math.asin(Math.sqrt(p))).toFixed(6));
+      });
+    } catch {
+      thetasArray = [];
+    }
+    if (thetasArray.length === 0) {
+      const qasmRyMatches = Array.from(qasmOut.matchAll(/^ry\(([\d.]+)\)\s+q\[\d+\];/gm)).map(m => parseFloat(parseFloat(m[1]).toFixed(6)));
+      thetasArray = qasmRyMatches;
+    }
+
+    let thetaRad = thetasArray.length > 0 ? thetasArray[0] : 0.5;
+    if (thetasArray.length === 0) {
+      const matchPeso = pythonSnippet.match(/"peso":\s*([\d.]+)/);
+      if (matchPeso) {
+        const peso = parseFloat(matchPeso[1]);
+        thetaRad = 2.0 * Math.asin(Math.sqrt(Math.max(0, Math.min(1, peso))));
+        thetasArray = [parseFloat(thetaRad.toFixed(6))];
+      }
+    }
+
     const angleTheta = Math.round((thetaRad * 180) / Math.PI);
     const anglePhi = (!isNone && !isHard) ? 90 : 0;
     setTheta(angleTheta);
     setPhi(anglePhi);
 
-    const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId);
-
     const entanglementType = isNone ? "none" : (isHard ? "cx" : "cp");
-    const phiRad = 0.0;
+    const phiRad = (anglePhi * Math.PI) / 180;
 
     const jsonObj = {
       settore: taxSector.name,
-      scenario: selectedScenario?.name || 'Ottimizzazione',
+      scenario: localizedScenarioName,
       strategia: effectiveStrategy,
       entanglement: entanglementType,
       theta_radianti: parseFloat(thetaRad.toFixed(6)),
       thetas_radianti: thetasArray,
-      phi_radianti: phiRad,
+      phi_radianti: parseFloat(phiRad.toFixed(6)),
       predisposizione_grafico: true
     };
-    
+
     const jsonString = JSON.stringify(jsonObj, null, 2);
     setFinalJson(jsonString);
     setShowEndModal(true);
@@ -1458,12 +1602,12 @@ if (matchRy) {
         allowedCategoriesSnapshot: liveUser.allowedAgentAiCategories
       });
     }
-    
-    const uiText = renderizzaInterfacciaUniversaleBlindata(jsonString, pythonSnippet);
+
+    const uiText = renderizzaInterfacciaUniversaleBlindata(jsonString, pythonSnippet, language);
 
     return `${uiText}
 
-💡 *Il Manifesto JSON, il circuito OpenQASM 3.0 e lo script Qiskit Python completi sono disponibili nel **Pop-up Risultati**.*`;
+${ui.quantumFooterHint}`;
   };
 
   const handleSend = () => {
@@ -1475,9 +1619,9 @@ if (matchRy) {
   };
 
   const handleResetInterview = () => {
-    setMessages([{ 
-      role: 'model', 
-      text: "Benvenuto! Sono il tuo assistente per l'ottimizzazione aziendale.\n\n👉 **Fase 0: Settore Aziendale**\nPer iniziare, scegli il tuo settore tra i pulsanti qui sotto oppure scrivilo:" 
+    setMessages([{
+      role: 'model',
+      text: ui.welcomeMessage
     }]);
     setCurrentPhase('0_cat');
     setSelectedSector('');
@@ -1493,6 +1637,7 @@ if (matchRy) {
     setUploadedFile1Name("1_anagrafica_risorse_guida.csv");
     setUploadedFile2Name("2_matrice_connessioni_guida.csv");
     setIsDemoActive(true);
+    setCsvValidation(null);
     setUploadedFiles([]);
     setVincoloStile('N/A');
     setTheta(0);
@@ -1507,27 +1652,31 @@ if (matchRy) {
 
   const getActionDescription = () => {
     if (targetAlgoritmo === 'IDLE') {
-      return "In attesa dell'intervista... Vettore su stato base stabile |0⟩.";
+      return ui.idleBlochDesc;
     }
     const p0Pct = Math.round(prob0 * 100);
     const p1Pct = Math.round(prob1 * 100);
+    const styleLabel = vincoloStile === 'blocco_rigido' ? ui.hardStyle : ui.softStyle;
+    const displayAssetSector = assetSector && assetSector !== 'N/A'
+      ? getLocalizedSectorName(assetSector, language)
+      : ui.sectorsSummary;
 
     if (!isQuantum) {
-      return `[CLUSTER CLASSICO] Ottimizzazione numerica completata per ${assetSector || 'settore aziendale'}. Calcolati i pesi operativi con vincolo ${vincoloStile === 'blocco_rigido' ? 'RIGIDO' : 'MORBIDO'}.`;
+      return ui.classicalBlochDesc(displayAssetSector, styleLabel);
     }
     if (theta === 0) {
-      return `[STATO STABILE] Qubit al 100% su |0⟩. Assetto ottimale senza conflitti rilevati.`;
+      return ui.stableBlochDesc;
     }
     if (theta === 180) {
-      return `[ALLERTA] Qubit al 100% su |1⟩. Rilevato collo di bottiglia nei dati CSV.`;
+      return ui.alertBlochDesc;
     }
-    return `[STATO ATTIVO] Componente Residua: ${p0Pct}% (|0⟩) | Valore CSV (Spinta): ${p1Pct}% (|1⟩) | θ=${theta}°, φ=${phi}° | Vincolo: ${vincoloStile === 'blocco_rigido' ? 'Rigido' : 'Morbido'}`;
+    return ui.activeBlochDesc(p0Pct, p1Pct, theta, phi, styleLabel);
   };
 
-  const renderFormattedMessage = (text: string) => {
-    const isCsvConfirm = text.includes('[CONFERMA UFFICIALE: FILE CSV') || text.includes('[CONFERMA: DATASET CSV DEMO');
-    const isSimulationComplete = text.includes('[SIMULAZIONE COMPLETATA');
-    const isDemoCsvNotice = text.includes('Dataset Demo acquisito e scaricato sul tuo computer') || text.includes('[DATASET DEMO CSV CARICATO]');
+  const renderFormattedMessage = (text: string, msgKind?: 'csv_upload' | 'csv_confirm' | 'sim_complete' | 'demo_csv') => {
+    const isCsvConfirm = msgKind === 'csv_confirm' || text.includes('[CONFERMA UFFICIALE: FILE CSV') || text.includes('[CONFERMA: DATASET CSV DEMO');
+    const isSimulationComplete = msgKind === 'sim_complete' || text.includes('[SIMULAZIONE COMPLETATA');
+    const isDemoCsvNotice = msgKind === 'demo_csv' || text.includes('[DEMO CSV]') || text.includes('Dataset Demo acquisito e scaricato sul tuo computer') || text.includes('[DATASET DEMO CSV CARICATO]');
 
     const parts = text.split(/(^\s*```[\s\S]*?```\s*$)/gm);
     const validParts = parts.filter(p => p.trim() !== '');
@@ -1555,24 +1704,24 @@ if (matchRy) {
         {isCsvConfirm && (
           <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/20 border border-emerald-500/50 rounded-lg text-emerald-300 font-bold text-xs uppercase tracking-wider shadow-sm">
             <FileCheck className="w-4 h-4 text-emerald-400" />
-            <span>Notifica Ufficiale: File CSV Validati con Successo</span>
+            <span>{ui.csvPassedHeader}</span>
           </div>
         )}
         {isDemoCsvNotice && (
           <div className="p-3 bg-cyan-950/70 border border-cyan-500/40 rounded-xl flex flex-col gap-2 shadow-md">
             <div className="flex items-center justify-between">
               <span className="text-xs font-mono text-cyan-300 font-bold flex items-center gap-1.5">
-                <Download className="w-4 h-4 text-cyan-400" /> Modelli CSV con Guida di Formattazione Scaricati
+                <Download className="w-4 h-4 text-cyan-400" /> {ui.demoBannerTitle}
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
-                Pronti all'uso
+                {ui.demoBannerReady}
               </span>
             </div>
             <p className="text-[11px] text-slate-300">
-              Se il tuo browser ha bloccato il download automatico, puoi scaricarli usando i pulsanti qui sotto o copiarne il contenuto negli appunti tramite l'icona <Copy className="inline w-3 h-3 text-slate-400" />:
+              {ui.demoBannerHelp} <Copy className="inline w-3 h-3 text-slate-400" />:
             </p>
             <div className="p-2 mb-1 mt-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-300">
-              💡 <strong>Dove si trova l'Entanglement?</strong> L'Entanglement (ovvero il vincolo e l'interazione tra due risorse) viene definito esclusivamente nel file <strong>2_matrice_connessioni</strong>. Nello specifico, si crea quando inserisci un valore numerico (es. 0.5 o 1.0) nella colonna corrispondente all'incrocio tra due ID diversi (es. riga "asset_01", colonna "asset_02").
+              💡 {ui.demoEntanglementNote}
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <CsvButton filename="1_anagrafica_risorse_guida.csv" content={currentCsv1} label="1_anagrafica_risorse_guida.csv" />
@@ -1583,7 +1732,7 @@ if (matchRy) {
         {isSimulationComplete && (
           <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/20 border border-amber-500/50 rounded-lg text-amber-300 font-bold text-xs uppercase tracking-wider shadow-sm">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Esito Finale dell'Ottimizzazione & Spiegazione Risultati</span>
+            <span>{ui.simCompleteBanner}</span>
           </div>
         )}
         {groupedParts.map((group, idx) => {
@@ -1609,9 +1758,9 @@ if (matchRy) {
                     }
                   }
                   let title = lang.toUpperCase();
-                  if (lang.toLowerCase() === 'python') title = '🐍 SCRIPT (Python / Qiskit)';
-                  if (lang.toLowerCase() === 'qasm' || lang.toLowerCase().includes('qiskit')) title = '⚛️ CIRCUITO QUANTISTICO (OpenQASM 3.0)';
-                  if (lang.toLowerCase() === 'json') title = '📋 MANIFESTO DI CONFIGURAZIONE JSON';
+                  if (lang.toLowerCase() === 'python') title = ui.codeBlockPythonTitle;
+                  if (lang.toLowerCase() === 'qasm' || lang.toLowerCase().includes('qiskit')) title = ui.codeBlockQasmTitle;
+                  if (lang.toLowerCase() === 'json') title = ui.codeBlockJsonTitle;
 
                   return (
                     <div key={bIdx} className="w-full min-w-0 h-full">
@@ -1641,12 +1790,12 @@ if (matchRy) {
             onClick={onBack}
             className="px-3.5 py-1.5 border border-white/15 bg-white/5 hover:bg-white/10 text-white/90 rounded-md transition-all font-mono text-xs uppercase tracking-wider flex items-center gap-2"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back (Torna alla Home Page)
+            <ArrowLeft className="w-3.5 h-3.5" /> {ui.backHome}
           </button>
           <div className="h-4 w-px bg-white/15" />
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span className="font-mono text-sm font-semibold tracking-wide text-white">Quantum Solution Architect Interview</span>
+            <span className="font-mono text-sm font-semibold tracking-wide text-white">{ui.headerTitle}</span>
             <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 ml-2">
               Gemini + Qiskit / HPC
             </span>
@@ -1657,15 +1806,18 @@ if (matchRy) {
           {uploadedFiles.length > 0 && (
             <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-[11px]">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{uploadedFiles.length} CSV in Memoria</span>
+              <span>{uploadedFiles.length} {ui.csvInMemory}</span>
               <label className="text-[10px] text-emerald-400 hover:text-emerald-200 underline cursor-pointer ml-1">
-                Sostituisci
+                {ui.replaceCsv}
                 <input 
                   type="file" 
                   accept=".csv, .xlsx, .xls, .tsv, .txt" 
                   multiple 
                   className="hidden" 
-                  onChange={(e) => handleCsvUpload(e.target.files)} 
+                  onChange={(e) => {
+                    handleCsvUpload(e.target.files);
+                    e.target.value = '';
+                  }} 
                 />
               </label>
             </div>
@@ -1673,10 +1825,10 @@ if (matchRy) {
           <button
             onClick={handleCopyInterview}
             className="px-3 py-1.5 border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 hover:text-cyan-200 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-            title="Copia l'intera trascrizione dell'intervista negli appunti e scarica il file .txt"
+            title={ui.copyInterviewTooltip}
           >
             {copiedInterview ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
-            <span className="font-semibold">{copiedInterview ? "Copiata & Scaricata (.txt)!" : "Copia Intervista"}</span>
+            <span className="font-semibold">{copiedInterview ? ui.copiedInterview : ui.copyInterview}</span>
           </button>
 
           {(targetAlgoritmo !== 'IDLE' || currentPhase === '5_done') && (
@@ -1684,16 +1836,16 @@ if (matchRy) {
               <button
                 onClick={() => setShowEndModal(true)}
                 className="px-3 py-1.5 border border-amber-500/60 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 font-bold shadow-[0_0_12px_rgba(245,158,11,0.25)] cursor-pointer"
-                title="Visualizza il pop-up con i risultati dell'intervista"
+                title={ui.popupResultsTooltip}
               >
                 <Activity className="w-3.5 h-3.5" />
-                <span>Pop-up Risultati</span>
+                <span>{ui.popupResults}</span>
               </button>
               <button
                 onClick={handleResetInterview}
                 className="px-3 py-1.5 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-md transition-all font-mono text-xs flex items-center gap-1.5 cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Nuova Intervista
+                <RotateCcw className="w-3.5 h-3.5" /> {ui.newInterview}
               </button>
             </>
           )}
@@ -1712,9 +1864,9 @@ if (matchRy) {
               : 'flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5'
           }>
             {messages.map((msg, i) => {
-              const isCsvUploadMsg = msg.text.includes('[CARICAMENTO FILE CSV') || msg.text.includes('[CARICAMENTO DATASET DEMO');
-              const isCsvConfirm = msg.text.includes('[CONFERMA UFFICIALE: FILE CSV') || msg.text.includes('[CONFERMA: DATASET CSV DEMO');
-              const isSimComplete = msg.text.includes('[SIMULAZIONE COMPLETATA');
+              const isCsvUploadMsg = msg.kind === 'csv_upload' || msg.text.includes('[CARICAMENTO FILE CSV') || msg.text.includes('[CARICAMENTO DATASET DEMO');
+              const isCsvConfirm = msg.kind === 'csv_confirm' || msg.text.includes('[CONFERMA UFFICIALE: FILE CSV') || msg.text.includes('[CONFERMA: DATASET CSV DEMO');
+              const isSimComplete = msg.kind === 'sim_complete' || msg.text.includes('[SIMULAZIONE COMPLETATA');
 
               return (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -1736,12 +1888,12 @@ if (matchRy) {
                         </span>
                         {isCsvConfirm && (
                           <span className="flex items-center gap-1 text-emerald-400 text-[10px] font-mono lowercase">
-                            <CheckCircle2 className="w-3 h-3" /> csv verificati
+                            <CheckCircle2 className="w-3 h-3" /> {ui.csvValidatedBadge}
                           </span>
                         )}
                       </div>
                     )}
-                    {renderFormattedMessage(msg.text)}
+                    {renderFormattedMessage(msg.text, msg.kind)}
                   </div>
                 </div>
               );
@@ -1750,7 +1902,7 @@ if (matchRy) {
               <div className="flex justify-start">
                 <div className="bg-slate-900/80 text-cyan-300 border border-cyan-500/30 rounded-xl px-4 py-3 font-mono text-xs flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> 
-                  <span>Elaborazione architettonica e sincronizzazione parametri in corso...</span>
+                  <span>{ui.processingArch}</span>
                 </div>
               </div>
             )}
@@ -1769,14 +1921,17 @@ if (matchRy) {
                 <div className="flex-1 min-h-0 flex flex-col gap-3">
                   <div className="shrink-0 flex items-center justify-between text-xs font-mono text-cyan-300 font-semibold">
                     <span className="flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-amber-400" /> Clicca la tua Categoria Aziendale (Inizializzazione Qubit):
+                      <Zap className="w-3.5 h-3.5 text-amber-400" /> {ui.clickCategoryHeader}
                     </span>
-                    <span className="text-[11px] text-slate-400 font-normal">7 settori • 104 scenari totali</span>
+                    <span className="text-[11px] text-slate-400 font-normal">{ui.sectorsSummary}</span>
                   </div>
                   <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-4 gap-2.5 sm:gap-4 overflow-y-auto sm:overflow-visible scrollbar-hide">
                     {sectors.map((sector, idx) => {
                       const count = SECTOR_DATA[sector].scenarios.length;
-                      const focusTags = Array.from(new Set(SECTOR_DATA[sector].scenarios.map(s => s.focus))).slice(0, 3).join(' • ');
+                      const focusTags = Array.from(
+                        new Set(SECTOR_DATA[sector].scenarios.map(s => getLocalizedTestScenario(s, language).focus))
+                      ).slice(0, 3).join(' • ');
+                      const localizedSectorName = getLocalizedSectorName(sector, language);
                       const isAllowed = isAgentAiCategoryAllowedForUser(liveUser, sector);
                       const isLastOdd = idx === sectors.length - 1 && sectors.length % 2 === 1;
                       return (
@@ -1784,10 +1939,10 @@ if (matchRy) {
                           key={sector}
                           onClick={() => {
                             if (!isAllowed) {
-                              setCategoryDeniedModal({ isOpen: true, sectorName: sector });
+                              setCategoryDeniedModal({ isOpen: true, sectorName: localizedSectorName });
                               return;
                             }
-                            handleQuickClick(sector);
+                            handleQuickClick(localizedSectorName);
                           }}
                           disabled={isLoading}
                           className={`px-4 py-3 rounded-xl text-left font-mono text-xs transition-all flex items-center justify-between gap-3 group shadow-sm cursor-pointer ${
@@ -1797,13 +1952,13 @@ if (matchRy) {
                               ? 'bg-slate-800/90 hover:bg-cyan-950/80 hover:border-cyan-500/60 border border-white/15 text-white'
                               : 'bg-red-950/20 hover:bg-red-950/40 border border-red-500/30 text-gray-300 opacity-80 hover:opacity-100 hover:border-red-500/60'
                           }`}
-                          title={isAllowed ? `Accedi alla categoria ${sector}` : `Accesso riservato dall'amministratore: non hai i permessi per ${sector}`}
+                          title={isAllowed ? `${ui.accessCategoryTitle} ${localizedSectorName}` : `${ui.restrictedCategoryTitle} ${localizedSectorName}`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <span className="text-xl shrink-0">{SECTOR_DATA[sector].icon}</span>
                             <div className="flex flex-col min-w-0">
                               <span className={`truncate font-semibold text-xs sm:text-[13px] ${isAllowed ? 'group-hover:text-cyan-300 text-slate-100' : 'text-gray-400 group-hover:text-red-300'}`}>
-                                {sector}
+                                {localizedSectorName}
                               </span>
                               <span className="truncate text-[10px] text-slate-400 font-normal mt-0.5">
                                 {focusTags}
@@ -1814,11 +1969,11 @@ if (matchRy) {
                             {!isAllowed && (
                               <span className="flex items-center gap-1 text-[9px] font-mono text-red-400 bg-red-500/15 border border-red-500/30 px-1.5 py-0.5 rounded font-bold">
                                 <Lock className="w-2.5 h-2.5" />
-                                <span className="hidden sm:inline">Bloccato</span>
+                                <span className="hidden sm:inline">{ui.lockedBadge}</span>
                               </span>
                             )}
                             <span className="text-[10px] text-cyan-300/90 font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
-                              {count} scenari
+                              {count} {ui.scenariosCountWord}
                             </span>
                           </div>
                         </button>
@@ -1831,24 +1986,29 @@ if (matchRy) {
 
             {currentPhase === '1_scen' && currentSectorData && (() => {
               const query = scenarioSearch.toLowerCase().trim();
-              const allScens = currentSectorData.scenarios;
-              const filteredScens = allScens.filter(s => {
-                return !query || 
-                  s.name.toLowerCase().includes(query) || 
-                  s.description.toLowerCase().includes(query) || 
-                  s.focus.toLowerCase().includes(query) ||
-                  s.modelCode.toLowerCase().includes(query);
+              const allScens = currentSectorData.scenarios.map(s => ({
+                canonical: s,
+                localized: getLocalizedTestScenario(s, language)
+              }));
+              const filteredScens = allScens.filter(({ canonical, localized }) => {
+                return !query ||
+                  localized.name.toLowerCase().includes(query) ||
+                  localized.description.toLowerCase().includes(query) ||
+                  localized.focus.toLowerCase().includes(query) ||
+                  canonical.name.toLowerCase().includes(query) ||
+                  canonical.modelCode.toLowerCase().includes(query);
               });
+              const displaySelectedSector = getLocalizedSectorName(selectedSector, language);
 
               return (
                 <div className="flex flex-col gap-2 max-h-72 sm:max-h-84 overflow-y-auto pr-1">
                   <div className="sticky top-0 bg-slate-900/95 backdrop-blur-md py-1.5 z-10 flex flex-col gap-2 border-b border-white/10 pb-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-mono text-cyan-300 font-semibold gap-1">
                       <span className="flex items-center gap-1.5">
-                        <Compass className="w-3.5 h-3.5 text-amber-400" /> Scegli lo Scenario per {selectedSector} (Definizione Spazio degli Stati):
+                        <Compass className="w-3.5 h-3.5 text-amber-400" /> {ui.chooseScenarioFor} {displaySelectedSector}:
                       </span>
                       <span className="text-[11px] text-amber-300/80 font-normal">
-                        ⚡ Scelta calcolo (IBM Quantistico vs Classico Immediato) nella Fase 4A
+                        {ui.infraNote}
                       </span>
                     </div>
 
@@ -1858,7 +2018,7 @@ if (matchRy) {
                         type="text"
                         value={scenarioSearch}
                         onChange={(e) => setScenarioSearch(e.target.value)}
-                        placeholder={`Cerca tra gli scenari di ${selectedSector} (es. Hedging, VaR, Droni, VQE, Turnover)...`}
+                        placeholder={`${ui.searchPlaceholderPrefix} ${displaySelectedSector} ${ui.searchPlaceholderExamples}`}
                         className="w-full bg-slate-950/90 border border-white/20 rounded-md pl-8 pr-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400"
                       />
                     </div>
@@ -1866,36 +2026,36 @@ if (matchRy) {
                   
                   {filteredScens.length === 0 ? (
                     <div className="text-center py-6 text-xs font-mono text-slate-400">
-                      Nessuno scenario trovato per "{scenarioSearch}". Digita un altro termine o cancella la ricerca.
+                      {ui.noScenarioFound} "{scenarioSearch}".
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                      {filteredScens.map((scen) => (
+                      {filteredScens.map(({ canonical, localized }) => (
                         <button
-                          key={scen.id}
-                          onClick={() => handleQuickClick(scen.name)}
+                          key={canonical.id}
+                          onClick={() => handleQuickClick(localized.name)}
                           disabled={isLoading}
                           className="px-3.5 py-2.5 bg-slate-800/85 hover:bg-slate-800 hover:border-cyan-500/60 border border-white/15 rounded-lg text-left font-mono text-xs text-white transition-all flex flex-col gap-1 group shadow-sm"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-semibold text-slate-100 group-hover:text-cyan-200 truncate">
-                              {scen.name}
+                              {localized.name}
                             </span>
                             <div className="flex items-center gap-1 shrink-0">
                               <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium border ${
-                                scen.type === 'quantum'
+                                canonical.type === 'quantum'
                                   ? 'bg-purple-950/70 text-purple-300 border-purple-500/40'
                                   : 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
                               }`}>
-                                {scen.type === 'quantum' ? '⚛️ QUANTUM (QPU)' : '💻 CLASSICO (HPC)'}
+                                {canonical.type === 'quantum' ? ui.quantumBadge : ui.classicalBadge}
                               </span>
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700/60 text-slate-300 border border-white/10 font-medium hidden sm:inline-block">
-                                {scen.focus}
+                                {localized.focus}
                               </span>
                             </div>
                           </div>
                           <span className="text-[10px] text-slate-400 group-hover:text-slate-300 line-clamp-1 leading-relaxed">
-                            {scen.description}
+                            {localized.description}
                           </span>
                         </button>
                       ))}
@@ -1909,29 +2069,47 @@ if (matchRy) {
               <div className="flex flex-col gap-2">
                 <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Database className="w-3.5 h-3.5 text-cyan-400" /> Caricamento Dati Locali (State Encoding & Mapping):
+                    <Database className="w-3.5 h-3.5 text-cyan-400" /> {ui.phase2Title}
                   </span>
-                  <span className="text-[11px] text-slate-400 font-normal">Privato e sicuro nel tuo browser</span>
+                  <span className="text-[11px] text-slate-400 font-normal">{ui.phase2Privacy}</span>
                 </div>
 
                 {csvValidation && (
                   <div className={`p-3 rounded-xl border text-xs font-mono flex items-start gap-2.5 shadow-md transition-all ${
                     csvValidation.valido
                       ? 'bg-emerald-950/70 border-emerald-500/70 text-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                      : 'bg-red-950/70 border-red-500/80 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
+                      : csvValidation.partialMissing
+                        ? 'bg-amber-950/70 border-amber-500/80 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                        : 'bg-red-950/70 border-red-500/80 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
                   }`}>
                     {csvValidation.valido ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
-                      <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                      <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${csvValidation.partialMissing ? 'text-amber-400' : 'text-red-400'}`} />
                     )}
                     <div className="flex-1">
-                      <div className="font-bold flex items-center justify-between">
-                        <span>{csvValidation.valido ? 'File Conforme per l\'Elaborazione:' : 'File Sospetto o Malformato (Blocco Avanzamento):'}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider ${
-                          csvValidation.valido ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                      <div className="font-bold flex items-center justify-between gap-2">
+                        <span>
+                          {csvValidation.valido
+                            ? ui.csvPassedHeader
+                            : csvValidation.partialMissing === 'file2'
+                              ? ui.csvSingleMissingFile2Header
+                              : csvValidation.partialMissing === 'file1'
+                                ? ui.csvSingleMissingFile1Header
+                                : ui.csvFailedHeader}
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider shrink-0 ${
+                          csvValidation.valido
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : csvValidation.partialMissing
+                              ? 'bg-amber-500/20 text-amber-300'
+                              : 'bg-red-500/20 text-red-300'
                         }`}>
-                          {csvValidation.valido ? 'Passato' : 'Bloccato'}
+                          {csvValidation.valido
+                            ? ui.csvPassedBadge
+                            : csvValidation.partialMissing
+                              ? ui.csvPartialBadge
+                              : ui.csvFailedBadge}
                         </span>
                       </div>
                       <div className="text-[11px] opacity-90 mt-0.5 leading-relaxed">
@@ -1943,7 +2121,17 @@ if (matchRy) {
                             onClick={() => setCurrentPhase('3a_per')}
                             className="px-3 py-1.5 bg-emerald-500/30 hover:bg-emerald-500/50 text-emerald-200 border border-emerald-400/50 rounded font-bold uppercase tracking-wider text-[10px] transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
                           >
-                            <span>👉 Procedi alla Fase 3A (Arco Temporale)</span>
+                            <span>{ui.proceedPhase3a}</span>
+                          </button>
+                        </div>
+                      )}
+                      {!csvValidation.valido && csvValidation.partialMissing === 'file2' && customCsv1Content !== null && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={handleProceedWithoutMatrix}
+                            className="px-3 py-1.5 bg-amber-500/25 hover:bg-amber-500/40 text-amber-100 border border-amber-400/60 rounded font-bold uppercase tracking-wider text-[10px] transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+                          >
+                            <span>{ui.csvProceedWithoutMatrixBtn}</span>
                           </button>
                         </div>
                       )}
@@ -1954,37 +2142,40 @@ if (matchRy) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <label className="px-4 py-3 bg-amber-500/25 hover:bg-amber-500/35 border-2 border-amber-500 text-amber-300 font-bold font-mono text-xs rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 shadow-lg animate-pulse">
                     <Upload className="w-4 h-4 text-amber-400" />
-                    <span className="uppercase tracking-wider">Carica i Tuoi File (CSV / Excel)</span>
+                    <span className="uppercase tracking-wider">{ui.uploadCsvBtn}</span>
                     <input 
                       type="file" 
                       accept=".csv, .xlsx, .xls, .tsv, .txt" 
                       multiple 
                       className="hidden" 
-                      onChange={(e) => handleCsvUpload(e.target.files)} 
+                      onChange={(e) => {
+                        handleCsvUpload(e.target.files);
+                        e.target.value = '';
+                      }} 
                     />
                   </label>
                   <button
                     onClick={handleDemoCsv}
                     disabled={isLoading}
                     className="px-4 py-3 bg-cyan-950/80 hover:bg-cyan-900 border-2 border-cyan-500/70 text-cyan-200 hover:text-white font-bold font-mono text-xs rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-cyan-500/20"
-                    title="Carica il dataset demo ed esegue il download automatico di entrambi i file CSV con la guida di compilazione"
+                    title={ui.demoCsvTitle}
                   >
                     <Download className="w-4 h-4 text-cyan-400 animate-bounce" />
-                    <span>Dataset Demo (Scarica e Testa)</span>
+                    <span>{ui.demoCsvBtn}</span>
                   </button>
                 </div>
 
                 <div className="p-3 bg-gradient-to-r from-cyan-950/40 to-slate-900/60 border border-cyan-500/40 rounded-lg text-xs font-mono flex flex-col gap-1.5 shadow-sm">
                   <div className="flex items-center gap-1.5 text-cyan-300 font-semibold">
                     <Cpu className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span>Allocazione Dinamica & Specifiche Hardware:</span>
+                    <span>{ui.hwSpecTitle}</span>
                   </div>
                   <div className="text-[11px] text-slate-300 leading-relaxed space-y-0.5">
                     <div>
-                      • <strong className="text-cyan-200">Scenario Quantistico:</strong> Freno di emergenza a <strong className="text-amber-300">max 127 righe / qubit</strong> (Processori fisici IBM Quantum Utility-scale Eagle/Heron). Registri generati su misura per il tuo File 1 con ottimizzazione dello spazio di Hilbert tramite rotazioni RY ($p=|1\rangle$).
+                      • <strong className="text-cyan-200">{ui.hwSpecQuantumLabel}</strong> {ui.hwSpecQuantumBody}
                     </div>
                     <div>
-                      • <strong className="text-emerald-300">Scenario Classico (HPC):</strong> Nessun limite hardware sui qubit — elaborazione libera per file con migliaia di righe.
+                      • <strong className="text-emerald-300">{ui.hwSpecClassicalLabel}</strong> {ui.hwSpecClassicalBody}
                     </div>
                   </div>
                 </div>
@@ -1992,7 +2183,7 @@ if (matchRy) {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-900/90 border border-white/10 rounded-lg text-[11px] text-slate-300">
                   <span className="flex items-center gap-1.5 text-slate-400 font-medium">
                     <HelpCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span>Scarica i modelli CSV guida per compilarli con i tuoi dati:</span>
+                    <span>{ui.downloadTemplatesPrompt}</span>
                   </span>
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <CsvButton filename="1_anagrafica_risorse_guida.csv" content={currentCsv1} label="1_anagrafica.csv" />
@@ -2006,23 +2197,23 @@ if (matchRy) {
               <div className="flex flex-col gap-2.5">
                 <div className="flex items-center justify-between text-xs font-mono text-cyan-300 font-semibold">
                   <span className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-amber-400" /> Scegli la Finestra Temporale o Date Precise (Evoluzione Hamiltoniana):
+                    <Calendar className="w-3.5 h-3.5 text-amber-400" /> {ui.phase3aTitle}
                   </span>
-                  <span className="text-[11px] text-slate-400 font-normal">Finestre standard o calendario personalizzato</span>
+                  <span className="text-[11px] text-slate-400 font-normal">{ui.phase3aSub}</span>
                 </div>
 
                 <div className="p-3 bg-cyan-950/40 border-2 border-cyan-500/50 rounded-xl flex flex-col gap-2.5 shadow-lg">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-cyan-300 font-bold flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-cyan-400" /> Date Precise da Calendario (Data Inizio e Data Fine):
+                      <Calendar className="w-4 h-4 text-cyan-400" /> {ui.calTitle}
                     </span>
                     {calculateDaysDifference(startDateInput, endDateInput) ? (
                       <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold">
-                        ⚡ {calculateDaysDifference(startDateInput, endDateInput)} giorni di calcolo
+                        ⚡ {calculateDaysDifference(startDateInput, endDateInput)} {ui.daysCalcSuffix}
                       </span>
                     ) : (
                       <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                        ⚠️ Data fine deve essere successiva a inizio
+                        {ui.dateErrBadge}
                       </span>
                     )}
                   </div>
@@ -2030,7 +2221,7 @@ if (matchRy) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-mono text-slate-300 flex items-center gap-1">
-                        <span>Data Inizio (Dal):</span>
+                        <span>{ui.startDateLabel}</span>
                         <span className="text-cyan-400 font-bold">({formatDateToIT(startDateInput)})</span>
                       </label>
                       <input
@@ -2042,7 +2233,7 @@ if (matchRy) {
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-mono text-slate-300 flex items-center gap-1">
-                        <span>Data Fine (Al):</span>
+                        <span>{ui.endDateLabel}</span>
                         <span className="text-cyan-400 font-bold">({formatDateToIT(endDateInput)})</span>
                       </label>
                       <input
@@ -2056,7 +2247,7 @@ if (matchRy) {
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1 border-t border-cyan-500/20">
                     <span className="text-[11px] font-mono text-slate-300">
-                      Intervallo selezionato: <strong className="text-cyan-300">dal {formatDateToIT(startDateInput)} al {formatDateToIT(endDateInput)}</strong>
+                      {ui.selectedRangePrefix} <strong className="text-cyan-300">{ui.fromWord} {formatDateToIT(startDateInput)} {ui.toWord} {formatDateToIT(endDateInput)}</strong>
                     </span>
                     <button
                       type="button"
@@ -2065,20 +2256,15 @@ if (matchRy) {
                       className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 disabled:opacity-40 text-slate-950 font-bold text-xs font-mono rounded-lg transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Calendar className="w-4 h-4 text-slate-950" />
-                      <span>Conferma Date: dal {formatDateToIT(startDateInput)} al {formatDateToIT(endDateInput)}</span>
+                      <span>{ui.confirmDatesPrefix} {ui.fromWord} {formatDateToIT(startDateInput)} {ui.toWord} {formatDateToIT(endDateInput)}</span>
                     </button>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5 pt-1">
-                  <span className="text-[11px] font-mono text-slate-400">Oppure scegli una finestra predefinita:</span>
+                  <span className="text-[11px] font-mono text-slate-400">{ui.orPresetWindow}</span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      { label: "1 Mese (30 gg)", desc: "Breve termine / Urgenze", val: "1 Mese (30 giorni)" },
-                      { label: "1 Trimestre (3 Mesi)", desc: "Stagione operativa (Q1-Q4)", val: "1 Trimestre (3 mesi / Stagione in corso)" },
-                      { label: "1 Semestre (6 Mesi)", desc: "Medio termine aziendale", val: "1 Semestre (6 mesi)" },
-                      { label: "1 Anno Intero (12 Mesi)", desc: "Pianificazione annuale", val: "1 Anno Intero (12 mesi)" }
-                    ].map((p) => (
+                    {ui.presets.map((p) => (
                       <button
                         key={p.val}
                         onClick={() => handleQuickClick(p.val)}
@@ -2093,31 +2279,31 @@ if (matchRy) {
                 </div>
 
                 <div className="flex items-center gap-2 pt-1 border-t border-white/10 mt-0.5">
-                  <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">Oppure testo libero:</span>
+                  <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">{ui.orFreeText}</span>
                   <input
                     type="text"
                     value={customPeriodInput}
                     onChange={(e) => setCustomPeriodInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && customPeriodInput.trim()) {
-                        handleQuickClick(`Periodo personalizzato: ${customPeriodInput.trim()}`);
+                        handleQuickClick(`${ui.customPeriodPrefix} ${customPeriodInput.trim()}`);
                         setCustomPeriodInput('');
                       }
                     }}
-                    placeholder="es. 45 giorni, dal 01/04/26 al 23/06/26..."
+                    placeholder={ui.freeTextPlaceholder}
                     className="flex-1 bg-slate-950 border border-white/20 rounded-md px-3 py-1.5 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400"
                   />
                   <button
                     onClick={() => {
                       if (customPeriodInput.trim()) {
-                        handleQuickClick(`Periodo personalizzato: ${customPeriodInput.trim()}`);
+                        handleQuickClick(`${ui.customPeriodPrefix} ${customPeriodInput.trim()}`);
                         setCustomPeriodInput('');
                       }
                     }}
                     disabled={!customPeriodInput.trim() || isLoading}
                     className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-30 text-white font-bold text-xs font-mono rounded-md transition-all"
                   >
-                    Imposta
+                    {ui.setBtn}
                   </button>
                 </div>
               </div>
@@ -2125,12 +2311,12 @@ if (matchRy) {
 
             {currentPhase === '3b_strat' && (
               (() => {
-                const taxSector = getTaxonomicSector(selectedSector, selectedScenario?.id || "");
+                const taxSector = getTaxonomicSector(selectedSector, selectedScenario?.id || "", language);
 
                 return (
                   <div className="flex flex-col gap-2">
                     <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-amber-400" /> Imposta la Strategia Operativa (Hamiltoniana di Costo):
+                      <Zap className="w-3.5 h-3.5 text-amber-400" /> {ui.phase3bTitle}
                     </div>
                     <div className="text-[11px] text-slate-300 italic mb-1">
                       {taxSector.spiegazioneStrategia}
@@ -2142,7 +2328,7 @@ if (matchRy) {
                         className="px-3 py-2.5 bg-slate-800/90 hover:bg-amber-950/40 hover:border-amber-500/60 border border-amber-500/30 rounded-lg font-mono text-xs text-amber-200 transition-all text-left flex flex-col gap-0.5 shadow-sm"
                       >
                         <span className="font-bold">{taxSector.stratAggTitle}</span>
-                        <span className="text-[10px] text-slate-400">Scava valli energetiche profonde per soluzioni audaci ad alto rendimento.</span>
+                        <span className="text-[10px] text-slate-400">{ui.stratAggDesc}</span>
                       </button>
                       <button
                         onClick={() => handleQuickClick(taxSector.stratPrudTitle)}
@@ -2150,7 +2336,7 @@ if (matchRy) {
                         className="px-3 py-2.5 bg-slate-800/90 hover:bg-cyan-950/40 hover:border-cyan-500/60 border border-cyan-500/30 rounded-lg font-mono text-xs text-cyan-200 transition-all text-left flex flex-col gap-0.5 shadow-sm"
                       >
                         <span className="font-bold">{taxSector.stratPrudTitle}</span>
-                        <span className="text-[10px] text-slate-400">Protegge la stabilità dello stato fondamentale e mitiga il rischio.</span>
+                        <span className="text-[10px] text-slate-400">{ui.stratPrudDesc}</span>
                       </button>
                     </div>
                   </div>
@@ -2161,14 +2347,14 @@ if (matchRy) {
             {currentPhase === '4c_close' && (
               <div className="flex flex-col gap-2">
                 <div className="text-xs font-mono text-cyan-300 font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Finalizza Intervista e Avvia Simulatore (Misurazione / Collasso):
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> {ui.phase4cTitle}
                 </div>
                 <button
-                  onClick={() => handleQuickClick("No, tutto perfetto così! Avvia la simulazione")}
+                  onClick={() => handleQuickClick(ui.phase4cBtn)}
                   disabled={isLoading}
                   className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold font-mono text-xs rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
                 >
-                  🚀 No, tutto perfetto così! Avvia la simulazione
+                  {ui.phase4cBtn}
                 </button>
               </div>
             )}
@@ -2176,7 +2362,7 @@ if (matchRy) {
             {currentPhase === '5_done' && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-lg gap-2 shadow-lg">
                 <span className="text-xs font-mono text-emerald-300 flex items-center gap-1.5 font-semibold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Intervista completata. Simulatore Sfera di Bloch e Telemetria attivi.
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> {ui.phase5Banner}
                 </span>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button
@@ -2184,13 +2370,13 @@ if (matchRy) {
                     className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs font-mono rounded transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.25)] cursor-pointer"
                   >
                     <Activity className="w-3.5 h-3.5" />
-                    <span>Pop-up Risultati</span>
+                    <span>{ui.popupResults}</span>
                   </button>
                   {selectedScenario?.type !== 'classical' && selectedInfra !== 'classical' && (
                     <button
                       onClick={() => {
                         setShowEndModal(false);
-                        const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente');
+                        const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedVincolo, selectedStrategy || 'Prudente');
                         if (setSharedQasm) {
                           setSharedQasm(qCode);
                         }
@@ -2201,14 +2387,14 @@ if (matchRy) {
                       className="px-3 py-1.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-extrabold text-xs font-mono rounded border border-cyan-200 transition-all flex items-center gap-1.5 shadow-[0_0_18px_rgba(34,211,238,0.65)] animate-pulse cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>SEND TO IBM QUANTUM</span>
+                      <span>{ui.sendToIbmBtn}</span>
                     </button>
                   )}
                   <button
                     onClick={handleResetInterview}
                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-mono text-white rounded border border-white/20 transition-all cursor-pointer"
                   >
-                    Ricomincia
+                    {ui.restartBtn}
                   </button>
                 </div>
               </div>
@@ -2220,7 +2406,7 @@ if (matchRy) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={isLoading ? "Elaborazione in corso..." : "Scrivi liberamente o clicca i pulsanti rapidi..."}
+                placeholder={isLoading ? ui.inputPlaceholderLoading : ui.inputPlaceholderReady}
                 className="flex-1 bg-slate-950 border border-white/20 rounded-lg px-4 py-2.5 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 transition-all"
                 disabled={isLoading}
               />
@@ -2229,7 +2415,7 @@ if (matchRy) {
                 disabled={isLoading || !input.trim()}
                 className="bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-slate-950 font-semibold rounded-lg px-3.5 py-2.5 transition-all flex items-center gap-1 text-xs font-mono"
               >
-                <Send className="w-3.5 h-3.5" /> Invia
+                <Send className="w-3.5 h-3.5" /> {ui.sendBtn}
               </button>
             </div>
           </div>
@@ -2241,10 +2427,10 @@ if (matchRy) {
         onClose={() => setShowEndModal(false)}
         scenarioType={selectedScenario?.type || (selectedInfra === 'classical' ? 'classical' : 'quantum')}
         fonteDati={isDemoActive ? 'demo' : 'utente'}
-        qasmCode={finalQasm || (selectedScenario?.type === 'classical' ? '' : generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente'))}
+        qasmCode={finalQasm || (selectedScenario?.type === 'classical' ? '' : generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedVincolo, selectedStrategy || 'Prudente'))}
         pythonCode={finalPython || (selectedScenario?.type === 'classical' 
-          ? generateClassicalHpcPythonCode(assetSector || selectedSector || 'Finanza e Mercati', selectedScenario?.name || selectedScenario?.id || 'Scenario Classico', selectedScenario?.id || 'HPC-Model', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive)
-          : generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive))}
+          ? generateClassicalHpcPythonCode(assetSector || selectedSector || 'Finanza e Mercati', selectedScenario?.name || selectedScenario?.id || 'Scenario Classico', selectedScenario?.id || 'HPC-Model', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive)
+          : generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedVincolo, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive))}
         jsonCode={finalJson || JSON.stringify({
           settore: assetSector || selectedSector || 'Finanza e Mercati',
           scenario: selectedScenario?.name || 'Ottimizzazione',
@@ -2261,7 +2447,7 @@ if (matchRy) {
         sector={assetSector || selectedSector || 'Finanza e Mercati'}
         onSendToIBM={() => {
           setShowEndModal(false);
-          const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content || currentCsv1, customCsv2Content || currentCsv2, selectedVincolo, selectedStrategy || 'Prudente');
+          const qCode = finalQasm || generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedVincolo, selectedStrategy || 'Prudente');
           if (setSharedQasm) {
             setSharedQasm(qCode);
           }
@@ -2280,16 +2466,16 @@ if (matchRy) {
 
             <div className="space-y-2">
               <h3 className="font-display font-bold uppercase text-base sm:text-lg text-white">
-                Accesso Categoria Riservato
+                {ui.deniedModalTitle}
               </h3>
               <p className="text-xs font-mono text-gray-300 leading-relaxed">
-                Non disponi delle autorizzazioni per accedere a questo settore aziendale:
+                {ui.deniedModalDesc}
               </p>
               <div className="py-2 px-3 bg-red-500/10 border border-red-500/30 rounded-xl font-mono text-xs font-bold text-red-300">
                 {categoryDeniedModal.sectorName}
               </div>
               <p className="text-[11px] font-sans text-gray-400 leading-relaxed">
-                L'amministratore di sistema ha limitato il tuo account per questa specifica categoria di Agents AI. Contatta il responsabile (CSO o Amministratore) per richiedere l'abilitazione.
+                {ui.deniedModalNote}
               </p>
             </div>
 
@@ -2297,7 +2483,7 @@ if (matchRy) {
               onClick={() => setCategoryDeniedModal(null)}
               className="w-full py-2.5 px-4 bg-red-600/80 hover:bg-red-500 text-white font-mono font-bold text-xs uppercase rounded-xl transition-all shadow-lg cursor-pointer"
             >
-              Ho Capito
+              {ui.deniedModalBtn}
             </button>
           </div>
         </div>
@@ -2307,6 +2493,8 @@ if (matchRy) {
 }
 
 export function IbmQuantumComposerMockup({ targetAlgoritmo, getActionDescription }: { targetAlgoritmo: string, getActionDescription: () => string }) {
+  const { language } = useTranslation();
+  const ui = getAgentUi(language);
   return (
     <div className="bg-[#161616] border border-white/10 rounded-xl font-mono text-xs shadow-2xl flex flex-col relative overflow-hidden mt-4">
       <div className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2 border-b border-white/5 bg-[#1e1e1e] px-4 py-3">
@@ -2433,7 +2621,7 @@ export function IbmQuantumComposerMockup({ targetAlgoritmo, getActionDescription
       <div className="bg-[#1e1e1e] border-t border-white/5 p-3 px-4 flex justify-between items-center text-[11px] font-sans">
         <div className="text-slate-400 flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${targetAlgoritmo !== 'IDLE' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse' : 'bg-slate-500'}`}></div>
-          <span>{targetAlgoritmo !== 'IDLE' ? 'Circuit Compiled & Optimized' : 'Idle State'}</span>
+          <span>{targetAlgoritmo !== 'IDLE' ? ui.composerCompiled : ui.composerIdle}</span>
         </div>
         <div className="text-slate-500 max-w-[60%] truncate text-right">
           {getActionDescription()}
@@ -2444,6 +2632,8 @@ export function IbmQuantumComposerMockup({ targetAlgoritmo, getActionDescription
 }
 
 export function IstogrammaQuantisticoUniversale({ theta_radianti, settore }: { theta_radianti: number; settore: string }) {
+  const { language } = useTranslation();
+  const ui = getAgentUi(language);
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
@@ -2459,30 +2649,31 @@ export function IstogrammaQuantisticoUniversale({ theta_radianti, settore }: { t
   const h0 = Math.max(5, p0 * 100);
   const h1 = Math.max(5, p1 * 100);
 
-  let label0 = "Componente Residua (Stabilità)";
-  let label1 = "Valore CSV (Spinta/Alpha)";
+  let label0 = ui.histDefault0;
+  let label1 = ui.histDefault1;
   let gradientClass = "from-emerald-500 to-green-400";
-  
+
+  const taxId = getTaxonomicSector('', settore, language).id;
   const sLower = settore.toLowerCase();
-  if (sLower.includes("finanz")) {
-    label0 = "Componente Residua (Stabilità)";
-    label1 = "Valore CSV (Rendimento/Alpha)";
+  if (taxId === 'finanza' || sLower.includes("finanz")) {
+    label0 = ui.histFin0;
+    label1 = ui.histFin1;
     gradientClass = "from-emerald-500 to-green-400";
-  } else if (sLower.includes("chimic") || sLower.includes("farmaceutica") || sLower.includes("materiali")) {
-    label0 = "Stato Orbitale a Riposo (Residuo)";
-    label1 = "Valore CSV (Eccitazione Attiva)";
+  } else if (taxId === 'chimica' || sLower.includes("chimic") || sLower.includes("farmaceutica") || sLower.includes("materiali")) {
+    label0 = ui.histChem0;
+    label1 = ui.histChem1;
     gradientClass = "from-purple-500 to-fuchsia-400";
-  } else if (sLower.includes("produzion") || sLower.includes("manifattura")) {
-    label0 = "Margine di Inattività (Residuo)";
-    label1 = "Valore CSV (Efficienza/OEE)";
+  } else if (taxId === 'manifattura' || sLower.includes("produzion") || sLower.includes("manifattura")) {
+    label0 = ui.histMan0;
+    label1 = ui.histMan1;
     gradientClass = "from-blue-500 to-cyan-400";
-  } else if (sLower.includes("sicurezz") || sLower.includes("telecomunicazion") || sLower.includes("reti")) {
-    label0 = "Rischio Base (Residuo)";
-    label1 = "Valore CSV (Contenimento Attivo)";
+  } else if (taxId === 'sicurezza' || sLower.includes("sicurezz") || sLower.includes("telecomunicazion") || sLower.includes("reti")) {
+    label0 = ui.histSec0;
+    label1 = ui.histSec1;
     gradientClass = "from-amber-500 to-orange-400";
-  } else if (sLower.includes("sanità") || sLower.includes("sanita") || sLower.includes("genomica")) {
-    label0 = "Componente Silente (Residua)";
-    label1 = "Valore CSV (Espressione/Mutazione)";
+  } else if (taxId === 'sanita' || sLower.includes("sanità") || sLower.includes("sanita") || sLower.includes("genomica")) {
+    label0 = ui.histSan0;
+    label1 = ui.histSan1;
     gradientClass = "from-rose-500 to-red-400";
   }
 
@@ -2490,7 +2681,7 @@ export function IstogrammaQuantisticoUniversale({ theta_radianti, settore }: { t
     <div className="bg-[#161616] border border-white/10 rounded-xl font-mono text-xs shadow-2xl flex flex-col mt-4 overflow-hidden">
       <div className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center justify-between border-b border-white/5 bg-[#1e1e1e] px-4 py-3">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[#33b1ff]" /> Risultati AerSimulator (1024 Shots)
+          <Activity className="w-4 h-4 text-[#33b1ff]" /> {ui.histTitle}
         </div>
       </div>
       
@@ -2539,7 +2730,7 @@ export function IstogrammaQuantisticoUniversale({ theta_radianti, settore }: { t
       <div className="bg-[#1e1e1e] border-t border-white/5 p-3 px-4 flex justify-between items-center text-[11px] font-sans">
         <div className="text-slate-400 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse"></div>
-          <span>Simulazione Completata (Probabilità Sperimentale)</span>
+          <span>{ui.histCompleted}</span>
         </div>
       </div>
     </div>

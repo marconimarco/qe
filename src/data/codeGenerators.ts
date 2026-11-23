@@ -54,11 +54,15 @@ export function cleanNumericValue(val: unknown): number | null {
   return parsed;
 }
 
+function stripBom(s: string): string {
+  return (s || '').replace(/^\uFEFF/, '');
+}
+
 function detectSeparator(csv: string): string {
-  const lines = csv.split('\n').map(l => l.trim())
+  const lines = stripBom(csv).split(/\r?\n/).map(l => l.trim())
     .filter(l => l.length > 0 && !l.startsWith('#'));
   if (lines.length === 0) return ',';
-  let countComma = 0, countSemi = 0;
+  let countComma = 0, countSemi = 0, countTab = 0;
   for (const line of lines.slice(0, 5)) {
     let inQuotes = false;
     for (const ch of line) {
@@ -66,9 +70,11 @@ function detectSeparator(csv: string): string {
       else if (!inQuotes) {
         if (ch === ',') countComma++;
         else if (ch === ';') countSemi++;
+        else if (ch === '\t') countTab++;
       }
     }
   }
+  if (countTab > countComma && countTab > countSemi) return '\t';
   return countSemi > countComma ? ';' : ',';
 }
 
@@ -93,8 +99,9 @@ function splitCsvLine(line: string, sep: string): string[] {
 }
 
 export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[], mappaQubit: Map<string, number> } {
-  const SEP1 = detectSeparator(csv1);
-  const rawLines = csv1.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
+  const cleanCsv1 = stripBom(csv1);
+  const SEP1 = detectSeparator(cleanCsv1);
+  const rawLines = cleanCsv1.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
   const risorse: ParsedRisorsa[] = [];
   const mappaQubit = new Map<string, number>();
 
@@ -105,25 +112,28 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
   let nomeColIndex = 1;
   let dataStartIndex = 0;
 
-  const headerKeywords = ['id', 'risorsa', 'caso', 'composto', 'linea', 'item', 'asset', 'peso', 'priorita', 'weight', 'score'];
+  const exactHeaderTokens = ['id_risorsa', 'id_asset', 'asset_id', 'item_id', 'id', 'risorsa', 'asset', 'caso', 'composto', 'linea', 'item', 'priorita_peso', 'peso_quantistico', 'peso', 'weight', 'score', 'valore'];
   const headerIdx = rawLines.findIndex(line => {
-    const lower = line.toLowerCase();
-    return headerKeywords.some(kw => lower.includes(kw));
+    const cols = splitCsvLine(line, SEP1).map(c => c.toLowerCase().trim());
+    return cols.some(c => exactHeaderTokens.some(tok => c === tok || c.startsWith(tok + '_') || c.endsWith('_' + tok)));
   });
 
   if (headerIdx !== -1) {
     const headers = splitCsvLine(rawLines[headerIdx], SEP1).map(h => h.toLowerCase().trim());
 
-    const foundId = headers.findIndex(h =>
-      h.includes('id') || h.includes('risorsa') || h.includes('asset') ||
-      h.includes('caso') || h.includes('composto') || h.includes('linea') || h.includes('item')
-    );
+    const foundId =
+      headers.findIndex(h => ['id_risorsa', 'id_asset', 'asset_id', 'item_id', 'id'].includes(h)) !== -1
+        ? headers.findIndex(h => ['id_risorsa', 'id_asset', 'asset_id', 'item_id', 'id'].includes(h))
+        : headers.findIndex(h =>
+            h.startsWith('id_') || h.endsWith('_id') || h.includes('risorsa') || h.includes('asset') ||
+            h.includes('caso') || h.includes('composto') || h.includes('linea') || h.includes('item')
+          );
     if (foundId !== -1) idColIndex = foundId;
 
     const foundPeso = headers.findIndex(h =>
       h.includes('peso') || h.includes('weight') || h.includes('priorit') ||
       h.includes('clinic') || h.includes('stabilita') || h.includes('probabilit') ||
-      h.includes('saturaz') || h.includes('score') || h.includes('valore')
+      h.includes('saturaz') || h.includes('score') || h.includes('valore') || h.includes('rendiment')
     );
     if (foundPeso !== -1) pesoColIndex = foundPeso;
 
@@ -136,7 +146,7 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
   // [FIX 3] Match su nomi noti o errore bloccante (niente "ultima colonna")
   if (pesoColIndex === -1) {
     const firstHeaders = splitCsvLine(rawLines[0], SEP1).map(h => h.toLowerCase().trim());
-    const knownWeights = ['priorita_peso', 'peso_quantistico', 'peso', 'weight', 'score', 'valore'];
+    const knownWeights = ['priorita_peso', 'peso_quantistico', 'peso', 'weight', 'score', 'valore', 'rendiment'];
     for (let c = 0; c < firstHeaders.length; c++) {
       if (knownWeights.some(k => firstHeaders[c].includes(k))) {
         pesoColIndex = c;
@@ -153,13 +163,14 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
     }
   }
 
+  const repeatedHeaderIds = new Set(['id', 'id_risorsa', 'id_asset', 'asset_id', 'item_id', 'risorsa_id']);
   for (let i = dataStartIndex; i < rawLines.length; i++) {
     const line = rawLines[i];
     const parts = splitCsvLine(line, SEP1);
     if (parts.length <= idColIndex) continue;
 
     const id = parts[idColIndex];
-    if (!id || id.toLowerCase().startsWith('id_')) continue;
+    if (!id || repeatedHeaderIds.has(id.toLowerCase())) continue;
 
     // [FIX 2] Errore esplicito invece di fallback 0.5
     const rawPesoCell = parts[pesoColIndex];
@@ -190,8 +201,9 @@ export function parseCsv1Deterministic(csv1: string): { risorse: ParsedRisorsa[]
 
 // [FIX 4] Simmetrizzazione (media direzioni) + ordinamento deterministico
 function parseCsv2Deterministic(csv2: string, mappaQubit: Map<string, number>): ParsedRelazione[] {
-  const SEP2 = detectSeparator(csv2);
-  const lines2 = csv2.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
+  const cleanCsv2 = stripBom(csv2);
+  const SEP2 = detectSeparator(cleanCsv2);
+  const lines2 = cleanCsv2.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
   const activeRelations: ParsedRelazione[] = [];
 
   if (lines2.length <= 1) return activeRelations;
@@ -214,6 +226,7 @@ function parseCsv2Deterministic(csv2: string, mappaQubit: Map<string, number>): 
       let peso = cleanNumericValue(parts[c]);
       if (peso === null) continue;
       if (peso > 1.0 && peso <= 100.0) peso = peso / 100.0;
+      peso = Math.max(0.0, Math.min(1.0, peso));
       if (peso <= 0.0) continue;
 
       const lo = Math.min(idxRow, idxCol);
@@ -249,6 +262,165 @@ function parseCsv2Deterministic(csv2: string, mappaQubit: Map<string, number>): 
   );
 
   return activeRelations;
+}
+
+export function classifyUploadedCsv(csv: string, fileName: string): 'anagrafica' | 'matrice' | 'unknown' {
+  const clean = stripBom(csv);
+  const sep = detectSeparator(clean);
+  const lines = clean.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
+  const lowerName = (fileName || '').toLowerCase();
+
+  if (lines.length >= 2) {
+    const headerCols = splitCsvLine(lines[0], sep).map(h => h.toLowerCase().trim());
+    const hasWeightHeader = headerCols.some(h =>
+      h.includes('peso') || h.includes('weight') || h.includes('priorit') ||
+      h.includes('clinic') || h.includes('stabilita') || h.includes('probabilit') ||
+      h.includes('saturaz') || h.includes('score') || h.includes('valore') || h.includes('rendiment')
+    );
+
+    const rowIds = new Set<string>();
+    for (let r = 1; r < lines.length; r++) {
+      const p = splitCsvLine(lines[r], sep);
+      if (p[0]) rowIds.add(p[0].toLowerCase().trim());
+    }
+    const headerSet = headerCols.slice(1).filter(Boolean);
+    const overlapCount = headerSet.filter(h => rowIds.has(h)).length;
+
+    if (!hasWeightHeader && headerCols.length >= 3 && overlapCount >= Math.min(2, rowIds.size)) {
+      return 'matrice';
+    }
+    if (hasWeightHeader) {
+      try {
+        const { risorse } = parseCsv1Deterministic(clean);
+        if (risorse.length >= 1) return 'anagrafica';
+      } catch {
+        // continue checking
+      }
+    }
+    if (lowerName.includes('2_') || lowerName.includes('matrice') || lowerName.includes('conness') || lowerName.includes('correlaz') || lowerName.includes('covar')) {
+      return 'matrice';
+    }
+    if (lowerName.includes('1_') || lowerName.includes('anagraf') || lowerName.includes('risors') || lowerName.includes('asset') || lowerName.includes('item')) {
+      return 'anagrafica';
+    }
+    // Check if matrix-shaped (square numeric body without weight header)
+    if (!hasWeightHeader && headerCols.length >= 3 && lines.length >= 3) {
+      let numericCells = 0;
+      let totalChecked = 0;
+      for (let r = 1; r < Math.min(lines.length, 6); r++) {
+        const p = splitCsvLine(lines[r], sep);
+        for (let c = 1; c < Math.min(p.length, headerCols.length); c++) {
+          if (p[c] !== '') {
+            totalChecked++;
+            if (cleanNumericValue(p[c]) !== null) numericCells++;
+          }
+        }
+      }
+      if (totalChecked > 0 && numericCells === totalChecked) {
+        return 'matrice';
+      }
+    }
+    try {
+      const { risorse } = parseCsv1Deterministic(clean);
+      if (risorse.length >= 1) return 'anagrafica';
+    } catch {
+      // ignore
+    }
+  }
+
+  if (lowerName.includes('2_') || lowerName.includes('matrice') || lowerName.includes('conness') || lowerName.includes('correlaz') || lowerName.includes('covar')) {
+    return 'matrice';
+  }
+  if (lowerName.includes('1_') || lowerName.includes('anagraf') || lowerName.includes('risors') || lowerName.includes('asset') || lowerName.includes('item')) {
+    return 'anagrafica';
+  }
+  return 'unknown';
+}
+
+export function validaMatriceFile2(
+  csv2: string,
+  mappaQubit?: Map<string, number>
+): {
+  valido: boolean;
+  righe: number;
+  colonne: number;
+  relazioniAttive: number;
+  matchingIds: number;
+  reason?: 'empty' | 'few_rows' | 'few_cols' | 'bad_numbers' | 'no_overlap';
+} {
+  const clean = stripBom(csv2);
+  const lines = clean.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
+  if (lines.length === 0) {
+    return { valido: false, righe: 0, colonne: 0, relazioniAttive: 0, matchingIds: 0, reason: 'empty' };
+  }
+  if (lines.length < 3) {
+    return { valido: false, righe: Math.max(0, lines.length - 1), colonne: 0, relazioniAttive: 0, matchingIds: 0, reason: 'few_rows' };
+  }
+  const sep = detectSeparator(clean);
+  const headerCols = splitCsvLine(lines[0], sep);
+  if (headerCols.length < 3) {
+    return { valido: false, righe: lines.length - 1, colonne: headerCols.length, relazioniAttive: 0, matchingIds: 0, reason: 'few_cols' };
+  }
+
+  let nonNumericCells = 0;
+  let numericCells = 0;
+  for (let r = 1; r < lines.length; r++) {
+    const parts = splitCsvLine(lines[r], sep);
+    for (let c = 1; c < Math.min(parts.length, headerCols.length); c++) {
+      const cell = parts[c]?.trim();
+      if (!cell) continue;
+      if (cleanNumericValue(cell) === null) nonNumericCells++;
+      else numericCells++;
+    }
+  }
+  if (numericCells === 0 || nonNumericCells > 0) {
+    return { valido: false, righe: lines.length - 1, colonne: headerCols.length, relazioniAttive: 0, matchingIds: 0, reason: 'bad_numbers' };
+  }
+
+  if (mappaQubit && mappaQubit.size > 0) {
+    const matchedRowSet = new Set<number>();
+    const matchedColSet = new Set<number>();
+    for (let r = 1; r < lines.length; r++) {
+      const parts = splitCsvLine(lines[r], sep);
+      const idRow = parts[0]?.trim();
+      if (!idRow) continue;
+      const idx = mappaQubit.get(idRow) ?? mappaQubit.get(idRow.toLowerCase());
+      if (idx !== undefined) matchedRowSet.add(idx);
+    }
+    for (let c = 1; c < headerCols.length; c++) {
+      const idCol = headerCols[c]?.trim();
+      if (!idCol) continue;
+      const idx = mappaQubit.get(idCol) ?? mappaQubit.get(idCol.toLowerCase());
+      if (idx !== undefined) matchedColSet.add(idx);
+    }
+    const overlap = Math.min(matchedRowSet.size, matchedColSet.size);
+    if (overlap < 2) {
+      return {
+        valido: false,
+        righe: lines.length - 1,
+        colonne: headerCols.length,
+        relazioniAttive: 0,
+        matchingIds: overlap,
+        reason: 'no_overlap'
+      };
+    }
+    const relations = parseCsv2Deterministic(clean, mappaQubit);
+    return {
+      valido: true,
+      righe: lines.length - 1,
+      colonne: headerCols.length,
+      relazioniAttive: relations.length,
+      matchingIds: overlap
+    };
+  }
+
+  return {
+    valido: true,
+    righe: lines.length - 1,
+    colonne: headerCols.length,
+    relazioniAttive: 0,
+    matchingIds: 0
+  };
 }
 
 export const generateQiskitCode = (
@@ -597,6 +769,8 @@ export const generateClassicalHpcPythonCode = (
   pyCode += `asset_nomi = [p['id'] for p in PESI_RISOLTI]\n`;
   pyCode += `rendimenti_attesi = np.array([p['peso'] for p in PESI_RISOLTI], dtype=float)\n`;
   pyCode += `num_assets = len(asset_nomi)\n`;
+  pyCode += `if num_assets == 0:\n`;
+  pyCode += `    raise ValueError("Nessuna risorsa valida trovata nel CSV 1.")\n`;
   pyCode += `print(f"[HPC ENGINE]: Acquisiti {num_assets} asset/risorse (pesi iniettati).")\n\n`;
 
   pyCode += `# =====================================================================\n`;

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '../lib/TranslationContext';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { generateQuantumBiLocalResponse } from '../data/quantumBiEngine';
 
 interface Props {
@@ -138,7 +139,7 @@ CODE GENERATION RULES:
 `;
 
 export default function QuantumBI({ onSwitchToCross, sectorId = 'finance' }: Props) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -172,48 +173,34 @@ export default function QuantumBI({ onSwitchToCross, sectorId = 'finance' }: Pro
     return () => clearInterval(interval);
   }, []);
 
-  const cyclingSectors = [
-    "Banca",
-    "Assicurazioni",
-    "Logistica",
-    "Telecomunicazioni",
-    "Manifattura",
-    "Energia"
-  ];
-  const currentCyclingSector = cyclingSectors[sectorRotationIndex % cyclingSectors.length];
+  const cyclingSectorKeys = [
+    'finance',
+    'insurance',
+    'logistics',
+    'telecom',
+    'manufacturing',
+    'energy'
+  ] as const;
+  const currentSectorKey = cyclingSectorKeys[sectorRotationIndex % cyclingSectorKeys.length];
+  const currentCyclingSector = t(`qbi_sec_${currentSectorKey}`);
 
-  const getSubtextForSector = (sector: string) => {
-    switch (sector) {
-      case 'Banca':
-        return 'Financial Intelligence Node 01';
-      case 'Assicurazioni':
-        return 'Actuarial Risk Node 02';
-      case 'Logistica':
-        return 'Supply Chain Optimizer Node 03';
-      case 'Telecomunicazioni':
-        return 'Network Capacity Node 04';
-      case 'Manifattura':
-        return 'Predictive Maintenance Node 05';
-      case 'Energia':
-        return 'Grid Optimization Node 06';
-      default:
-        return 'Enterprise AI Node 01';
-    }
+  const getSubtextForSector = (sectorKey: string) => {
+    return t(`qbi_sub_${sectorKey}` as any) || t('qbi_sub_default');
   };
 
-  const getIconForSector = (sector: string) => {
-    switch (sector) {
-      case 'Banca':
+  const getIconForSector = (sectorKey: string) => {
+    switch (sectorKey) {
+      case 'finance':
         return <Landmark className="w-8 h-8 text-quantum-primary" />;
-      case 'Assicurazioni':
+      case 'insurance':
         return <Shield className="w-8 h-8 text-quantum-primary" />;
-      case 'Logistica':
+      case 'logistics':
         return <Truck className="w-8 h-8 text-quantum-primary" />;
-      case 'Telecomunicazioni':
+      case 'telecom':
         return <Radio className="w-8 h-8 text-quantum-primary" />;
-      case 'Manifattura':
+      case 'manufacturing':
         return <Factory className="w-8 h-8 text-quantum-primary" />;
-      case 'Energia':
+      case 'energy':
         return <Zap className="w-8 h-8 text-quantum-primary" />;
       default:
         return <BrainCircuit className="w-8 h-8 text-quantum-primary" />;
@@ -285,12 +272,11 @@ Once all 4 questions have been answered, announce that you are compiling the con
 #        qc.cry(threshold_angle / N, qr[i], qr[N])
 # 6. Measure EXCLUSIVELY the final target qubit (index N) into the 1-bit classical register (cr[0]):
 #    qc.measure(qr[N], cr[0])
-# 7. Standard local simulation MUST use StatevectorSampler stable Qiskit 1.x syntax to retrieve job result counts:
+# 7. Standard local simulation MUST use StatevectorSampler stable Qiskit 1.x V2 syntax to retrieve job result counts:
 #    sampler = StatevectorSampler()
 #    job = sampler.run([qc], shots=1000)
-#    risultato = job.result()
-#    data_circuito = risultato.data
-#    counts = data_circuito.get_counts(qc)
+#    pub_result = job.result()[0]
+#    counts = pub_result.data.c.get_counts()
 #    voci_attive = counts.get('1', 0)
 #    probabilita_superamento = (voci_attive / 1000) * 100
 # 8. NEVER use np.arccos or older dict result formats. Always prevent domain errors with np.clip(..., 0, 1).
@@ -347,8 +333,8 @@ Once all 4 questions have been answered, announce that you are compiling the con
       if (msg.role === 'user') {
         const text = msg.text.trim();
         const upperText = text.toUpperCase();
+        const userTurnIndex = cleanMessages.slice(0, index + 1).filter(m => m.role === 'user').length;
 
-        // Find the closest preceding bot question in our cleaned message array
         let prevBotMsg: any = null;
         for (let j = index - 1; j >= 0; j--) {
           if (cleanMessages[j].role === 'bot') {
@@ -357,61 +343,61 @@ Once all 4 questions have been answered, announce that you are compiling the con
           }
         }
 
-        if (prevBotMsg) {
-          const prevBotText = prevBotMsg.text.toUpperCase();
+        const prevBotText = (prevBotMsg?.text || '').toUpperCase();
 
-          // Question 1: Number of historical columns to include (Universal)
-          if (prevBotText.includes('COLONNE') || prevBotText.includes('STORICO') || prevBotText.includes('CRONOLOGIA') || prevBotText.includes('STORY') || prevBotText.includes('SPECULATION') || prevBotText.includes('METRICHE') || prevBotText.includes('FASI')) {
-            const num = parseInt(text.replace(/[^\d]/g, ''), 10);
-            if (num > 0 && num <= 20) {
-              selectedColsCount = num;
-            }
+        // Question 1: Historical columns (multilingual + positional fallback)
+        if (userTurnIndex === 1 || prevBotText.includes('COLONNE') || prevBotText.includes('COLUMNS') || prevBotText.includes('HISTORICAL') || prevBotText.includes('SPALTEN') || prevBotText.includes('COLONNES') || prevBotText.includes('列') || prevBotText.includes('STORICO') || prevBotText.includes('DOMANDA 1') || prevBotText.includes('QUESTION 1')) {
+          const num = parseInt(text.replace(/[^\d]/g, ''), 10);
+          if (num > 0 && num <= 20) {
+            selectedColsCount = num;
           }
+        }
 
-          // Question 2: Simplified calculations accuracy/resolution choice (A vs B)
-          if (prevBotText.includes('RISOLUZIONE') || prevBotText.includes('ACCURATEZZA') || prevBotText.includes('RAPIDO') || prevBotText.includes('APPROFONDITO') || prevBotText.includes('LIVELLO')) {
-            if (upperText.includes('B') || upperText.includes('ALTA') || upperText.includes('PRECISIONE') || upperText.includes('APPROFONDITO')) {
-              qubitPrecision = 5;
-            } else {
-              qubitPrecision = 3;
-            }
+        // Question 2: Resolution A vs B
+        if (userTurnIndex === 2 || prevBotText.includes('RISOLUZIONE') || prevBotText.includes('RESOLUTION') || prevBotText.includes('AUFLÖSUNG') || prevBotText.includes('RÉSOLUTION') || prevBotText.includes('解像度') || prevBotText.includes('精度') || prevBotText.includes('QUESTION 2') || prevBotText.includes('DOMANDA 2')) {
+          if (upperText.includes('B') || upperText.includes('ALTA') || upperText.includes('HIGH') || upperText.includes('PRECISION') || upperText.includes('HOCH') || upperText.includes('HAUTE') || upperText.includes('高精') || upperText.includes('5')) {
+            qubitPrecision = 5;
+          } else {
+            qubitPrecision = 3;
           }
+        }
 
-          // Question 3: Critical threshold percentage
-          if (prevBotText.includes('SOGLIA') || prevBotText.includes('TOLLERANZA') || prevBotText.includes('VAR') || prevBotText.includes('SATURAZIONE') || prevBotText.includes('CAPACITÀ') || prevBotText.includes('CAPACITA')) {
-            const percentMatch = text.match(/([0-9]+(?:[.,][0-9]+)?)\s*%/);
-            let val = 0.04;
-            if (percentMatch) {
-              val = parseFloat(percentMatch[1].replace(',', '.')) / 100;
-            } else {
-              const numVal = parseFloat(text.replace(',', '.').replace(/[^\d.]/g, ''));
-              if (numVal > 0 && numVal < 100) {
-                val = numVal / 100;
-              } else if (numVal >= 0 && numVal <= 1) {
+        // Question 3: Critical threshold
+        if (userTurnIndex === 3 || prevBotText.includes('SOGLIA') || prevBotText.includes('THRESHOLD') || prevBotText.includes('SCHWELLENWERT') || prevBotText.includes('SEUIL') || prevBotText.includes('阈值') || prevBotText.includes('しきい値') || prevBotText.includes('VAR')) {
+          const percentMatch = text.match(/([0-9]+(?:[.,][0-9]+)?)\s*%/);
+          let val = 0.04;
+          if (percentMatch) {
+            val = parseFloat(percentMatch[1].replace(',', '.')) / 100;
+          } else {
+            const numVal = parseFloat(text.replace(',', '.').replace(/[^\d.]/g, ''));
+            if (!isNaN(numVal)) {
+              if (numVal >= 0 && numVal <= 1) {
                 val = numVal;
+              } else if (numVal > 1 && numVal <= 100) {
+                val = numVal / 100;
               }
             }
-            criticalThreshold = val;
-            assets.forEach(a => { varToleranceMap[a] = val; });
           }
+          criticalThreshold = val;
+          assets.forEach(a => { varToleranceMap[a] = val; });
+        }
 
-          // Question 4: Stress Scenario
-          if (prevBotText.includes('SCENARIO') || prevBotText.includes('ONDE') || prevBotText.includes('FLUSSO') || prevBotText.includes('STRESS') || prevBotText.includes('CARICO') || prevBotText.includes('SHOCK') || prevBotText.includes('DISTRIBUZIONE') || prevBotText.includes('RETE')) {
-            if (upperText.includes('GEOPOLITIC') || upperText.includes('SHOCK')) {
-              stressScenario = 'Shock Geopolitico';
-            } else if (upperText.includes('INFLAZ') || upperText.includes('IPERINFLAZ')) {
-              stressScenario = 'Iperinflazione';
-            } else if (upperText.includes('PICCO') || upperText.includes('BLACK FRIDAY') || upperText.includes('STAGIONALE')) {
-              stressScenario = 'Picco Stagionale / Black Friday';
-            } else if (upperText.includes('BLOCCO') || upperText.includes('FORNITURA') || upperText.includes('DOGANALE') || upperText.includes('SCIOPERO')) {
-              stressScenario = 'Blocco Doganale / Sciopero';
-            } else if (upperText.includes('SATURAZIONE') || upperText.includes('PICCO')) {
-              stressScenario = 'Saturazione di Picco';
-            } else if (upperText.includes('GUASTO') || upperText.includes('CANALE') || upperText.includes('INTERRUZIONE') || upperText.includes('FIBRA')) {
-              stressScenario = 'Guasto di Canale / Interruzione Fibra';
-            } else {
-              stressScenario = 'Normale';
-            }
+        // Question 4: Stress Scenario
+        if (userTurnIndex >= 4 || prevBotText.includes('SCENARIO') || prevBotText.includes('SZENARIO') || prevBotText.includes('SCÉNARIO') || prevBotText.includes('STRESS') || prevBotText.includes('情景') || prevBotText.includes('シナリオ')) {
+          if (upperText.includes('2') || upperText.includes('GEOPOLITIC') || upperText.includes('SHOCK') || upperText.includes('SCHOCK') || upperText.includes('CHOC') || upperText.includes('PICCO') || upperText.includes('地缘') || upperText.includes('地政')) {
+            stressScenario = 'Shock Geopolitico';
+          } else if (upperText.includes('3') || upperText.includes('INFLAZ') || upperText.includes('HYPER') || upperText.includes('BOTTLENECK') || upperText.includes('SUPPLY') || upperText.includes('GUASTO') || upperText.includes('ENGPASS') || upperText.includes('GOULOT') || upperText.includes('通胀') || upperText.includes('ボトルネック')) {
+            stressScenario = 'Iperinflazione';
+          } else if (upperText.includes('BLACK FRIDAY') || upperText.includes('STAGIONALE')) {
+            stressScenario = 'Picco Stagionale / Black Friday';
+          } else if (upperText.includes('DOGANALE') || upperText.includes('SCIOPERO')) {
+            stressScenario = 'Blocco Doganale / Sciopero';
+          } else if (upperText.includes('SATURAZIONE')) {
+            stressScenario = 'Saturazione di Picco';
+          } else if (upperText.includes('CANALE') || upperText.includes('FIBRA')) {
+            stressScenario = 'Guasto di Canale / Interruzione Fibra';
+          } else {
+            stressScenario = 'Normale';
           }
         }
       }
@@ -455,12 +441,15 @@ from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.primitives import StatevectorSampler
 from qiskit.qasm2 import dumps as qasm2_dumps
 
-# 1. READ CSV (Architettura: Colonna 0 = Entità, Colonne successive = Campi numerici)
+# 1. READ DATASET (CSV o Excel .xlsx/.xls)
+DATASET_FILE = "${(currentFile?.name || 'dataset.csv').replace(/["\\]/g, '')}"
 try:
-    df = pd.read_csv('aa.csv')
-    delimiter = ';' if df.shape[1] == 1 else ','
-    if df.shape[1] == 1:
-        df = pd.read_csv('aa.csv', sep=';')
+    if DATASET_FILE.lower().endswith(('.xlsx', '.xls')):
+        df = pd.read_excel(DATASET_FILE)
+    else:
+        df = pd.read_csv(DATASET_FILE)
+        if df.shape[1] == 1:
+            df = pd.read_csv(DATASET_FILE, sep=';')
 except Exception:
     # Fallback robusto con dati allineati per il settore ${detectedSector}
     entities_fallback = ${JSON.stringify(p.assets)}
@@ -534,9 +523,13 @@ num_colonne_selezionate = min(len(colonne_numeriche), ${p.selectedColsCount})
 colonne_per_analisi = colonne_numeriche[:num_colonne_selezionate]
 
 sub_df = df[colonne_per_analisi] if colonne_per_analisi else df
-valori_numerici = pd.to_numeric(sub_df.values.flatten(), errors='coerce') if colonne_per_analisi else np.array([100.0])
+if colonne_per_analisi:
+    cleaned_series = pd.Series(sub_df.values.flatten()).astype(str).str.replace(r'[\\s$%€£¥]', '', regex=True).str.replace(',', '.', regex=False)
+    valori_numerici = pd.to_numeric(cleaned_series, errors='coerce').to_numpy()
+else:
+    valori_numerici = np.array([100.0])
 cifra_massima = np.nanmax(valori_numerici) if len(valori_numerici) > 0 and not np.isnan(np.nanmax(valori_numerici)) else 100.0
-if cifra_massima == 0:
+if cifra_massima <= 0:
     cifra_massima = 1.0
 
 # 3. TRASFORMAZIONE E LOG DEI RADIANTI (Formula con arcoseno e clip preventivo)
@@ -551,7 +544,12 @@ for entita in entita_rilevate:
             if not row_match.empty:
                 val = row_match[col].iloc[0]
                 try:
-                    cifra_specifica = float(str(val).replace(' ', ''))
+                    raw_clean = str(val).replace('%', '').replace('€', '').replace('$', '').replace('£', '').replace(' ', '')
+                    if ',' in raw_clean and '.' in raw_clean:
+                        raw_clean = raw_clean.replace('.', '').replace(',', '.') if raw_clean.index('.') < raw_clean.index(',') else raw_clean.replace(',', '')
+                    elif ',' in raw_clean:
+                        raw_clean = raw_clean.replace(',', '.')
+                    cifra_specifica = float(raw_clean)
                 except Exception:
                     cifra_specifica = 0.0
         else:
@@ -561,17 +559,17 @@ for entita in entita_rilevate:
             except Exception:
                 cifra_specifica = 0.0
 
-        P = (cifra_specifica / cifra_massima) * multiplier
+        P = (cifra_specifica / max(1e-9, cifra_massima)) * multiplier
         P_clipped = np.clip(P, 0, 1)
         theta = 2 * np.arcsin(np.sqrt(P_clipped))
         angoli_mappatura[entita][col] = theta
         print(f"[{entita}] -> [{col}] -> Angolo calcolato: {theta:.6f} rad")
 print("--------------------------------------------------\\n")
 
-# 4. QUANTUM CIRCUIT SETUP (Qiskit 1.x Quantum Comparator Core)
+# 4. QUANTUM CIRCUIT SETUP (Qiskit 1.x Quantum Comparator Core, capped at 127 IBM qubits)
 qubits_per_col = ${p.qubitPrecision}
-# N: Somma dei qubit di precisione scelti per le variabili analizzate
-N = len(entita_rilevate) * len(colonne_per_analisi) * qubits_per_col
+# N: Somma dei qubit di precisione scelti per le variabili analizzate (max 126 data + 1 comparator = 127)
+N = min(126, len(entita_rilevate) * len(colonne_per_analisi) * qubits_per_col)
 
 if N == 0:
     N = 3 # Safe minimal boundary
@@ -606,13 +604,11 @@ for i in range(N):
 # 6. MISURAZIONE ESCLUSIVA TARGET (Indice N nel registro classico a 1 solo bit)
 qc.measure(qr[N], cr[0])
 
-# 7. EXECUTION (Sintassi universale standard Qiskit 1.x - Regola di Abbattimento Bug)
+# 7. EXECUTION (Sintassi universale standard Qiskit 1.x / V2 - StatevectorSampler)
 sampler = StatevectorSampler()
 job = sampler.run([qc], shots=1000)
-risultato = job.result()
-
-data_circuito = risultato.data
-counts = data_circuito.get_counts(qc) # Questa è l'unica sintassi universale ammessa
+pub_result = job.result()[0]
+counts = pub_result.data.c.get_counts()
 voci_attive = counts.get('1', 0)
 probabilita_superamento = (voci_attive / 1000) * 100
 
@@ -633,48 +629,46 @@ except Exception as e:
     print("Errore dumps OpenQASM:", e)
 `;
 
-    const dynamic_N = Math.max(3, p.assets.length * p.selectedColsCount * p.qubitPrecision);
+    const dynamic_N = Math.min(126, Math.max(3, p.assets.length * p.selectedColsCount * p.qubitPrecision));
+    const safeThresh = Math.min(1, Math.max(0, p.criticalThreshold));
+    const threshTheta = 2 * Math.asin(Math.sqrt(safeThresh));
+    const cryAngle = (threshTheta / dynamic_N).toFixed(6);
+    let qasmRyGates = '';
+    let qasmCryGates = '';
+    for (let i = 0; i < dynamic_N; i++) {
+      const assetLabel = p.assets[i % Math.max(1, p.assets.length)] || `Asset_${i + 1}`;
+      qasmRyGates += `ry(${threshTheta.toFixed(6)}) q[${i}]; // amplitude mapping for ${assetLabel}\n`;
+      qasmCryGates += `cry(${cryAngle}) q[${i}], q[${dynamic_N}];\n`;
+    }
     const qasm = `// =====================================================================
 // CIRCUITO OPENQASM IBM ENGINE - SECTOR: ${detectedSector}
 // =====================================================================
 OPENQASM 2.0;
 include "qelib1.inc";
 
-// Alloca registro q di dimensioni N + 1 (N per variabili d'asset, l'ultimo è il Comparatore)
+// Alloca registro q di dimensioni N + 1 (${dynamic_N} variabili d'asset + 1 Comparatore, max 127 qubit)
 qreg q[${dynamic_N + 1}];
 creg c[1]; // Registro classico per la misurazione di 1 solo bit
 
-// Angolo di sfasamento di soglia calcolato dinamicamente:
-// Soglia critica: ${(p.criticalThreshold * 100).toFixed(2)}%
-// Angolo d'onda: ${(2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, p.criticalThreshold))))).toFixed(6)} rad
-
+// Soglia critica: ${(safeThresh * 100).toFixed(2)}% | Angolo d'onda: ${threshTheta.toFixed(6)} rad
 // 1. Inizializzazione degli asset sui qubit principali
-ry(${(2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, p.criticalThreshold))))).toFixed(4)}) q[0];
+${qasmRyGates.trim()}
 
-// 2. Porte controllate CRY per accumulare l'errore o il superamento verso l'unico qubit target (Indice ${dynamic_N})
-cry(${(2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, p.criticalThreshold)))) / dynamic_N).toFixed(4)}) q[0], q[${dynamic_N}];
+// 2. Porte controllate CRY verso l'unico qubit target (Indice ${dynamic_N})
+${qasmCryGates.trim()}
 
 // 3. Misurazione esclusiva del Qubit target finale nel registro classico c[0]
 measure q[${dynamic_N}] -> c[0];
 `;
 
     return { json, python, qasm };
-  }, [parsedParams, detectedSector]);
+  }, [parsedParams, detectedSector, currentFile]);
 
   useEffect(() => {
-    if (messages.length === 0) {
-      // Phase 0: Initial Greeting & Prerequisites
-      const initialText = `Welcome to the Quantum Engine BI. I am your specialized Quantum Data Engineering Assistant.
-
-Before starting, to ensure the quantum computer parses your data correctly, please review these CSV requirements:
-• Must be a pure .csv file.
-• Decimal numbers MUST use a dot (e.g., 75.20) and NOT a comma.
-• Dates must be in chronological order without empty rows.
-
-Do you have a file ready or would you like assistance structuring one? If you already have a CSV file, feel free to upload it by clicking the icon below.`;
-      setMessages([{ id: 'start', role: 'bot', text: initialText }]);
+    if (messages.length === 0 || (messages.length === 1 && messages[0].id === 'start')) {
+      setMessages([{ id: 'start', role: 'bot', text: t('qbi_greeting') }]);
     }
-  }, [messages.length, sectorId]);
+  }, [messages.length, sectorId, language]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -729,7 +723,8 @@ Do you have a file ready or would you like assistance structuring one? If you al
       const activePrompt = getDynamicSystemPrompt();
       const response = await axios.post('/api/quantum-bi/chat', {
         messages: historyToPass,
-        systemPrompt: activePrompt
+        systemPrompt: activePrompt,
+        language
       });
 
       // Check if the response contains HTML startup page
@@ -741,7 +736,7 @@ Do you have a file ready or would you like assistance structuring one? If you al
       
       if (!botText || typeof botText !== 'string' || botText.trim() === "") {
         console.error("Invalid AI Response payload:", response.data);
-        throw new Error("La risposta dell'IA non è valida o è vuota. Riprova tra poco.");
+        throw new Error(t('qbi_ai_error_fallback'));
       }
 
       addMessage('bot', botText);
@@ -811,7 +806,7 @@ Do you have a file ready or would you like assistance structuring one? If you al
           qubitPrecision: parsedParams.qubitPrecision,
           criticalThreshold: parsedParams.criticalThreshold,
           stressScenario: parsedParams.stressScenario
-        });
+        }, language);
 
         addMessage('bot', localFallback.text);
 
@@ -821,7 +816,7 @@ Do you have a file ready or would you like assistance structuring one? If you al
         setErrorStatus(null);
       } catch (fallbackErr) {
         console.error("Local engine error:", fallbackErr);
-        addMessage('bot', "⚠️ Si è verificato un errore durante l'elaborazione. Per favore riprova inviando il messaggio.");
+        addMessage('bot', t('qbi_err_generic'));
       }
     } finally {
       setIsProcessing(false);
@@ -840,73 +835,91 @@ Do you have a file ready or would you like assistance structuring one? If you al
       outputMessaggio.innerHTML = "";
     }
 
-    if (!file.name.endsWith('.csv') && file.type !== "text/csv") {
-      const errorMsg = "<span>❌ Error: Incorrect format. Please upload .csv files only.</span>";
+    const isExcelFile = /\.(xlsx|xls)$/i.test(file.name);
+    const isCsvFile = /\.csv$/i.test(file.name) || file.type === "text/csv";
+    if (!isExcelFile && !isCsvFile) {
+      const errText = t('qbi_err_format');
       if (outputMessaggio) {
-        outputMessaggio.innerHTML = errorMsg;
+        outputMessaggio.innerHTML = `<span>${errText}</span>`;
       }
-      addMessage('bot', "❌ Error: Incorrect format. Please upload .csv files only.");
+      addMessage('bot', errText);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     if (file.size > LIMITE_PESO_BYTES) {
-      const errorMsg = "<span>❌ Error: File size too large. Maximum 5 MB.</span>";
+      const errText = t('qbi_err_size');
       if (outputMessaggio) {
-        outputMessaggio.innerHTML = errorMsg;
+        outputMessaggio.innerHTML = `<span>${errText}</span>`;
       }
-      addMessage('bot', "❌ Error: File size too large. Maximum 5 MB.");
+      addMessage('bot', errText);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
+    const splitQuotedRow = (line: string, sep: string): string[] => {
+      const out: string[] = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === sep && !inQuotes) {
+          out.push(cur.trim().replace(/^"|"$/g, ''));
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur.trim().replace(/^"|"$/g, ''));
+      return out;
+    };
+
+    const parseNumericBiCell = (rawCell: string): number | null => {
+      let s = rawCell.replace(/[\s$%€£¥]/g, '');
+      if (!s) return null;
+      if (s.includes(',') && s.includes('.')) {
+        s = s.indexOf('.') < s.indexOf(',') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+      } else if (s.includes(',')) {
+        s = s.replace(',', '.');
+      }
+      if (!/^[-+]?\d*\.?\d+$/.test(s)) return null;
+      const n = parseFloat(s);
+      return isFinite(n) ? n : null;
+    };
+
     const reader = new FileReader();
     reader.onerror = () => {
-      addMessage('bot', "Error reading file. Please verify the file is not corrupted.");
+      addMessage('bot', t('qbi_err_read'));
     };
 
     reader.onload = (event) => {
       try {
-        const text = event.target?.result as string;
-        if (!text) throw new Error("File vuoto");
+        let text = '';
+        if (isExcelFile) {
+          const buffer = event.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          if (!firstSheet) throw new Error(t('qbi_err_empty'));
+          text = XLSX.utils.sheet_to_csv(workbook.Sheets[firstSheet]);
+        } else {
+          text = (event.target?.result as string) || '';
+        }
+        text = text.replace(/^\uFEFF/, '');
+        if (!text.trim()) throw new Error(t('qbi_err_empty'));
 
         const allLines = text.split(/\r?\n/).filter(line => line.trim() !== "");
         if (allLines.length > 0) {
-          // Detect delimiter (comma or semicolon)
+          // Detect delimiter (comma, semicolon, or tab)
           const firstLine = allLines[0];
           const commaCount = (firstLine.match(/,/g) || []).length;
           const semiCount = (firstLine.match(/;/g) || []).length;
-          const delimiter = semiCount > commaCount ? ';' : ',';
+          const tabCount = (firstLine.match(/\t/g) || []).length;
+          const delimiter = tabCount > commaCount && tabCount > semiCount ? '\t' : (semiCount > commaCount ? ';' : ',');
 
-          // Validate each cell of the data rows for forbidden decimal commas or incorrect semicolons in numbers
-          let hasCommaOrSemicolonError = false;
-          let errorLine = -1;
-          for (let i = 1; i < allLines.length; i++) {
-            const line = allLines[i].trim();
-            if (line === "") continue;
-            const columns = line.split(delimiter);
-            for (let j = 0; j < columns.length; j++) {
-              const dato = columns[j].trim();
-              if (dato.includes(',') || dato.includes(';')) {
-                hasCommaOrSemicolonError = true;
-                errorLine = i + 1;
-                break;
-              }
-            }
-            if (hasCommaOrSemicolonError) break;
-          }
-
-          if (hasCommaOrSemicolonError) {
-            const errorText = "❌ STRICT ERROR: File contains commas or semicolons at line " + errorLine + ". Replace decimal commas with a dot (.) and reload.";
-            if (outputMessaggio) {
-              outputMessaggio.innerHTML = `<span style='color: #ef4444;'>${errorText}</span>`;
-            }
-            addMessage('bot', errorText);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-            return;
-          }
-
-          const headers = firstLine.split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
+          const headers = splitQuotedRow(firstLine, delimiter);
           setCsvHeaders(headers);
           setCurrentFile(file);
 
@@ -925,13 +938,13 @@ Do you have a file ready or would you like assistance structuring one? If you al
             for (let i = 1; i < Math.min(allLines.length, 50); i++) {
               const row = allLines[i].trim();
               if (row === "") continue;
-              const cols = row.split(delimiter);
+              const cols = splitQuotedRow(row, delimiter);
               if (colIdx < cols.length) {
-                cells.push(cols[colIdx].trim().replace(/^"|"$/g, ''));
+                cells.push(cols[colIdx]);
               }
             }
 
-            const isDateHeader = lowerHeader.includes('date') || lowerHeader.includes('data') || lowerHeader.includes('tempo') || lowerHeader.includes('time') || lowerHeader.includes('timestamp') || lowerHeader.includes('giorno') || lowerHeader.includes('index') || lowerHeader.includes('id');
+            const isDateHeader = lowerHeader.includes('date') || lowerHeader.includes('data') || lowerHeader.includes('tempo') || lowerHeader.includes('time') || lowerHeader.includes('timestamp') || lowerHeader.includes('giorno') || lowerHeader.includes('index') || lowerHeader === 'id';
             const looksLikeDate = cells.some(cell => {
               return /^\d{4}[-/]\d{2}[-/]\d{2}$/.test(cell) || /^\d{2}[-/]\d{2}[-/]\d{4}$/.test(cell);
             });
@@ -946,9 +959,7 @@ Do you have a file ready or would you like assistance structuring one? If you al
 
             cells.forEach(cell => {
               if (cell === "") return;
-              const sanitized = cell.replace(/[\s$%€]/g, '');
-              const parsed = parseFloat(sanitized);
-              if (!isNaN(parsed) && isFinite(parsed)) {
+              if (parseNumericBiCell(cell) !== null) {
                 numericCount++;
               } else {
                 nonNumericCount++;
@@ -974,9 +985,9 @@ Do you have a file ready or would you like assistance structuring one? If you al
                 for (let i = 1; i < allLines.length; i++) {
                   const row = allLines[i].trim();
                   if (row === "") continue;
-                  const cols = row.split(delimiter);
+                  const cols = splitQuotedRow(row, delimiter);
                   if (colIdx < cols.length) {
-                    const val = cols[colIdx].trim().replace(/^"|"$/g, '');
+                    const val = cols[colIdx];
                     if (val !== "") {
                       parsedEntities.push(val);
                     }
@@ -1012,63 +1023,64 @@ Do you have a file ready or would you like assistance structuring one? If you al
           const hasLog = sampleText.includes("hub") || sampleText.includes("truck") || sampleText.includes("shipping") || sampleText.includes("container") || sampleText.includes("fleet") || sampleText.includes("logistics") || sampleText.includes("delivery") || sampleText.includes("carrier");
 
           if (hasFin) {
-            sectorStr = "Finance / Commodities / Markets";
-            sectorBriefStr = "Finance";
+            sectorStr = t('qbi_loc_fin_sec');
+            sectorBriefStr = t('qbi_sec_finance');
           } else if (hasRet) {
-            sectorStr = "Retail / Apparel / Warehouse";
+            sectorStr = t('qbi_loc_ret_sec');
             sectorBriefStr = "Retail";
           } else if (hasTel) {
-            sectorStr = "Telecom / IT Infrastructure";
-            sectorBriefStr = "Telecom";
+            sectorStr = t('qbi_loc_tel_sec');
+            sectorBriefStr = t('qbi_sec_telecom');
           } else if (hasLog) {
-            sectorStr = "Logistics / Supply Chain";
-            sectorBriefStr = "Logistics";
+            sectorStr = t('qbi_loc_log_sec');
+            sectorBriefStr = t('qbi_sec_logistics');
           } else {
-            sectorStr = "Universal Data Analysis";
+            sectorStr = t('qbi_loc_uni_sec');
             sectorBriefStr = "Universal";
           }
 
           setDetectedSector(sectorStr);
           setSectorBrief(sectorBriefStr);
 
-          // Get a sample of the data (first 3 rows)
           const dataSample = allLines.slice(1, 4).join('\n');
+          const noneLabel = t('qbi_none');
 
-          const assetListSample = uniqueEntities.length > 0 ? uniqueEntities.slice(0, 3).join(', ') : 'Gold, Platinum, Oil';
-          const firstQuestion = `I detected your assets/variables, which will ALL be analyzed together in parallel (${assetListSample}). \nFor each of them there are ${numNumericColumns} historical columns available. \n\nQUESTION 1: How many of these ${numNumericColumns} sequential historical columns (starting from the left) do you want to include in the current quantum simulation? Choose a number from 1 to ${numNumericColumns}.`;
+          const fileInfoMsg = `[${t('qbi_scan_header')}]
 
-          const fileInfoMsg = `[SYSTEM: FLEXIBLE SEMANTIC SCAN COMPLETED]
+• ${t('qbi_scan_sector')}: **${sectorStr}**
+• ${t('qbi_scan_col_map')}:
+  - *${t('qbi_scan_date_cols')}*: ${dateCols.length > 0 ? dateCols.join(', ') : noneLabel}
+  - *${t('qbi_scan_entity_cols')}*: ${entityCols.length > 0 ? entityCols.join(', ') : t('qbi_scan_entity_fallback')}
+  - *${t('qbi_scan_num_cols')}*: ${numericCols.length > 0 ? numericCols.join(', ') : noneLabel}
+• ${t('qbi_scan_items')}: ${uniqueEntities.slice(0, 8).join(', ')}${uniqueEntities.length > 8 ? '...' : ''} (${t('qbi_scan_total')}: ${uniqueEntities.length})
 
-• Calibrated Sector: **${sectorStr}**
-• Column Role Mapping:
-  - *Excluded Date/Index Columns*: ${dateCols.length > 0 ? dateCols.join(', ') : 'None'}
-  - *Entity/Descriptive Columns*: ${entityCols.length > 0 ? entityCols.join(', ') : 'None (numeric column headers will act directly as Assets)'}
-  - *Numeric Columns (Variables/Historical Data)*: ${numericCols.length > 0 ? numericCols.join(', ') : 'None'}
-• Identified Assets / Items: ${uniqueEntities.slice(0, 8).join(', ')}${uniqueEntities.length > 8 ? '...' : ''} (Total: ${uniqueEntities.length})
-
-Data Sample (first 3 rows):
+${t('qbi_scan_sample', { n: 3 })}:
 ${dataSample}
 
 ---
 
-**Initial Analysis Successfully Completed.**
-Proceeding with the dynamic interview for quantum circuit compilation.
+**${t('qbi_scan_done', { rows: allLines.length - 1 })}**
+${t('qbi_scan_proceeding')}
 
-**QUESTION 1:** ${firstQuestion}`;
-          
+**${t('qbi_q1_label')}:** ${t('qbi_q1_prompt')}`;
+
           // Clear file input so it can be re-uploaded if needed
           if (fileInputRef.current) fileInputRef.current.value = '';
-          
+
           handleSend(fileInfoMsg);
         } else {
-          addMessage('bot', "The file appears to be empty or formatted incorrectly.");
+          addMessage('bot', t('qbi_err_empty'));
         }
       } catch (err) {
         console.error("CSV Parse error:", err);
-        addMessage('bot', "Si è verificato un errore durante l'analisi del file CSV. Assicurati che sia in formato testo.");
+        addMessage('bot', t('qbi_err_parse'));
       }
     };
-    reader.readAsText(file);
+    if (isExcelFile) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   };
 
   const copyToClipboard = (text: string, type: string) => {
@@ -1101,18 +1113,18 @@ Proceeding with the dynamic interview for quantum circuit compilation.
             whileTap={{ scale: 0.95 }}
             className="p-3 bg-quantum-primary/10 rounded-2xl border border-quantum-primary/20 flex items-center justify-center shadow-lg shadow-quantum-primary/5 shrink-0 cursor-pointer"
             onClick={() => setSectorRotationIndex(prev => prev + 1)}
-            title="Sfoglia settore quantistico (Clicca per girare)"
+            title={t('qbi_cycle_tooltip')}
           >
             <AnimatePresence mode="wait">
               <motion.div
-                key={currentCyclingSector}
+                key={currentSectorKey}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center justify-center"
               >
-                {getIconForSector(currentCyclingSector)}
+                {getIconForSector(currentSectorKey)}
               </motion.div>
             </AnimatePresence>
           </motion.div>
@@ -1121,7 +1133,7 @@ Proceeding with the dynamic interview for quantum circuit compilation.
               <span className="relative inline-block min-w-[130px] sm:min-w-[170px] h-[32px] overflow-hidden align-middle">
                 <AnimatePresence mode="popLayout">
                   <motion.span
-                    key={currentCyclingSector}
+                    key={currentSectorKey}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
@@ -1133,13 +1145,13 @@ Proceeding with the dynamic interview for quantum circuit compilation.
                 </AnimatePresence>
               </span>
               <span className="text-quantum-primary font-normal">
-                {currentCyclingSector === 'Assicurazioni' ? 'Quantum Risk Engine' : 'Quantum Advisor'}
+                {currentSectorKey === 'insurance' ? t('qbi_risk_engine') : t('qbi_advisor')}
               </span>
             </h2>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               <p className="text-gray-500 font-mono text-[9px] uppercase tracking-widest min-h-[14px] flex items-center">
-                {getSubtextForSector(currentCyclingSector)}
+                {getSubtextForSector(currentSectorKey)}
               </p>
             </div>
           </div>
@@ -1148,18 +1160,18 @@ Proceeding with the dynamic interview for quantum circuit compilation.
         <div className="flex gap-3">
           <button 
             className="p-2 bg-red-500/20 rounded-lg border border-red-500/50 animate-pulse group relative"
-            title="Quantum Engine Guide"
+            title={t('qbi_guide_tooltip')}
           >
             <AlertCircle className="w-5 h-5 text-red-500" />
             <div className="absolute hidden group-hover:block top-full right-0 mt-2 w-64 p-3 bg-black/90 border border-red-500/30 rounded-xl z-50 text-[10px] text-gray-300 normal-case">
-              Upload a CSV with point decimals and follow the interview to generate quantum circuits.
+              {t('qbi_guide_hover')}
             </div>
           </button>
           <button 
             onClick={resetAll}
             className="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl border border-white/5 transition-all flex items-center gap-2 text-[10px] font-bold uppercase"
           >
-            <RotateCcw className="w-4 h-4" /> Reset
+            <RotateCcw className="w-4 h-4" /> {t('qbi_reset')}
           </button>
         </div>
       </div>
@@ -1169,32 +1181,32 @@ Proceeding with the dynamic interview for quantum circuit compilation.
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-2.5 bg-white/[0.02] hover:bg-white/[0.04] border border-white/10 rounded-2xl text-[10px] sm:text-xs font-mono text-gray-400 transition-all select-none">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-quantum-primary animate-pulse" />
-            <span className="uppercase text-white font-bold tracking-wider">Registro Dialogo AI</span>
-            <span className="opacity-60">| {messages.filter(m => m.id !== 'start').length} domande e risposte</span>
+            <span className="uppercase text-white font-bold tracking-wider">{t('qbi_dialog_log')}</span>
+            <span className="opacity-60">| {messages.filter(m => m.id !== 'start').length} {t('qbi_qas_count')}</span>
           </div>
           <button
             onClick={() => {
               const textContent = messages
                 .filter(m => {
-                  const t = m.text.trim();
-                  return !t.startsWith('[ERRORE') && !t.includes('Quota esaurita') && !t.includes('Riprova tra');
+                  const txt = m.text.trim();
+                  return !txt.startsWith('[ERRORE') && !txt.includes('Quota esaurita') && !txt.includes('Riprova tra');
                 })
-                .map(m => `[${m.role === 'user' ? 'UTENTE' : 'ASSISTENTE QUANTUM'}]\n${m.text}`)
+                .map(m => `[${m.role === 'user' ? t('qbi_user_tag') : t('qbi_assistant_tag')}]\n${m.text}`)
                 .join('\n\n');
               copyToClipboard(textContent, 'interview');
             }}
             className="flex items-center gap-2 px-3 py-1 bg-quantum-primary/10 hover:bg-quantum-primary/20 text-quantum-primary border border-quantum-primary/30 rounded-xl transition-all font-bold uppercase text-[9px] tracking-wide cursor-pointer"
-            title="Copia l'intera conversazione"
+            title={t('qbi_copy_dialog_title')}
           >
             {copiedType === 'interview' ? (
               <>
                 <Check className="w-3.5 h-3.5 text-green-500" />
-                Intervista Copiata!
+                {t('qbi_copied_interview')}
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5" />
-                Copia Domande e Risposte
+                {t('qbi_copy_dialog')}
               </>
             )}
           </button>
@@ -1209,11 +1221,11 @@ Proceeding with the dynamic interview for quantum circuit compilation.
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/5 pb-4 gap-2">
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5 text-quantum-primary animate-pulse" />
-                <span className="text-xs font-black text-white uppercase tracking-widest">Cronologia e Registro dell'Intervista Quantistica</span>
+                <span className="text-xs font-black text-white uppercase tracking-widest">{t('qbi_history_title')}</span>
               </div>
               <div className="flex items-center gap-2 text-[9px] font-mono text-gray-500 uppercase tracking-wider">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span>Intervista Completata con Successo</span>
+                <span>{t('qbi_success_badge')}</span>
               </div>
             </div>
             
@@ -1232,7 +1244,7 @@ Proceeding with the dynamic interview for quantum circuit compilation.
                     {m.role === 'user' ? <User className="w-3.5 h-3.5 text-quantum-secondary" /> : <Bot className="w-3.5 h-3.5 text-quantum-primary" />}
                   </div>
                   <div className="flex-1">
-                    <p className="font-mono text-[9px] text-gray-500 uppercase mb-1">{m.role === 'user' ? 'Utente' : 'Assistente Quantistico'}</p>
+                    <p className="font-mono text-[9px] text-gray-500 uppercase mb-1">{m.role === 'user' ? t('qbi_user_role') : t('qbi_assistant_role')}</p>
                     <p className="whitespace-pre-line">{m.text}</p>
                   </div>
                 </div>
@@ -1247,22 +1259,22 @@ Proceeding with the dynamic interview for quantum circuit compilation.
               <div className="border-b border-white/10 bg-white/5 flex items-center justify-between p-4 px-6">
                 <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                   <Code2 className="w-4 h-4 text-quantum-primary" />
-                  [START_PYTHON] WORKSPACE CODICE PYTHON (QISKIT)
+                  {t('qbi_python_header')}
                 </span>
                 <button
                   onClick={() => copyToClipboard(pythonCode || dynamicCodes.python, 'python')}
                   className="p-2 bg-black/60 hover:bg-white/10 rounded-xl text-gray-400 hover:text-quantum-primary transition-all border border-white/10 flex items-center gap-2 text-[10px] font-mono"
-                  title="Copia codice Python"
+                  title={t('qbi_copy_python_title')}
                 >
                   {copiedType === 'python' ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-green-500" />
-                      COPIATO
+                      {t('qbi_copied')}
                     </>
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5" />
-                      COPIA
+                      {t('qbi_copy')}
                     </>
                   )}
                 </button>
@@ -1279,22 +1291,22 @@ Proceeding with the dynamic interview for quantum circuit compilation.
               <div className="border-b border-white/10 bg-white/5 flex items-center justify-between p-4 px-6">
                 <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-amber-500" />
-                  [START_COMPOSER] CIRCUITO OPENQASM IBM ENGINE
+                  {t('qbi_qasm_header')}
                 </span>
                 <button
                   onClick={() => copyToClipboard(qasmCode || dynamicCodes.qasm, 'qasm')}
                   className="p-2 bg-black/60 hover:bg-white/10 rounded-xl text-gray-400 hover:text-amber-500 transition-all border border-white/10 flex items-center gap-2 text-[10px] font-mono"
-                  title="Copia codice OpenQASM"
+                  title={t('qbi_copy_qasm_title')}
                 >
                   {copiedType === 'qasm' ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-green-500" />
-                      COPIATO
+                      {t('qbi_copied')}
                     </>
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5" />
-                      COPIA
+                      {t('qbi_copy')}
                     </>
                   )}
                 </button>
@@ -1314,7 +1326,7 @@ Proceeding with the dynamic interview for quantum circuit compilation.
             <div className="p-4 border-b border-white/5 bg-black/20 flex items-center justify-between px-6 shrink-0">
               <div className="flex items-center gap-2">
                 <Bot className="w-4 h-4 text-quantum-primary" />
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">Intervista Strategica</span>
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">{t('qbi_interview_title')}</span>
               </div>
               {currentFile && (
                 <div className="flex items-center gap-2 px-3 py-1 bg-quantum-primary/10 rounded-full border border-quantum-primary/20 animate-in zoom-in-95 duration-250">
@@ -1332,7 +1344,7 @@ Proceeding with the dynamic interview for quantum circuit compilation.
                       URL.revokeObjectURL(url);
                     }}
                     className="p-1 hover:bg-white/10 rounded text-quantum-primary hover:text-white transition-all ml-1 border border-white/5 bg-black/40"
-                    title="Download CSV file to your device"
+                    title={t('qbi_download_csv_title')}
                   >
                     <Download className="w-3 h-3 animate-pulse" />
                   </button>
@@ -1378,7 +1390,7 @@ Proceeding with the dynamic interview for quantum circuit compilation.
                           <span className="w-1.5 h-1.5 bg-quantum-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                           <span className="w-1.5 h-1.5 bg-quantum-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                         </div>
-                        <span className="text-[10px] text-gray-500 font-mono italic">AI is processing...</span>
+                        <span className="text-[10px] text-gray-500 font-mono italic">{t('qbi_ai_processing')}</span>
                       </div>
                     </div>
                   </motion.div>
@@ -1405,11 +1417,11 @@ Proceeding with the dynamic interview for quantum circuit compilation.
                         }`}
                       >
                         <RotateCcw className={`w-3 h-3 ${retryCountdown > 0 ? '' : 'animate-spin-slow'}`} /> 
-                        {retryCountdown > 0 ? `Wait ${retryCountdown}s` : 'Retry now'}
+                        {retryCountdown > 0 ? t('qbi_wait_s', { s: retryCountdown }) : t('qbi_retry_now')}
                       </button>
                       {errorStatus === 429 && retryCountdown > 0 && (
                         <span className="text-[9px] text-gray-500 font-mono italic animate-pulse shadow-sm">
-                          Synchronizing with Google servers...
+                          {t('qbi_syncing')}
                         </span>
                       )}
                     </div>
@@ -1426,10 +1438,10 @@ Proceeding with the dynamic interview for quantum circuit compilation.
                 <button 
                   onClick={() => fileInputRef.current?.click()}
                   className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-gray-400 transition-all hover:text-quantum-primary group"
-                  title="Upload CSV"
+                  title={t('qbi_upload_csv_title')}
                 >
                   <UploadCloud className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".csv" />
+                  <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />
                 </button>
                 <div className="flex-1 relative">
                   <input 
@@ -1437,7 +1449,7 @@ Proceeding with the dynamic interview for quantum circuit compilation.
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={currentFile ? "Reply to assistant..." : "Begin interview..."}
+                    placeholder={currentFile ? t('qbi_reply_placeholder') : t('qbi_begin_placeholder')}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs text-white outline-none focus:border-quantum-primary/50 transition-all"
                   />
                   <button 

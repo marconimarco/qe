@@ -215,7 +215,7 @@ function AppContent({
     }
     if (isTestPageOpen && !isIconAllowedForUser(currentUser, 'agent_ai')) {
       setIsTestPageOpen(false);
-      handleAccessDenied('agent_ai', 'Agent AI');
+      handleAccessDenied('agent_ai', t('s_agent_ai_name'));
     }
   }, [currentUser, selectedSectorId, isIbmInterfaceOpen, isTestPageOpen]);
 
@@ -567,7 +567,7 @@ function AppContent({
             }}
             onOpenTest={() => {
               if (!isIconAllowedForUser(currentUser, 'agent_ai')) {
-                handleAccessDenied('agent_ai', 'Agent AI');
+                handleAccessDenied('agent_ai', t('s_agent_ai_name'));
                 return;
               }
               logUserAccess({
@@ -606,10 +606,10 @@ function AppContent({
             id="trial-disclaimer-footer-btn"
             onClick={() => setIsTrialDisclaimerOpen(true)}
             className="text-[9px] sm:text-[10px] text-amber-400 hover:text-white font-mono uppercase tracking-[0.15em] sm:tracking-[0.3em] flex items-center gap-1.5 transition-all cursor-pointer group hover:bg-white/5 px-2 py-1 rounded-lg border border-amber-500/20 hover:border-amber-500/60"
-            title="Visualizza Informativa Versione Trial di Prova"
+            title={t('trial_disclaimer')}
           >
             <AlertTriangle className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-            <span className="border-b border-amber-400/40 group-hover:border-white font-bold">Trial Disclaimer</span>
+            <span className="border-b border-amber-400/40 group-hover:border-white font-bold">{t('trial_disclaimer')}</span>
           </button>
 
           {/* Quick mobile logout shortcut in footer */}

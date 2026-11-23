@@ -46,7 +46,7 @@ interface Props {
 }
 
 export default function CrossCode({ onSwitchToBI }: Props) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   
   // Interview State
   const [phase, setPhase] = useState<'init' | 'asset_loop' | 'global' | 'allocation' | 'finished'>('init');
@@ -69,22 +69,24 @@ export default function CrossCode({ onSwitchToBI }: Props) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Initial Message
+  // Initial Message (syncs live with language while in initial state)
   useEffect(() => {
-    setMessages([
-      {
-        id: 'welcome',
-        role: 'bot',
-        text: t('cross_welcome'),
-      },
-      {
-        id: 'q0',
-        role: 'bot',
-        text: t('cross_q0'),
-        type: 'question'
-      }
-    ]);
-  }, []);
+    if (phase === 'init' && messages.every(m => m.role === 'bot')) {
+      setMessages([
+        {
+          id: 'welcome',
+          role: 'bot',
+          text: t('cross_welcome'),
+        },
+        {
+          id: 'q0',
+          role: 'bot',
+          text: t('cross_q0'),
+          type: 'question'
+        }
+      ]);
+    }
+  }, [language, phase]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -148,7 +150,9 @@ export default function CrossCode({ onSwitchToBI }: Props) {
         addMessage('bot', t('cross_q2', { name: currentAsset.name }), 'question');
       } 
       else if (currentSubStep === 2) {
-        if (val.toUpperCase() !== 'NO') {
+        const upVal = val.trim().toUpperCase();
+        const isNo = ['NO', 'NEIN', 'NON', '否', '不', 'なし', 'いいえ'].includes(upVal);
+        if (!isNo) {
           newAssets[currentAssetIndex].q2 = parseFloat(val) || 0;
           setAssets(newAssets);
         }
@@ -173,18 +177,21 @@ export default function CrossCode({ onSwitchToBI }: Props) {
       }
     } 
     else if (phase === 'global') {
+      const upVal = val.trim().toUpperCase();
+      const isNo = ['NO', 'NEIN', 'NON', '否', '不', 'なし', 'いいえ'].includes(upVal);
+      const isYes = ['SI', 'SÌ', 'YES', 'JA', 'OUI', '是', 'はい'].includes(upVal);
       if (globalStep === 4) {
-        if (val.toUpperCase() !== 'NO') setShared(prev => ({ ...prev, q4: val }));
+        if (!isNo) setShared(prev => ({ ...prev, q4: val }));
         setGlobalStep(5);
         addMessage('bot', t('cross_q5'), 'question');
       } 
       else if (globalStep === 5) {
-        if (val.toUpperCase() !== 'NO') setShared(prev => ({ ...prev, q5: val }));
+        if (!isNo) setShared(prev => ({ ...prev, q5: val }));
         setGlobalStep(6);
         addMessage('bot', t('cross_q6'), 'question');
       } 
       else if (globalStep === 6) {
-        setShared(prev => ({ ...prev, q6: val.toUpperCase() === 'SI' || val.toUpperCase() === 'YES' }));
+        setShared(prev => ({ ...prev, q6: isYes }));
         setPhase('allocation');
         showAllocationOptions();
       }
@@ -267,43 +274,45 @@ export default function CrossCode({ onSwitchToBI }: Props) {
 
     assets.forEach((a, i) => {
       const qIdx = alloc.assetQubits[i];
-      const ryVal = (a.q1 || 0) / 10;
+      const p1 = Math.max(0, Math.min(1, (a.q1 || 0) / 100));
+      const ryVal = 2.0 * Math.asin(Math.sqrt(p1));
       
-      py += `# [ASSET ${i + 1}] ${a.name}: Tasso ${a.q1}% (Ry rotation)\n`;
-      py += `circuit.ry(${ryVal.toFixed(4)}, qr[${qIdx}])\n`;
-      qasm += `// [ASSET ${i + 1}] ${a.name}: Tasso ${a.q1}% (Ry rotation)\n`;
-      qasm += `ry(${ryVal.toFixed(4)}) q[${qIdx}];\n`;
-      guide += `Qubit q[${qIdx}] ➔ Trascina [ RY ] | Parametro: ${ryVal.toFixed(4)} (per ${a.name})\n`;
+      py += `# [ASSET ${i + 1}] ${a.name}: ${t('cross_cmt_rate')} ${a.q1}% (Ry rotation)\n`;
+      py += `circuit.ry(${ryVal.toFixed(6)}, qr[${qIdx}])\n`;
+      qasm += `// [ASSET ${i + 1}] ${a.name}: ${t('cross_cmt_rate')} ${a.q1}% (Ry rotation)\n`;
+      qasm += `ry(${ryVal.toFixed(6)}) q[${qIdx}];\n`;
+      guide += `Qubit q[${qIdx}] ➔ ${t('cross_guide_drag')} [ RY ] | ${t('cross_guide_param')} ${ryVal.toFixed(6)} (${t('cross_guide_for')} ${a.name})\n`;
 
       if (a.q2 !== undefined) {
-        const rxVal = a.q2 / 10;
-        py += `# [ASSET ${i + 1}] ${a.name}: Rischio Fisso ${a.q2}% (Rx rotation)\n`;
-        py += `circuit.rx(${rxVal.toFixed(4)}, qr[${qIdx}])\n`;
-        qasm += `// [ASSET ${i + 1}] ${a.name}: Rischio Fisso ${a.q2}% (Rx rotation)\n`;
-        qasm += `rx(${rxVal.toFixed(4)}) q[${qIdx}];\n`;
-        guide += `Qubit q[${qIdx}] ➔ Trascina [ RX ] | Parametro: ${rxVal.toFixed(4)} (per ${a.name})\n`;
+        const p2 = Math.max(0, Math.min(1, a.q2 / 100));
+        const rxVal = 2.0 * Math.asin(Math.sqrt(p2));
+        py += `# [ASSET ${i + 1}] ${a.name}: ${t('cross_cmt_risk')} ${a.q2}% (Rx rotation)\n`;
+        py += `circuit.rx(${rxVal.toFixed(6)}, qr[${qIdx}])\n`;
+        qasm += `// [ASSET ${i + 1}] ${a.name}: ${t('cross_cmt_risk')} ${a.q2}% (Rx rotation)\n`;
+        qasm += `rx(${rxVal.toFixed(6)}) q[${qIdx}];\n`;
+        guide += `Qubit q[${qIdx}] ➔ ${t('cross_guide_drag')} [ RX ] | ${t('cross_guide_param')} ${rxVal.toFixed(6)} (${t('cross_guide_for')} ${a.name})\n`;
       }
 
-      const t = a.q3?.toLowerCase() || '';
+      const hor = a.q3?.toLowerCase() || '';
       let rzAngle = 'np.pi / 8';
       let rzQasm = '0.3927';
-      if (t.includes('anni') || t.includes('anno')) { rzAngle = 'np.pi / 2'; rzQasm = '1.5708'; }
-      else if (t.includes('mesi') || t.includes('mese')) { rzAngle = 'np.pi / 4'; rzQasm = '0.7854'; }
+      if (hor.includes('anni') || hor.includes('anno') || hor.includes('year') || hor.includes('jahr') || hor.includes('an') || hor.includes('年')) { rzAngle = 'np.pi / 2'; rzQasm = '1.5708'; }
+      else if (hor.includes('mesi') || hor.includes('mese') || hor.includes('month') || hor.includes('monat') || hor.includes('mois') || hor.includes('月') || hor.includes('ヶ月')) { rzAngle = 'np.pi / 4'; rzQasm = '0.7854'; }
       
-      py += `# [ASSET ${i + 1}] ${a.name}: Scadenza ${a.q3} (Rz phase)\n`;
+      py += `# [ASSET ${i + 1}] ${a.name}: ${t('cross_cmt_mat')} ${a.q3} (Rz phase)\n`;
       py += `circuit.rz(${rzAngle}, qr[${qIdx}])\n\n`;
-      qasm += `// [ASSET ${i + 1}] ${a.name}: Scadenza ${a.q3} (Rz phase)\n`;
-      qasmGates: qasm += `rz(${rzQasm}) q[${qIdx}];\n\n`;
-      guide += `Qubit q[${qIdx}] ➔ Trascina [ RZ ] | Parametro: ${rzQasm} (per ${a.name})\n`;
+      qasm += `// [ASSET ${i + 1}] ${a.name}: ${t('cross_cmt_mat')} ${a.q3} (Rz phase)\n`;
+      qasm += `rz(${rzQasm}) q[${qIdx}];\n\n`;
+      guide += `Qubit q[${qIdx}] ➔ ${t('cross_guide_drag')} [ RZ ] | ${t('cross_guide_param')} ${rzQasm} (${t('cross_guide_for')} ${a.name})\n`;
     });
 
     if (shared.q4) {
       const qIdx = alloc.q4Qubit !== undefined ? alloc.q4Qubit : 0;
-      py += `# [SCENARIO] Pareggio 50/50: ${shared.q4} (Sx gate)\n`;
+      py += `# [${t('cross_cmt_even')}]: ${shared.q4} (Sx gate)\n`;
       py += `circuit.sx(qr[${qIdx}])\n\n`;
-      qasm += `// [SCENARIO] Pareggio 50/50: ${shared.q4} (Sx gate)\n`;
+      qasm += `// [${t('cross_cmt_even')}]: ${shared.q4} (Sx gate)\n`;
       qasm += `sx q[${qIdx}];\n\n`;
-      guide += `Qubit q[${qIdx}] ➔ Trascina [ SX ] (per ${shared.q4})\n`;
+      guide += `Qubit q[${qIdx}] ➔ ${t('cross_guide_drag')} [ SX ] (${t('cross_guide_for')} ${shared.q4})\n`;
     }
 
     if (shared.q5) {
@@ -312,17 +321,17 @@ export default function CrossCode({ onSwitchToBI }: Props) {
         // CNOT logic
         const controlQ = alloc.assetQubits[0];
         const targetQ = qIdx;
-        py += `# [RELAZIONE] Causa: ${assets[0].name} ➔ Target: ${shared.q5} (CNOT gate)\n`;
+        py += `# [${t('cross_cmt_rel')}] ${t('cross_cmt_cause')} ${assets[0].name} ➔ Target: ${shared.q5} (CNOT gate)\n`;
         py += `circuit.cx(qr[${controlQ}], qr[${targetQ}])\n\n`;
-        qasm += `// [RELAZIONE] Causa: ${assets[0].name} ➔ Target: ${shared.q5} (CNOT gate)\n`;
+        qasm += `// [${t('cross_cmt_rel')}] ${t('cross_cmt_cause')} ${assets[0].name} ➔ Target: ${shared.q5} (CNOT gate)\n`;
         qasm += `cx q[${controlQ}], q[${targetQ}];\n\n`;
-        guide += `Qubit q[${controlQ}] ➔ [ • ] Controllo | Qubit q[${targetQ}] ➔ [ ⊕ ] Target CNOT\n`;
+        guide += `Qubit q[${controlQ}] ➔ [ • ] ${t('cross_guide_ctrl')} | Qubit q[${targetQ}] ➔ [ ⊕ ] ${t('cross_guide_tgt')}\n`;
       } else {
-        py += `# [EMERGENZA] Switch di Blocco: ${shared.q5} (X gate)\n`;
+        py += `# [${t('cross_cmt_emerg')}]: ${shared.q5} (X gate)\n`;
         py += `circuit.x(qr[${qIdx}])\n\n`;
-        qasm += `// [EMERGENZA] Switch di Blocco: ${shared.q5} (X gate)\n`;
+        qasm += `// [${t('cross_cmt_emerg')}]: ${shared.q5} (X gate)\n`;
         qasm += `x q[${qIdx}];\n\n`;
-        guide += `Qubit q[${qIdx}] ➔ Trascina [ X ] (per ${shared.q5})\n`;
+        guide += `Qubit q[${qIdx}] ➔ ${t('cross_guide_drag')} [ X ] (${t('cross_guide_for')} ${shared.q5})\n`;
       }
     }
 
@@ -330,14 +339,14 @@ export default function CrossCode({ onSwitchToBI }: Props) {
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 
-# CONFIGURAZIONE HARDWARE ASSEGNATA
+${t('cross_py_hw')}
 qr = QuantumRegister(${N}, 'q')
 cr = ClassicalRegister(${N}, 'c')
 circuit = QuantumCircuit(qr, cr)
 
-# --- ASSEGNAZIONE VARIABILI E COSTANTI DA QUESTIONARIO ---
+${t('cross_py_vars')}
 ${py}
-# Misurazione individuale obbligatoria
+${t('cross_py_measure')}
 circuit.measure(qr, cr)
 [END_PYTHON]`;
 
@@ -345,10 +354,10 @@ circuit.measure(qr, cr)
     for(let i=0; i<N; i++) measures += `measure q[${i}] -> c[${i}];\n`;
 
     const qasmFinal = `[START_COMPOSER]
-### 1. GUIDA VISIVA AI PULSANTI (GATE) DA TRASCINARE
+${t('cross_guide_header')}
 ${guide}
 
-### 2. CODICE OPENQASM 2.0 (PANNELLO DI DESTRA)
+${t('cross_guide_qasm_header')}
 OPENQASM 2.0;
 include "qelib1.inc";
 
@@ -356,7 +365,7 @@ qreg q[${N}];
 creg c[${N}];
 
 ${qasm}
-// Misurazione esplicita per qubit
+${t('cross_qasm_measure')}
 ${measures}
 [END_COMPOSER]`;
 
@@ -443,7 +452,7 @@ ${measures}
               <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">{t('cross_guided_transpiler')}</span>
             </div>
             <div className="px-2 py-1 bg-quantum-primary/5 border border-quantum-primary/20 rounded-md">
-                <span className="text-[9px] font-mono text-quantum-primary">PHASE: {phase.toUpperCase()}</span>
+                <span className="text-[9px] font-mono text-quantum-primary">{t('cross_phase_prefix')} {phase.toUpperCase()}</span>
             </div>
           </div>
 
@@ -574,7 +583,7 @@ ${measures}
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-quantum-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                 <Settings2 className="w-16 h-16 text-gray-800/50 mb-6 group-hover:rotate-180 transition-transform duration-[2000ms]" />
-                <h3 className="text-[12px] font-black text-gray-500 uppercase tracking-[0.4em]">Hardware Standby</h3>
+                <h3 className="text-[12px] font-black text-gray-500 uppercase tracking-[0.4em]">{t('cross_hw_standby')}</h3>
                 <p className="text-[9px] text-gray-600 mt-4 text-center max-w-[240px] font-mono leading-relaxed uppercase tracking-wider">
                   {t('cross_standby_desc')}
                 </p>
@@ -598,7 +607,7 @@ ${measures}
                       <div className="p-1.5 bg-quantum-primary/10 rounded-md">
                         <Code2 className="w-3.5 h-3.5 text-quantum-primary" />
                       </div>
-                      <span className="text-[10px] font-black text-white uppercase tracking-[0.1em] opacity-80">Qiskit Runtime</span>
+                      <span className="text-[10px] font-black text-white uppercase tracking-[0.1em] opacity-80">{t('cross_qiskit_runtime')}</span>
                     </div>
                     <button 
                       onClick={() => copyToClipboard(pythonCode, 'python')}
@@ -621,7 +630,7 @@ ${measures}
                       <div className="p-1.5 bg-quantum-secondary/10 rounded-md">
                         <FileCode className="w-3.5 h-3.5 text-quantum-secondary" />
                       </div>
-                      <span className="text-[10px] font-black text-white uppercase tracking-[0.1em] opacity-80">IBM Composer Output</span>
+                      <span className="text-[10px] font-black text-white uppercase tracking-[0.1em] opacity-80">{t('cross_composer_output')}</span>
                     </div>
                     <button 
                       onClick={() => copyToClipboard(qasmCode, 'qasm')}
@@ -647,11 +656,11 @@ ${measures}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 pb-4 border-b border-white/10 gap-4 sm:gap-0">
           <div className="flex items-center gap-3">
             <Layout className="w-5 h-5 text-quantum-primary" />
-            <h3 className="text-xs sm:text-[14px] font-black text-white uppercase tracking-[0.2em] sm:tracking-[0.3em]">IBM Quantum Composer <span className="text-quantum-primary">Inspired</span></h3>
+            <h3 className="text-xs sm:text-[14px] font-black text-white uppercase tracking-[0.2em] sm:tracking-[0.3em]">IBM Quantum Composer <span className="text-quantum-primary">{t('cross_inspired_sub')}</span></h3>
           </div>
           <div className="flex items-center gap-2">
             <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10">
-              <span className="text-[8px] sm:text-[9px] font-mono text-gray-400">Backend: ibm_oslo (Simulated)</span>
+              <span className="text-[8px] sm:text-[9px] font-mono text-gray-400">{t('cross_backend_sim')}</span>
             </div>
           </div>
         </div>
@@ -757,7 +766,7 @@ ${measures}
 
               {/* Measurement Line */}
               <div className="absolute right-12 top-0 bottom-0 w-[2px] bg-red-500/20 border-r border-dashed border-red-500/30 flex items-center justify-center">
-                 <span className="rotate-90 text-[8px] font-mono text-red-500/50 uppercase tracking-[0.5em] translate-y-20">Measure_Block</span>
+                 <span className="rotate-90 text-[8px] font-mono text-red-500/50 uppercase tracking-[0.5em] translate-y-20">{t('cross_measure_block')}</span>
               </div>
             </div>
 

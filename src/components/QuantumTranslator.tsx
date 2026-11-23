@@ -33,48 +33,48 @@ export default function QuantumTranslator() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const content = event.target?.result as string;
+      const content = ((event.target?.result as string) || '').replace(/^\uFEFF/, '');
       if (!content) return;
 
       setIsTranslating(true);
       
-      // Mock parsing logic
-      // In a real app, we'd use regex or a parser to extract gates
       let newCircuit: string[] = [];
+      const lowerName = file.name.toLowerCase();
       
-      if (file.name.endsWith('.py')) {
-        // Better mock parsing for Python sequences
-        const matches = content.match(/qc\.(h|cx|x|y|z|measure|reset|ccx)\(/gi);
+      if (lowerName.endsWith('.py')) {
+        const matches = content.match(/qc\.(h|cx|cp|ry|rx|rz|x|y|z|measure|reset|ccx)\(/gi);
         if (matches) {
           newCircuit = matches.map(m => {
             const gate = m.split('.')[1].split('(')[0].toUpperCase();
             return gate === 'MEASURE' ? 'MEASURE' : gate;
           });
         }
-      } else if (file.name.endsWith('.qasm')) {
-        // Better mock parsing for QASM sequences
+      } else if (lowerName.endsWith('.qasm')) {
         const lines = content.split('\n');
         lines.forEach(line => {
           const l = line.trim().toLowerCase();
           if (l.startsWith('h ')) newCircuit.push('H');
           else if (l.startsWith('cx ')) newCircuit.push('CX');
+          else if (l.startsWith('cp(') || l.startsWith('cp ')) newCircuit.push('CP');
+          else if (l.startsWith('ry(') || l.startsWith('ry ')) newCircuit.push('RY');
           else if (l.startsWith('x ')) newCircuit.push('X');
           else if (l.startsWith('y ')) newCircuit.push('Y');
           else if (l.startsWith('z ')) newCircuit.push('Z');
-          else if (l.startsWith('measure ')) newCircuit.push('MEASURE');
+          else if (l.startsWith('measure ') || l.includes('= measure ')) newCircuit.push('MEASURE');
           else if (l.startsWith('reset ')) newCircuit.push('RESET');
           else if (l.startsWith('ccx ')) newCircuit.push('CCX');
         });
       }
 
       if (newCircuit.length === 0) {
-        newCircuit = ['H', 'CX', 'MEASURE']; // Fallback robusto
+        newCircuit = ['H', 'CX', 'MEASURE'];
       }
 
-      setCircuit(newCircuit.slice(0, 12)); // Limite di visualizzazione
+      setCircuit(newCircuit.slice(0, 12));
       setTimeout(() => setIsTranslating(false), 800);
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   const downloadFile = (content: string, filename: string) => {

@@ -25,10 +25,10 @@ export default function VariousQuantumInterface({ onBack }: VariousQuantumInterf
 
   // Heterogeneous sources list
   const sources = [
-    { id: 'finance_api', label: 'Banca & API Finanziaria', icon: 'Landmark', desc: 'Dati di transazioni globali interbancarie.' },
-    { id: 'climate_data', label: 'Rilevamento Climatico', icon: 'Sun', desc: 'Fluttuazioni termiche in tempo reale.' },
-    { id: 'satellite_ping', label: 'Latenza Satellitare', icon: 'Compass', desc: 'Deriva di rete GPS e Starlink.' },
-    { id: 'grid_telemetry', label: 'Griglia Energetica IoT', icon: 'Zap', desc: 'Ondulazioni nei flussi di smart grid.' }
+    { id: 'finance_api', label: t('var_src_fin'), icon: 'Landmark', desc: t('var_src_fin_desc') },
+    { id: 'climate_data', label: t('var_src_cli'), icon: 'Sun', desc: t('var_src_cli_desc') },
+    { id: 'satellite_ping', label: t('var_src_sat'), icon: 'Compass', desc: t('var_src_sat_desc') },
+    { id: 'grid_telemetry', label: t('var_src_grid'), icon: 'Zap', desc: t('var_src_grid_desc') }
   ];
 
   // Dynamic simulation predictions based on chaos
@@ -99,7 +99,7 @@ export default function VariousQuantumInterface({ onBack }: VariousQuantumInterf
           
           <div className="flex items-center gap-1.5 text-[10px] font-mono text-quantum-secondary uppercase tracking-widest">
             <Globe className="w-3.5 h-3.5 animate-spin" />
-            <span>Butterfly Effect Analyzer</span>
+            <span>{t('var_title')}</span>
           </div>
         </div>
       )}
@@ -107,21 +107,21 @@ export default function VariousQuantumInterface({ onBack }: VariousQuantumInterf
       {/* Overview stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="quantum-card p-4 bg-black/40 border border-white/10 rounded-xl relative backdrop-blur-md">
-          <span className="text-[8px] font-mono uppercase tracking-widest text-quantum-primary/60">Entangled Entropy (Chaos)</span>
+          <span className="text-[8px] font-mono uppercase tracking-widest text-quantum-primary/60">{t('var_entropy_title')}</span>
           <div className="text-2xl font-black font-display text-white mt-1">{(chaosResult.entropyRatio * 100).toFixed(0)}%</div>
-          <p className="text-[7px] text-gray-500 font-mono uppercase mt-0.5">ESTIMATED FLUCTUATION INTENSITY</p>
+          <p className="text-[7px] text-gray-500 font-mono uppercase mt-0.5">{t('var_entropy_sub')}</p>
         </div>
 
         <div className="quantum-card p-4 bg-black/40 border border-white/10 rounded-xl relative backdrop-blur-md">
-          <span className="text-[8px] font-mono uppercase tracking-widest text-quantum-secondary/60">Core Synchronicity</span>
+          <span className="text-[8px] font-mono uppercase tracking-widest text-quantum-secondary/60">{t('var_sync_title')}</span>
           <div className="text-2xl font-black font-display text-white mt-1">{(chaosResult.butterflyThreshold * 100).toFixed(1)}%</div>
-          <p className="text-[7px] text-gray-500 font-mono uppercase mt-0.5">RESONANCE AT CURRENT EXTREMES</p>
+          <p className="text-[7px] text-gray-500 font-mono uppercase mt-0.5">{t('var_sync_sub')}</p>
         </div>
 
         <div className="quantum-card p-4 bg-black/40 border border-white/10 rounded-xl relative backdrop-blur-md">
-          <span className="text-[8px] font-mono uppercase tracking-widest text-emerald-400/60">Active Channel Nodes</span>
+          <span className="text-[8px] font-mono uppercase tracking-widest text-emerald-400/60">{t('var_nodes_title')}</span>
           <div className="text-2xl font-black font-display text-emerald-400 mt-1">{chaosResult.quantumEntangledStates}</div>
-          <p className="text-[7px] text-gray-500 font-mono uppercase mt-0.5">SYSTEMIC CONNECTIONS</p>
+          <p className="text-[7px] text-gray-500 font-mono uppercase mt-0.5">{t('var_nodes_sub')}</p>
         </div>
       </div>
 
@@ -131,11 +131,11 @@ export default function VariousQuantumInterface({ onBack }: VariousQuantumInterf
           <div className="space-y-4">
             <h3 className="text-xs uppercase font-mono tracking-wider font-bold text-white mb-2 pb-2 border-b border-white/5 flex items-center gap-2">
               <Database className="w-4 h-4 text-quantum-primary" />
-              Heterogeneous Entanglement Sources
+              {t('var_sources_title')}
             </h3>
             
             <p className="text-[9px] text-gray-500 leading-relaxed font-mono uppercase">
-              Select networks to inject into the quantum chamber to measure the global butterfly effect.
+              {t('var_sources_desc')}
             </p>
 
             <div className="space-y-2.5">
@@ -168,7 +168,7 @@ export default function VariousQuantumInterface({ onBack }: VariousQuantumInterf
             {/* Chaos factor slider */}
             <div className="space-y-1.5 pt-2">
               <div className="flex justify-between text-[10px] font-mono uppercase text-gray-400">
-                <span>Chaos Sensitivity Multiplier</span>
+                <span>{t('var_chaos_mult')}</span>
                 <span className="text-quantum-secondary font-bold">{chaosMultiplier.toFixed(2)}x</span>
               </div>
               <input 
@@ -190,15 +190,15 @@ export default function VariousQuantumInterface({ onBack }: VariousQuantumInterf
             ) : (
               <Zap className="w-4 h-4 fill-current text-[#9d00ff]" />
             )}
-            {isSimulating ? "Sincronizzazione in corso..." : "Avvia Risonanza Caos"}
+            {isSimulating ? t('var_running') : t('var_run_btn')}
           </button>
         </div>
 
         {/* Chaos visualizations chart - spans 7 cols */}
         <div className="lg:col-span-7 quantum-card p-5 bg-black/40 border border-white/10 rounded-2xl flex flex-col justify-between backdrop-blur-md min-h-[400px]">
           <div>
-            <h3 className="text-xs uppercase font-mono tracking-wider font-bold text-white mb-1">Entanglement Chaos Mapping</h3>
-            <p className="text-[9px] text-gray-500 font-mono uppercase mb-4">Heterogeneous ripple propagation across timescale dimensions</p>
+            <h3 className="text-xs uppercase font-mono tracking-wider font-bold text-white mb-1">{t('var_map_title')}</h3>
+            <p className="text-[9px] text-gray-500 font-mono uppercase mb-4">{t('var_map_desc')}</p>
           </div>
 
           <div className="flex-1 min-h-[250px] w-full">
@@ -249,10 +249,10 @@ export default function VariousQuantumInterface({ onBack }: VariousQuantumInterf
 
           <div className="border-t border-white/5 pt-3.5 mt-2 flex gap-3 text-left">
             <div className="flex-1">
-              <span className="text-[7.5px] font-mono uppercase text-gray-500 select-none block">System Impact</span>
+              <span className="text-[7.5px] font-mono uppercase text-gray-500 select-none block">{t('var_impact_label')}</span>
               <p className="text-[9.5px] text-gray-400 font-mono uppercase mt-0.5 leading-relaxed tracking-tighter">
-                Il crollo statistico delle variabili entrate suggerisce un effetto farfalla controllato del 
-                <span className="text-quantum-secondary font-bold"> {(chaosResult.entropyRatio * 1.5).toFixed(0)}X</span> rispetto ai benchmark centralizzati classici.
+                {t('var_impact_p1')}
+                <span className="text-quantum-secondary font-bold"> {(chaosResult.entropyRatio * 1.5).toFixed(0)}X</span> {t('var_impact_p2')}
               </p>
             </div>
           </div>

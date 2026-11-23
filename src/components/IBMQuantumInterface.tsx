@@ -115,20 +115,22 @@ measure q -> c;`);
           const labels: Array<{ name: string; isAncilla?: boolean }> = records.map((r: any) => ({
             name: r.article || r.name || 'Asset'
           }));
-          // Check if ancilla comparator qubit exists in circuit
-          if (circuitCode.includes(`qreg q[${records.length + 1}]`)) {
-            labels.push({ name: 'Comparatore Soglia', isAncilla: true });
+          // Check if ancilla comparator qubit exists in circuit (OpenQASM 2.0 or 3.0)
+          if (circuitCode.includes(`qreg q[${records.length + 1}]`) || circuitCode.includes(`qubit[${records.length + 1}] q`)) {
+            labels.push({ name: t('ibm_threshold_comparator'), isAncilla: true });
           }
           return labels;
         }
       }
     } catch {}
 
-    // 2. Fallback: Parse from QASM comments in circuitCode
+    // 2. Fallback: Parse from QASM 2.0 or OpenQASM 3.0 comments in circuitCode
     const parsedLabels: Array<{ name: string; isAncilla?: boolean }> = [];
     const lines = circuitCode.split('\n');
     for (const line of lines) {
-      const match = line.match(/(?:mapping for|coordinate mapping for|wave mapping for|amplitude mapping for)\s+([A-Za-z0-9_\-\.]+)/i);
+      const match =
+        line.match(/(?:mapping for|coordinate mapping for|wave mapping for|amplitude mapping for)\s+([A-Za-z0-9_\-\.]+)/i) ||
+        line.match(/^\s*ry\([^)]+\)\s+q\[\d+\];\s*\/\/\s*([A-Za-z0-9_\-\.]+)/i);
       if (match && match[1]) {
         if (!parsedLabels.some(l => l.name === match[1])) {
           parsedLabels.push({ name: match[1] });
@@ -137,18 +139,23 @@ measure q -> c;`);
     }
 
     if (parsedLabels.length > 0) {
-      if (circuitCode.includes(`qreg q[${parsedLabels.length + 1}]`) || circuitCode.includes('Ancilla') || circuitCode.includes('comparator')) {
-        parsedLabels.push({ name: 'Comparatore Soglia', isAncilla: true });
+      if (
+        circuitCode.includes(`qreg q[${parsedLabels.length + 1}]`) ||
+        circuitCode.includes(`qubit[${parsedLabels.length + 1}] q`) ||
+        circuitCode.includes('Ancilla') ||
+        circuitCode.includes('comparator')
+      ) {
+        parsedLabels.push({ name: t('ibm_threshold_comparator'), isAncilla: true });
       }
       return parsedLabels;
     }
 
-    // 3. Fallback to generic Qubit names
-    const qregMatch = circuitCode.match(/qreg\s+q\[(\d+)\]/);
-    const numQubits = qregMatch ? parseInt(qregMatch[1]) : 3;
+    // 3. Fallback to generic Qubit names (supports qreg q[N] and qubit[N] q)
+    const qregMatch = circuitCode.match(/qreg\s+q\[(\d+)\]/) || circuitCode.match(/qubit\[(\d+)\]\s+q/);
+    const numQubits = qregMatch ? parseInt(qregMatch[1], 10) : 3;
     for (let i = 0; i < numQubits; i++) {
       if (i === numQubits - 1 && circuitCode.includes('cry(')) {
-        parsedLabels.push({ name: 'Comparatore Soglia', isAncilla: true });
+        parsedLabels.push({ name: t('ibm_threshold_comparator'), isAncilla: true });
       } else {
         parsedLabels.push({ name: `Asset_${i + 1}` });
       }
@@ -165,9 +172,9 @@ measure q -> c;`);
     bits.forEach((bit, idx) => {
       const labelObj = labels[idx] || { name: `Qubit ${idx}` };
       if (labelObj.isAncilla) {
-        parts.push(`${labelObj.name}: ${bit === '1' ? 'Allarme' : 'Entro Soglia'}`);
+        parts.push(`${labelObj.name}: ${bit === '1' ? t('ibm_bit_alarm') : t('ibm_bit_in_threshold')}`);
       } else {
-        parts.push(`${labelObj.name}: ${bit === '1' ? 'Saturo (Critico)' : 'OK (Regolare)'}`);
+        parts.push(`${labelObj.name}: ${bit === '1' ? t('ibm_bit_saturated') : t('ibm_bit_ok')}`);
       }
     });
 
@@ -200,7 +207,7 @@ h q[4];
 
 // Measure true non-deterministic quantum collapse entropy
 measure q -> c;`);
-      addLog("QRNG True Superconducting Entropy circuit loaded.", "info");
+      addLog(t('ibm_log_qrng'), "info");
     } else if (type === 'bell') {
       setCircuitCode(`// Bell State Circuit (Max entanglement)
 OPENQASM 2.0;
@@ -213,7 +220,7 @@ h q[0];
 cx q[0],q[1];
 
 measure q -> c;`);
-      addLog("Bell State template loaded successfully.", "info");
+      addLog(t('ibm_log_bell'), "info");
     } else if (type === 'qasm') {
       setCircuitCode(`// Quantum Fourier Transform (QFT) 3 Qubits
 OPENQASM 2.0;
@@ -230,7 +237,7 @@ cu1(pi/2) q[0],q[1];
 h q[0];
 
 measure q -> c;`);
-      addLog("Fourier Transform template loaded successfully.", "info");
+      addLog(t('ibm_log_qft'), "info");
     } else if (type === 'json') {
       setCircuitCode(`{
   "circuit": "portfolio_optimization",
@@ -242,7 +249,7 @@ measure q -> c;`);
     "expected_returns": [0.005, 0.002, 0.001]
   }
 }`);
-      addLog("Optimization JSON template loaded successfully.", "info");
+      addLog(t('ibm_log_json'), "info");
     }
   };
 
@@ -251,7 +258,7 @@ measure q -> c;`);
     if (!pqcRxData) return;
 
     setIsDeciphering(true);
-    addLog(">>> [PQC DECIPHER GATE] Starting key decapsulation and response processing...", 'system');
+    addLog(t('ibm_log_decipher_start'), 'system');
 
     try {
       const keyToUse = customUnlockKey.trim() || pqcRxData.unlockKey;
@@ -268,7 +275,7 @@ measure q -> c;`);
 
       if (!res.ok) {
         const errJson = await res.json();
-        throw new Error(errJson.error || "PQC Decryption Error");
+        throw new Error(errJson.error || t('ibm_log_decipher_err'));
       }
 
       const data = await res.json();
@@ -277,11 +284,11 @@ measure q -> c;`);
       setPqcDecryptedResults(parsedContent);
       setFinalResults(parsedContent.measurementCounts);
       
-      addLog("ML-KEM-768 decapsulation completed successfully!", "success");
-      addLog(`Integrity Verified: Telemetric results for Job ${parsedContent.jobId} unlocked.`, "success");
+      addLog(t('ibm_log_decipher_ok'), "success");
+      addLog(`${t('ibm_log_decipher_verified')} ${parsedContent.jobId}`, "success");
     } catch (err: any) {
       console.error("Decipher failed:", err);
-      addLog(`PQC Decryption Error: ${err.message}`, "error");
+      addLog(`${t('ibm_log_decipher_err')}: ${err.message}`, "error");
     } finally {
       setIsDeciphering(false);
     }
@@ -289,13 +296,13 @@ measure q -> c;`);
 
   const executeSend = async () => {
     if (!circuitCode.trim()) {
-      addLog("Error: Circuit code is empty.", "error");
+      addLog(t('ibm_log_err_empty'), "error");
       return;
     }
     if (!apiToken.trim()) {
       setTokenMissingError(true);
       apiTokenInputRef.current?.focus();
-      addLog("Error: IBM Quantum API Token missing.", "error");
+      addLog(t('ibm_log_err_token'), "error");
       return;
     }
     setTokenMissingError(false);
@@ -309,9 +316,9 @@ measure q -> c;`);
     setPqcRxData(null);
     setPqcDecryptedResults(null);
 
-    addLog(`>>> [SYS] INITIALIZING IBM HARDWARE HANDSHAKE...`, 'system');
-    addLog(`Analyzing loaded quantum code format... OK`, 'info');
-    addLog(`Identified circuit schema with length ${circuitCode.length} characters.`, 'info');
+    addLog(t('ibm_log_handshake'), 'system');
+    addLog(t('ibm_log_analyzing'), 'info');
+    addLog(t('ibm_log_len').replace('{len}', circuitCode.length.toString()), 'info');
 
     let currentEncryptedPayload = '';
     let currentEncapsulatedKey = '';
@@ -319,7 +326,7 @@ measure q -> c;`);
 
     // Step 1: PQC Encryption of circuit code before transmission if enabled
     if (usePqc) {
-      addLog(`[PQC SHIELD] Starting ML-KEM-768 Quantum Encryption (NIST FIPS 203) for secure transmission...`, 'system');
+      addLog(t('ibm_log_pqc_start'), 'system');
       try {
         const encRes = await fetch('/api/pqc/encrypt', {
           method: 'POST',
@@ -340,16 +347,16 @@ measure q -> c;`);
             algorithm: encData.algorithm || "ML-KEM-768 (Kyber) + AES-256-GCM"
           });
 
-          addLog(`[PQC SHIELD] Circuit code encrypted into PQC .vault package successfully.`, 'success');
-          addLog(`[PQC SHIELD] Key Encapsulation (HEX): ${encData.encapsulatedKey.substring(0, 32)}...`, 'info');
-          addLog(`[PQC SHIELD] Unlock Key (Secret): ${encData.unlockKey.substring(0, 24)}...`, 'info');
+          addLog(t('ibm_log_pqc_ok'), 'success');
+          addLog(`${t('ibm_log_pqc_encap')} ${encData.encapsulatedKey.substring(0, 32)}...`, 'info');
+          addLog(`${t('ibm_log_pqc_unlock')} ${encData.unlockKey.substring(0, 24)}...`, 'info');
         }
       } catch (pqcErr) {
-        addLog(`Warning: Unable to complete client-side PQC encryption. Proceeding via secure proxy.`, 'warn');
+        addLog(t('ibm_log_pqc_warn'), 'warn');
       }
     }
 
-    addLog(`Attempting immediate direct synchronous HTTP POST call to official IBM endpoint (https://ibm.com)...`, 'info');
+    addLog(t('ibm_log_direct_post'), 'info');
 
     try {
       // 1. Direct call to https://ibm.com as requested
@@ -374,16 +381,16 @@ measure q -> c;`);
 
       clearTimeout(timeoutId);
 
-      addLog(`Direct call to ibm.com completed with HTTP status: ${response.status}`, 'success');
+      addLog(`${t('ibm_log_direct_ok')} ${response.status}`, 'success');
     } catch (err: any) {
       console.warn("Direct browser post to ibm.com blocked/intercepted (expected CORS behavior of browsers):", err);
-      addLog(`[CORS DETECTOR] Direct browser POST call to https://ibm.com was intercepted due to browser same-origin policy (CORS).`, 'warn');
-      addLog(`Forwarding via AI Studio server-side Quantum Proxy...`, 'info');
+      addLog(t('ibm_log_cors_warn'), 'warn');
+      addLog(t('ibm_log_proxy_fwd'), 'info');
     }
 
     // 2. Express Proxy submission
     try {
-      addLog(`Forwarding request to Encrypted Quantum Gateway (/api/ibm-quantum/submit)...`, 'info');
+      addLog(t('ibm_log_proxy_sub'), 'info');
       
       const serverResponse = await fetch('/api/ibm-quantum/submit', {
         method: 'POST',
@@ -401,20 +408,20 @@ measure q -> c;`);
 
       if (serverResponse.ok) {
         const serverData = await serverResponse.json();
-        addLog(`Proxy server response received successfully.`, 'success');
+        addLog(t('ibm_log_proxy_ok'), 'success');
         if (serverData.jobId) {
           setJobId(serverData.jobId);
-          addLog(`Job ID registered by internal gateway: ${serverData.jobId}`, 'success');
+          addLog(`${t('ibm_log_job_reg')} ${serverData.jobId}`, 'success');
         }
         if (serverData.encryptedResults) {
           setPqcRxData(serverData.encryptedResults);
           setCustomUnlockKey(serverData.encryptedResults.unlockKey);
-          addLog(`[PQC RECEIPT] Encrypted quantum telemetry package received from IBM Cloud!`, 'system');
+          addLog(t('ibm_log_rx_ok'), 'system');
         }
       }
     } catch (proxyErr) {
       // Offline fallback
-      addLog("Proxy gateway not available in current environment. Launching integrated quantum pipeline.", "warn");
+      addLog(t('ibm_log_proxy_off'), "warn");
     }
 
     // 3. Complete Polling Simulation representing real physical IBM hardware (eg. ibm_brisbane)
@@ -422,8 +429,8 @@ measure q -> c;`);
     if (!jobId) setJobId(generatedJobId);
     setJobStatus('SUBMITTING');
     
-    addLog(`>>> [IBM GATEWAY] Generated secure Job ID: ${generatedJobId}`, 'success');
-    addLog(`Compiling OpenQASM circuit into microwave pulses (PQC Transpilation)...`, 'info');
+    addLog(`${t('ibm_log_gen_job')} ${generatedJobId}`, 'success');
+    addLog(t('ibm_log_transpiling'), 'info');
     
     setPollingActive(true);
   };
@@ -438,46 +445,56 @@ measure q -> c;`);
       
       if (step === 1) {
         setJobStatus('QUEUED');
-        addLog(`[IBM DEVICE] Job Status: QUEUED. Position in queue: #7`, 'warn');
-        addLog(`Calibrating physical qubits (Cryostat temperature: 15 mK = -273.13 °C)... OK`, 'info');
+        addLog(t('ibm_log_queued'), 'warn');
+        addLog(t('ibm_log_cryo'), 'info');
       } else if (step === 2) {
         setJobStatus('RUNNING');
-        addLog(`[IBM DEVICE] Job Status: RUNNING on real quantum hardware.`, 'system');
-        addLog(`Measuring: Acquiring 1024 shots (quantum circuit executions)...`, 'info');
-        addLog(`Applying error mitigation (Dynamical Decoupling)... OK`, 'success');
+        addLog(t('ibm_log_running'), 'system');
+        addLog(t('ibm_log_shots'), 'info');
+        addLog(t('ibm_log_dd'), 'success');
       } else if (step === 3) {
         setJobStatus('COMPLETED');
-        addLog(`[IBM DEVICE] Job Status: COMPLETED successfully!`, 'success');
+        addLog(t('ibm_log_completed'), 'success');
         
         if (usePqc) {
-          addLog(`[PQC RECEIPT] Downloading encrypted telemetry log with ML-KEM-768...`, 'system');
-          addLog(`[PQC RECEIPT] Measurement data protected during return transmission.`, 'warn');
-          addLog(`[PQC RECEIPT] Click "Decapsulate and Decipher Results" to unlock measured frequencies.`, 'info');
+          addLog(t('ibm_log_rx_dl'), 'system');
+          addLog(t('ibm_log_rx_prot'), 'warn');
+          addLog(t('ibm_log_rx_hint'), 'info');
         } else {
-          addLog(`Downloading classical measurement registers from IBM Cloud...`, 'info');
+          addLog(t('ibm_log_dl_reg'), 'info');
           
-          // Bell or general distribution
-          const isBell = circuitCode.includes('h q[0]') && circuitCode.includes('cx');
+          // Dynamic bitstring distribution matching circuit qubit count
+          const qMatch = circuitCode.match(/qreg\s+q\[(\d+)\]/) || circuitCode.match(/qubit\[(\d+)\]\s+q/);
+          const detectedQubits = Math.min(12, Math.max(2, qMatch ? parseInt(qMatch[1], 10) : 3));
+          const isBell = detectedQubits === 2 && circuitCode.includes('h q[0]') && circuitCode.includes('cx');
           const results: Record<string, number> = {};
-          
+
           if (isBell) {
             results["00"] = Math.round(512 + (Math.random() * 20 - 10));
             results["01"] = Math.round(10 + (Math.random() * 6));
             results["10"] = Math.round(12 + (Math.random() * 6));
             results["11"] = 1024 - results["00"] - results["01"] - results["10"];
           } else {
-            results["000"] = Math.round(410 + (Math.random() * 30 - 15));
-            results["001"] = Math.round(45 + (Math.random() * 10 - 5));
-            results["010"] = Math.round(52 + (Math.random() * 10 - 5));
-            results["011"] = Math.round(20 + (Math.random() * 6));
-            results["100"] = Math.round(380 + (Math.random() * 30 - 15));
-            results["101"] = Math.round(40 + (Math.random() * 10 - 5));
-            results["110"] = Math.round(48 + (Math.random() * 10 - 5));
-            results["111"] = 1024 - Object.values(results).reduce((a, b) => a + b, 0);
+            const ryMatches = Array.from(circuitCode.matchAll(/ry\(([\d.]+)\)\s+q\[(\d+)\]/g));
+            const probs = Array.from({ length: detectedQubits }, (_, idx) => {
+              const found = ryMatches.find(m => parseInt(m[2], 10) === idx);
+              if (found) {
+                const theta = parseFloat(found[1]);
+                return Math.pow(Math.sin(theta / 2), 2);
+              }
+              return 0.5;
+            });
+            for (let s = 0; s < 1024; s++) {
+              let bits = '';
+              for (let q = detectedQubits - 1; q >= 0; q--) {
+                bits += Math.random() < probs[q] ? '1' : '0';
+              }
+              results[bits] = (results[bits] || 0) + 1;
+            }
           }
 
           setFinalResults(results);
-          addLog(`Results processed! Probabilities calculated successfully based on 1024 shots.`, 'success');
+          addLog(t('ibm_log_processed'), 'success');
         }
         
         setIsLoading(false);
@@ -498,7 +515,7 @@ measure q -> c;`);
           className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1 group cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-mono text-[10px] sm:text-xs tracking-widest uppercase">Back to Home Page</span>
+          <span className="font-mono text-[10px] sm:text-xs tracking-widest uppercase">{t('ibm_back_home')}</span>
         </button>
         <div className="flex items-center gap-2 px-3 py-1 bg-quantum-primary/10 border border-quantum-primary/30 rounded-full">
           <Cpu className="w-3.5 h-3.5 text-quantum-primary animate-pulse" />
@@ -589,14 +606,14 @@ measure q -> c;`);
                 type="button"
                 onClick={() => setShowApiToken(!showApiToken)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-quantum-primary p-1 transition-colors cursor-pointer"
-                title={showApiToken ? "Nascondi Token" : "Mostra Token"}
+                title={showApiToken ? t('ibm_hide_token') : t('ibm_show_token')}
               >
                 {showApiToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
             {tokenMissingError ? (
               <p className="text-[10px] text-amber-400 font-mono mt-2 leading-relaxed font-semibold">
-                ⚠️ Inserisci la tua API Key / IBM Quantum Token qui sopra per inviare il circuito quantistico alla QPU IBM.
+                {t('ibm_token_missing_alert')}
               </p>
             ) : (
               <p className="text-[10px] text-gray-500 font-mono mt-2 leading-relaxed">
@@ -618,7 +635,7 @@ measure q -> c;`);
                   className="px-2 py-1 bg-quantum-primary/10 hover:bg-quantum-primary/20 border border-quantum-primary/30 text-[9px] font-mono rounded text-quantum-primary transition-colors flex items-center gap-1"
                 >
                   <Zap className="w-2.5 h-2.5" />
-                  QRNG Entropy
+                  {t('ibm_qrng_btn')}
                 </button>
                 <button 
                   onClick={() => loadTemplate('bell')} 
@@ -651,7 +668,7 @@ measure q -> c;`);
             <div className="shrink-0 mt-3 pt-3 border-t border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono text-gray-500 uppercase">
-                  {t('ibm_tag_circuit')} {circuitCode.includes('OPENQASM') ? 'OPENQASM 2.0' : 'JSON SCHEMA'}
+                  {t('ibm_tag_circuit')} {circuitCode.includes('OPENQASM 3.0') ? 'OPENQASM 3.0' : (circuitCode.includes('OPENQASM') ? 'OPENQASM 2.0' : 'JSON SCHEMA')}
                 </span>
                 {usePqc && (
                   <span className="text-[9px] font-mono text-quantum-primary bg-quantum-primary/10 border border-quantum-primary/20 px-2 py-0.5 rounded flex items-center gap-1">
@@ -727,7 +744,7 @@ measure q -> c;`);
                       <button 
                         onClick={() => copyToClipboard(pqcTxData.unlockKey, 'tx_sk')}
                         className="absolute right-2 top-2 p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white"
-                        title="Copy Key"
+                        title={t('ibm_copy_key')}
                       >
                         {copiedType === 'tx_sk' ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                       </button>
@@ -799,7 +816,7 @@ measure q -> c;`);
                 <div>
                   <p className="text-gray-500 uppercase">{t('ibm_calculation_queue')}</p>
                   <p className="text-white mt-0.5 font-bold">
-                    {jobStatus === 'QUEUED' ? 'QUEUE_POSITION #7' : jobStatus || t('ibm_queue_inactive')}
+                    {jobStatus === 'QUEUED' ? t('ibm_queue_pos') : jobStatus || t('ibm_queue_inactive')}
                   </p>
                 </div>
               </div>
@@ -847,7 +864,7 @@ measure q -> c;`);
               {finalResults ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-gray-400 uppercase font-mono">{t('ibm_state_measurement')} & Traduzione Aziendale</span>
+                    <span className="text-[10px] text-gray-400 uppercase font-mono">{t('ibm_state_measurement')} & {t('ibm_business_translation')}</span>
                     {pqcDecryptedResults ? (
                       <span className="text-[9px] text-green-400 font-bold flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/30 font-mono">
                         <ShieldCheck className="w-3 h-3" /> {t('ibm_pqc_verified')}
@@ -873,7 +890,7 @@ measure q -> c;`);
                                 <div className="flex items-center gap-2">
                                   <span className="text-white font-mono font-bold">|ψ⟩ = |{state}⟩</span>
                                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-quantum-secondary font-mono border border-white/5">
-                                    {shots as number} Shots
+                                    {shots as number} {t('ibm_shots')}
                                   </span>
                                 </div>
                                 <span className="font-mono font-bold text-quantum-primary text-[11px]">{percentage}%</span>
@@ -919,11 +936,11 @@ measure q -> c;`);
                               <Zap className="w-3.5 h-3.5" />
                             </div>
                             <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wider">
-                              Confronto: Calcolo Classico vs Calcolo Quantistico IBM
+                              {t('ibm_comp_title')}
                             </h4>
                           </div>
                           <span className="text-[9px] font-mono text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                            N = {N} Variabili Aziendali
+                            N = {N} {t('ibm_comp_vars')}
                           </span>
                         </div>
 
@@ -931,35 +948,35 @@ measure q -> c;`);
                           {/* Classical computing card */}
                           <div className="p-2.5 rounded-lg bg-black/30 border border-white/5 space-y-1">
                             <div className="flex items-center justify-between text-gray-400 font-mono text-[10px]">
-                              <span>💻 COMPUTER CLASSICO</span>
-                              <span className="text-red-400 font-bold">Sequenziale O(2ᴺ)</span>
+                              <span>{t('ibm_comp_classical_title')}</span>
+                              <span className="text-red-400 font-bold">{t('ibm_comp_seq')}</span>
                             </div>
                             <div className="text-lg font-mono font-black text-slate-200">
-                              {classicalFormatted} <span className="text-[10px] font-normal text-gray-400">Iterazioni/Prove</span>
+                              {classicalFormatted} <span className="text-[10px] font-normal text-gray-400">{t('ibm_comp_iters')}</span>
                             </div>
                             <p className="text-[10px] text-gray-400 leading-tight">
-                              Un server tradizionale deve testare i rami uno per uno, impiegando tempi che esplodono esponenzialmente.
+                              {t('ibm_comp_classical_desc')}
                             </p>
                           </div>
 
                           {/* Quantum computing card */}
                           <div className="p-2.5 rounded-lg bg-quantum-primary/10 border border-quantum-primary/25 space-y-1">
                             <div className="flex items-center justify-between text-quantum-primary font-mono text-[10px]">
-                              <span>⚛️ PROCESSORE IBM Q</span>
-                              <span className="text-emerald-400 font-bold">Istantaneo O(1)</span>
+                              <span>{t('ibm_comp_quantum_title')}</span>
+                              <span className="text-emerald-400 font-bold">{t('ibm_comp_instant')}</span>
                             </div>
                             <div className="text-lg font-mono font-black text-quantum-primary flex items-center gap-1.5">
-                              1 Step <span className="text-[10px] font-normal text-emerald-300">({classicalFormatted} Stati Paralleli)</span>
+                              {t('ibm_comp_step_label')} <span className="text-[10px] font-normal text-emerald-300">({classicalFormatted} {t('ibm_comp_parallel_states')})</span>
                             </div>
                             <p className="text-[10px] text-gray-300 leading-tight">
-                              La sovrapposizione quantistica valuta simultaneamente tutte le {classicalFormatted} combinazioni in millisecondi.
+                              {t('ibm_comp_quantum_desc').replace('{count}', classicalFormatted)}
                             </p>
                           </div>
                         </div>
 
                         <div className="bg-white/5 p-2 rounded-lg flex items-center justify-between text-[10px] font-mono">
-                          <span className="text-gray-300">Vantaggio di Parallelismo:</span>
-                          <span className="text-emerald-400 font-bold">×{classicalFormatted} Accelerazione Spazio di Ricerca</span>
+                          <span className="text-gray-300">{t('ibm_comp_advantage_label')}</span>
+                          <span className="text-emerald-400 font-bold">×{classicalFormatted} {t('ibm_comp_speedup_label')}</span>
                         </div>
                       </motion.div>
                     );
@@ -986,10 +1003,10 @@ measure q -> c;`);
                           </div>
                           <div className="flex-1">
                             <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wider">
-                              Cosa hai ottenuto con questi dati (In parole semplici)
+                              {t('ibm_elem_title')}
                             </h4>
                             <span className="text-[9px] text-gray-400 font-mono">
-                              Spiegazione elementare dei risultati elaborati da IBM Quantum
+                              {t('ibm_elem_sub')}
                             </span>
                           </div>
                         </div>
@@ -1000,17 +1017,17 @@ measure q -> c;`);
                             <div className="flex items-center gap-2">
                               <Sparkles className="w-4 h-4 text-quantum-primary shrink-0 animate-pulse" />
                               <div>
-                                <span className="text-[10px] font-mono text-gray-300 block">Stato Ottimale Calcolato:</span>
+                                <span className="text-[10px] font-mono text-gray-300 block">{t('ibm_elem_opt_state')}</span>
                                 <span className="text-xs font-mono font-black text-quantum-primary">|ψ⟩ = |{topState}⟩</span>
                               </div>
                             </div>
                             <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
-                              {topPercentage}% Probabilità
+                              {topPercentage}% {t('ibm_elem_prob_suffix')}
                             </span>
                           </div>
 
                           <div className="text-[10.5px] font-mono text-gray-200 bg-[#070b14] p-1.5 rounded border border-quantum-primary/20">
-                            <span className="text-quantum-secondary font-bold mr-1">Configurazione Reale:</span>
+                            <span className="text-quantum-secondary font-bold mr-1">{t('ibm_elem_real_cfg')}</span>
                             {topTranslated}
                           </div>
                         </div>
@@ -1020,19 +1037,19 @@ measure q -> c;`);
                           <div className="flex items-start gap-2">
                             <span className="text-quantum-primary font-bold mt-0.5">•</span>
                             <p>
-                              <strong className="text-white">1. Lettura degli Stati:</strong> Il processore quantistico ha convertito le righe dei tuoi dati in bit quantistici. Lo stato <code className="bg-white/10 text-quantum-secondary px-1 rounded font-mono text-[10px]">|{topState}⟩</code> rappresenta la combinazione aziendale a massima efficienza e stabilità.
+                              <strong className="text-white">{t('ibm_elem_p1_title')}</strong> {t('ibm_elem_p1_body').replace('{state}', topState)}
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
                             <span className="text-quantum-primary font-bold mt-0.5">•</span>
                             <p>
-                              <strong className="text-white">2. Il Vantaggio Quantistico:</strong> IBM Quantum ha eseguito <strong className="text-white">1.024 simulazioni parallele</strong> istantanee, filtrando le interferenze e individuando la soluzione a minor rischio per la tua azienda.
+                              <strong className="text-white">{t('ibm_elem_p2_title')}</strong> {t('ibm_elem_p2_body')}
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
                             <span className="text-quantum-primary font-bold mt-0.5">•</span>
                             <p>
-                              <strong className="text-white">3. Risultato Pratico di Business:</strong> Puoi applicare direttamente questa configurazione operativa: gli elementi contrassegnati con <span className="text-emerald-400 font-mono">OK</span> operano in sicurezza, mentre quelli segnalati come <span className="text-amber-400 font-mono">Saturo</span> richiedono attenzione preventiva.
+                              <strong className="text-white">{t('ibm_elem_p3_title')}</strong> {t('ibm_elem_p3_body')}
                             </p>
                           </div>
                         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, ExternalLink, X, RefreshCw, ChevronRight, Calendar, Sparkles } from 'lucide-react';
 import axios from 'axios';
+import { useTranslation } from '../lib/TranslationContext';
 
 export interface NewsArticle {
   id: string;
@@ -14,6 +15,7 @@ export interface NewsArticle {
 }
 
 export default function QuantumNetNewsButton() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,7 +69,7 @@ export default function QuantumNetNewsButton() {
               ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_0_30px_rgba(0,242,255,0.6)] scale-110' 
               : 'bg-black/85 border-cyan-500/40 hover:border-cyan-300 hover:shadow-[0_0_25px_rgba(0,242,255,0.45)] hover:scale-105'
           }`}
-          title="Quantum-Net News"
+                  title={t('news_title')}
         >
           {/* Subtle pulse effect */}
           <span className="absolute inset-0 rounded-full bg-cyan-400/20 animate-ping pointer-events-none opacity-40" />
@@ -99,7 +101,7 @@ export default function QuantumNetNewsButton() {
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-xs sm:text-sm text-white tracking-wide uppercase">
-                      Quantum-Net News
+                      {t('news_title')}
                     </h3>
                     <p className="text-[10px] text-cyan-400/80 font-mono">
                       quantum-net.it/news
@@ -112,7 +114,7 @@ export default function QuantumNetNewsButton() {
                     onClick={fetchNews}
                     disabled={loading}
                     className="p-1.5 text-slate-400 hover:text-cyan-300 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-                    title="Aggiorna notizie"
+                    title={t('news_refresh')}
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
                   </button>
@@ -130,11 +132,11 @@ export default function QuantumNetNewsButton() {
                 {loading && articles.length === 0 ? (
                   <div className="py-8 flex flex-col items-center justify-center gap-2 text-slate-400">
                     <RefreshCw className="w-5 h-5 animate-spin text-cyan-400" />
-                    <span className="text-xs font-mono">Caricamento notizie...</span>
+                    <span className="text-xs font-mono">{t('news_loading')}</span>
                   </div>
                 ) : articles.length === 0 ? (
                   <div className="py-6 text-center text-xs text-slate-400 font-mono">
-                    Nessuna notizia disponibile al momento.
+                    {t('news_empty')}
                   </div>
                 ) : (
                   articles.map((item) => (
@@ -162,7 +164,7 @@ export default function QuantumNetNewsButton() {
                       </p>
 
                       <div className="pt-1 flex items-center justify-between text-[10px] text-cyan-400/80 font-mono group-hover:text-cyan-300">
-                        <span>Leggi dettagli</span>
+                        <span>{t('news_read_more')}</span>
                         <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
@@ -172,14 +174,14 @@ export default function QuantumNetNewsButton() {
 
               {/* Footer */}
               <div className="p-2.5 bg-slate-950 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-slate-400">
-                <span className="text-[10px] text-slate-500">Fonte: Quantum-Net</span>
+                <span className="text-[10px] text-slate-500">{t('news_source')}</span>
                 <a
                   href="https://www.quantum-net.it/news/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer"
                 >
-                  <span>Portale Completo</span>
+                  <span>{t('news_full_portal')}</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
@@ -226,7 +228,7 @@ export default function QuantumNetNewsButton() {
                   {selectedArticle.excerpt}
                 </p>
                 <div className="p-3 bg-slate-900/80 border border-white/5 rounded-xl font-mono text-xs text-slate-400">
-                  Per l'articolo completo e gli approfondimenti tecnici, consulta la pubblicazione originale su Quantum-Net:
+                  {t('news_article_note')}
                 </div>
               </div>
 
@@ -236,7 +238,7 @@ export default function QuantumNetNewsButton() {
                   onClick={() => setSelectedArticle(null)}
                   className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs font-semibold transition-all cursor-pointer"
                 >
-                  Chiudi
+                  {t('news_close')}
                 </button>
                 <a
                   href={selectedArticle.url}
@@ -244,7 +246,7 @@ export default function QuantumNetNewsButton() {
                   rel="noopener noreferrer"
                   className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer"
                 >
-                  <span>Apri su Quantum-Net</span>
+                  <span>{t('news_open_ext')}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>

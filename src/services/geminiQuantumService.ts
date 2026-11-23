@@ -92,7 +92,7 @@ job = sampler.run([pm_circuit], shots=2048)
 print(f"Senior Job Dispatched: {job.job_id()}")
 result = job.result()
 pub_result = result[0]
-counts = pub_result.data.meas.get_counts()
+counts = pub_result.join_data().get_counts()
 print(f"Mitigated Counts: {counts}")
 `;
 

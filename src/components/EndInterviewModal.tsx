@@ -1,7 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ExternalLink, Activity, Network, Cpu, Play, CheckCircle2, Server } from 'lucide-react';
+import { X, ExternalLink, Activity, Cpu, Play, CheckCircle2, Server } from 'lucide-react';
 import { CodeBlockWithCopy, IstogrammaQuantisticoUniversale, IbmQuantumComposerMockup } from './TestPage';
+import { useTranslation } from '../lib/TranslationContext';
+import { getAgentUi } from '../lib/agentAiTranslations';
 
 interface EndInterviewModalProps {
   isOpen: boolean;
@@ -32,8 +34,8 @@ function BlochSphere({ theta, phi, targetAlgoritmo }: { theta: number; phi: numb
     let currentPhi = 0;
     let time = 0;
 
-    const targetThetaDeg = theta <= Math.PI * 2 ? (theta * 180) / Math.PI : theta;
-    const targetPhiDeg = phi <= Math.PI * 2 ? (phi * 180) / Math.PI : phi;
+    const targetThetaDeg = Math.max(0, Math.min(180, theta));
+    const targetPhiDeg = ((phi % 360) + 360) % 360;
 
     const render = () => {
       currentTheta += (targetThetaDeg - currentTheta) * 0.05;
@@ -145,12 +147,24 @@ function BlochSphere({ theta, phi, targetAlgoritmo }: { theta: number; phi: numb
 export default function EndInterviewModal({
   isOpen, onClose, qasmCode, pythonCode, jsonCode, theta, phi, targetAlgoritmo, sector, scenarioType = 'quantum', fonteDati = 'utente', onSendToIBM
 }: EndInterviewModalProps) {
+  const { language } = useTranslation();
+  const ui = getAgentUi(language);
   const isQuantumScenario = scenarioType === 'quantum' && targetAlgoritmo.startsWith('Qiskit_');
 
-  const thetaRad = theta > Math.PI * 2 ? (theta * Math.PI) / 180 : theta;
-  const thetaDeg = theta > Math.PI * 2 ? theta : (theta * 180) / Math.PI;
-  const phiRad = phi > Math.PI * 2 ? (phi * Math.PI) / 180 : phi;
-  const phiDeg = phi > Math.PI * 2 ? phi : (phi * 180) / Math.PI;
+  let parsedThetaRad: number | null = null;
+  try {
+    const parsed = JSON.parse(jsonCode || '{}');
+    if (typeof parsed?.theta_radianti === 'number' && !isNaN(parsed.theta_radianti)) {
+      parsedThetaRad = parsed.theta_radianti;
+    }
+  } catch {
+    // ignore invalid json
+  }
+  const thetaDeg = parsedThetaRad !== null ? (parsedThetaRad * 180) / Math.PI : theta;
+  const thetaRad = parsedThetaRad !== null ? parsedThetaRad : (theta * Math.PI) / 180;
+  const phiDeg = phi;
+  const phiRad = (phi * Math.PI) / 180;
+  const quantumOutcome = ui.modalOutcomeQuantumHtml(thetaRad.toFixed(4));
 
   return (
     <AnimatePresence>
@@ -173,22 +187,22 @@ export default function EndInterviewModal({
               <div className="flex items-center gap-2">
                 <Activity className={`w-5 h-5 ${isQuantumScenario ? 'text-amber-400' : 'text-emerald-400'}`} />
                 <h2 className="font-mono text-lg font-bold text-white flex items-center gap-2 flex-wrap">
-                  Risultati dell'Intervista Strategica
+                  {ui.modalTitle}
                   <span className={`text-xs px-2 py-0.5 rounded border ${
                     isQuantumScenario
                       ? 'bg-purple-950/70 text-purple-300 border-purple-500/40'
                       : 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
                   }`}>
-                    {isQuantumScenario ? '⚛️ Pipeline Quantistica (QPU)' : '💻 Calcolo Classico (HPC / GPU)'}
+                    {isQuantumScenario ? ui.modalPipelineQuantum : ui.modalPipelineClassical}
                   </span>
                   <span className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold flex items-center gap-1.5 ${
                     fonteDati === 'utente'
                       ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
                       : 'bg-sky-950/80 text-sky-300 border-sky-500/50 shadow-[0_0_10px_rgba(14,165,233,0.2)]'
                   }`}
-                  title={fonteDati === 'utente' ? "I calcoli sono basati sui file che hai caricato" : "I calcoli sono basati sul dataset demo precompilato"}
+                  title={fonteDati === 'utente' ? ui.modalSourceUserDesc : ui.modalSourceDemoDesc}
                   >
-                    {fonteDati === 'utente' ? '📂 Fonte: File Utente' : '📦 Fonte: Dataset Demo'}
+                    {fonteDati === 'utente' ? ui.modalSourceUserShort : ui.modalSourceDemoShort}
                   </span>
                 </h2>
               </div>
@@ -212,12 +226,10 @@ export default function EndInterviewModal({
                   <span className="text-lg">{fonteDati === 'utente' ? '📂' : '📦'}</span>
                   <div>
                     <div className="font-bold">
-                      {fonteDati === 'utente' ? 'Fonte Dati: File Caricato dall\'Utente' : 'Fonte Dati: Dataset Demo Precompilato'}
+                      {fonteDati === 'utente' ? ui.modalSourceUserBanner : ui.modalSourceDemoBanner}
                     </div>
                     <div className="text-[11px] opacity-90 mt-0.5">
-                      {fonteDati === 'utente'
-                        ? 'I calcoli sono basati sui file che hai caricato.'
-                        : 'I calcoli sono basati sul dataset demo precompilato.'}
+                      {fonteDati === 'utente' ? ui.modalSourceUserTitle : ui.modalSourceDemoTitle}
                     </div>
                   </div>
                 </div>
@@ -226,36 +238,36 @@ export default function EndInterviewModal({
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                     : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
                 }`}>
-                  {fonteDati === 'utente' ? 'Dati Reali Utente' : 'Dataset Guidato'}
+                  {fonteDati === 'utente' ? ui.modalBadgeUser : ui.modalBadgeDemo}
                 </span>
               </div>
 
               {/* Codici Generati */}
               <div className="flex flex-col gap-4">
                 <h3 className="font-mono text-sm font-bold text-cyan-300 border-b border-white/10 pb-2">
-                  {isQuantumScenario ? 'Codici Quantistici Generati' : 'Pipeline Classica HPC Generata'}
+                  {isQuantumScenario ? ui.modalSectionQuantum : ui.modalSectionClassical}
                 </h3>
                 <div className={`grid grid-cols-1 ${isQuantumScenario ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-4`}>
                   <div className="flex flex-col gap-2 min-h-[200px]">
                     <CodeBlockWithCopy
                       code={jsonCode || "{\n  \"status\": \"idle\"\n}"}
                       language="json"
-                      title="📋 Manifest JSON"
+                      title={ui.modalManifestTitle}
                     />
                   </div>
                   <div className="flex flex-col gap-2 min-h-[200px]">
                     <CodeBlockWithCopy
-                      code={pythonCode || "# Codice Python in attesa"}
+                      code={pythonCode || "# Python"}
                       language="python"
-                      title={isQuantumScenario ? "🐍 Qiskit Python (Primitives V2)" : "🐍 Script Python (HPC / GPU / CPU)"}
+                      title={isQuantumScenario ? ui.modalPythonQuantumTitle : ui.modalPythonClassicalTitle}
                     />
                   </div>
                   {isQuantumScenario && (
                     <div className="flex flex-col gap-2 min-h-[200px]">
                       <CodeBlockWithCopy
-                        code={qasmCode || "// Circuito OpenQASM in attesa"}
+                        code={qasmCode || "// OpenQASM 3.0"}
                         language="qasm"
-                        title="⚛️ OpenQASM 3.0 (Quantum)"
+                        title={ui.modalQasmTitle}
                       />
                     </div>
                   )}
@@ -269,7 +281,7 @@ export default function EndInterviewModal({
                     <div className="flex items-center justify-between">
                       <h3 className="font-mono text-sm font-bold text-amber-300 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                        Immagine 1: Sfera di Bloch (Bloch Sphere Vector Visualizer)
+                        {ui.modalBlochTitle}
                       </h3>
                       <span className="text-[10px] font-mono bg-amber-950/70 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40">
                         plot_bloch_multivector | Statevector 3D
@@ -281,7 +293,7 @@ export default function EndInterviewModal({
                         <div className="p-4 bg-slate-900/60 border border-amber-500/20 rounded-xl shadow-inner w-full flex flex-col items-center">
                           <BlochSphere theta={thetaDeg} phi={phiDeg} targetAlgoritmo={targetAlgoritmo} />
                           <div className="mt-3 text-center font-mono text-[11px] text-slate-300 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-white/5 w-full">
-                            <span>Coordinate Vettoriali di Stato: </span>
+                            <span>{ui.modalCoordsLabel} </span>
                             <span className="text-amber-400 font-bold">Theta = {thetaRad.toFixed(4)} rad ({thetaDeg.toFixed(1)}°)</span>
                             <span className="text-slate-400 mx-2">|</span>
                             <span className="text-cyan-400 font-bold">Phi = {phiRad.toFixed(4)} rad ({phiDeg.toFixed(1)}°)</span>
@@ -290,7 +302,7 @@ export default function EndInterviewModal({
                       </div>
 
                       <div className="flex flex-col gap-3">
-                        <h4 className="font-mono text-xs font-bold text-slate-300">Distribuzione Probabilistica degli Stati</h4>
+                        <h4 className="font-mono text-xs font-bold text-slate-300">{ui.modalProbTitle}</h4>
                         <IstogrammaQuantisticoUniversale theta_radianti={thetaRad} settore={sector} />
                       </div>
                     </div>
@@ -300,21 +312,21 @@ export default function EndInterviewModal({
                     <div className="flex items-center justify-between">
                       <h3 className="font-mono text-sm font-bold text-cyan-300 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                        Immagine 2: IBM Quantum Composer (Visual Circuit Rendering & Gates Layout)
+                        {ui.modalComposerTitle}
                       </h3>
                       <button
                         onClick={() => window.open('https://quantum.ibm.com/composer', '_blank')}
-                        className="flex items-center gap-1.5 text-[11px] font-mono bg-cyan-950/70 hover:bg-cyan-900 text-cyan-300 px-2.5 py-1 rounded border border-cyan-500/40 transition-colors"
+                        className="flex items-center gap-1.5 text-[11px] font-mono bg-cyan-950/70 hover:bg-cyan-900 text-cyan-300 px-2.5 py-1 rounded border border-cyan-500/40 transition-colors cursor-pointer"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Apri in IBM Composer Cloud</span>
+                        <span>{ui.modalOpenComposer}</span>
                       </button>
                     </div>
 
                     <div className="mt-1">
                       <IbmQuantumComposerMockup
                         targetAlgoritmo={targetAlgoritmo}
-                        getActionDescription={() => "Mappatura dinamica circuito QPU IBM con porte RY, CX/CP e misurazioni"}
+                        getActionDescription={() => ui.composerActionDesc}
                       />
                     </div>
                   </div>
@@ -323,40 +335,39 @@ export default function EndInterviewModal({
                 <div className="flex flex-col gap-4 border-t border-white/10 pt-6">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-3 bg-slate-900/60 border border-emerald-500/20 rounded-xl">
-                      <span className="text-[10px] text-slate-400 font-mono uppercase block">Stato Ottimizzazione</span>
+                      <span className="text-[10px] text-slate-400 font-mono uppercase block">{ui.modalHpcStatusLabel}</span>
                       <span className="text-sm font-bold text-emerald-400 font-mono flex items-center gap-1.5 mt-0.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Convergenza SLSQP (100%)
+                        {ui.modalHpcStatusVal}
                       </span>
                       <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">SciPy SLSQP · Markowitz</span>
                     </div>
 
                     <div className="p-3 bg-slate-900/60 border border-white/10 rounded-xl">
-                      <span className="text-[10px] text-slate-400 font-mono uppercase block">Infrastruttura Target</span>
-                      <span className="text-sm font-bold text-white font-mono mt-0.5 block">Cluster HPC / GPU</span>
-                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">CPU Multi-Core Vettorizzata</span>
+                      <span className="text-[10px] text-slate-400 font-mono uppercase block">{ui.modalHpcTargetLabel}</span>
+                      <span className="text-sm font-bold text-white font-mono mt-0.5 block">{ui.modalHpcTargetVal}</span>
+                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">{ui.modalHpcTargetSub}</span>
                     </div>
 
                     <div className="p-3 bg-slate-900/60 border border-white/10 rounded-xl">
-                      <span className="text-[10px] text-slate-400 font-mono uppercase block">Modello Matematico</span>
+                      <span className="text-[10px] text-slate-400 font-mono uppercase block">{ui.modalHpcMathLabel}</span>
                       <span className="text-sm font-bold text-cyan-400 font-mono mt-0.5 block">NumPy / SciPy / ML</span>
-                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">Matrice adiacenza & costi</span>
+                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">{ui.modalHpcMathSub}</span>
                     </div>
 
                     <div className="p-3 bg-slate-900/60 border border-white/10 rounded-xl">
-                      <span className="text-[10px] text-slate-400 font-mono uppercase block">Rumore Computazionale</span>
-                      <span className="text-sm font-bold text-emerald-400 font-mono mt-0.5 block">0.00% (Deterministico)</span>
-                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">Zero decoerenza da Qubit</span>
+                      <span className="text-[10px] text-slate-400 font-mono uppercase block">{ui.modalHpcNoiseLabel}</span>
+                      <span className="text-sm font-bold text-emerald-400 font-mono mt-0.5 block">{ui.modalHpcNoiseVal}</span>
+                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">{ui.modalHpcNoiseSub}</span>
                     </div>
                   </div>
 
                   <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl flex items-start gap-3">
                     <Server className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                     <div className="flex flex-col gap-1">
-                      <h4 className="font-mono text-xs font-bold text-emerald-400">Elaborazione Convenzionale HPC & Sintesi Output</h4>
+                      <h4 className="font-mono text-xs font-bold text-emerald-400">{ui.modalHpcSummaryTitle}</h4>
                       <p className="text-xs text-slate-300 leading-relaxed">
-                        Questo scenario opera con algoritmi convenzionali ad alte prestazioni. Il calcolo non richiede qubit, porte quantistiche né rappresentazioni sulla Sfera di Bloch.
-                        I pesi del File 1 sono stati trattati come vettori di priorità/costo, mentre la matrice del File 2 è stata elaborata come grafo delle connessioni o matrice di covarianza inter-risorsa.
+                        {ui.modalHpcSummaryBody}
                       </p>
                     </div>
                   </div>
@@ -365,30 +376,24 @@ export default function EndInterviewModal({
 
               {/* Descrizione Semplice */}
               <div className="flex flex-col gap-2 p-4 bg-slate-900/60 border border-white/10 rounded-xl">
-                <h4 className="font-mono text-xs font-bold text-cyan-400">Cosa ha ottenuto l'utente con questa elaborazione:</h4>
+                <h4 className="font-mono text-xs font-bold text-cyan-400">{ui.modalOutcomeTitle}</h4>
                 <div className="text-sm font-sans text-slate-300 leading-relaxed">
                   {isQuantumScenario ? (
                     <p>
-                      Il circuito Qiskit ha codificato i pesi del File 1 sulle ampiezze di stato tramite rotazioni calibrate.
-                      In ottica prudente, la configurazione esprime una <strong className="text-amber-300">Copertura Garantita</strong> /
-                      <strong className="text-amber-300">Stabilità Protetta</strong> (θ = {thetaRad.toFixed(4)} rad), orientando il sistema
-                      verso la massima resilienza. Lo <strong className="text-cyan-300">Sharpe Ratio</strong> è calcolato esclusivamente
-                      dal motore classico HPC (Markowitz / SciPy SLSQP), non dal circuito quantistico.
+                      {quantumOutcome.part1}
+                      <strong className="text-amber-300">{quantumOutcome.bold1}</strong> /
+                      <strong className="text-amber-300">{quantumOutcome.bold2}</strong>
+                      {quantumOutcome.part2}
+                      <strong className="text-cyan-300">{quantumOutcome.bold3}</strong>
+                      {quantumOutcome.part3}
                     </p>
                   ) : (
                     <ul className="flex flex-col gap-2 list-disc list-inside text-xs text-slate-300 font-mono">
-                      <li>
-                        <strong className="text-white">Script Python HPC Pronto all'Uso:</strong> implementazione deterministica con NumPy, SciPy e librerie specialistiche pronte per l'esecuzione in locale o su cluster HPC.
-                      </li>
-                      <li>
-                        <strong className="text-white">Elaborazione Multi-File Correlata:</strong> integrazione del vettore delle risorse (File 1) con la matrice delle interdipendenze (File 2) per calcolare la convergenza ottimale.
-                      </li>
-                      <li>
-                        <strong className="text-white">Manifest JSON Strutturato:</strong> metadati completi dei parametri di input, strategia adottata e assenza di calcolo quantistico (per piena conformità con i workflow di produzione).
-                      </li>
-                      <li>
-                        <strong className="text-white">Zero Overhead Quantistico:</strong> nessun circuito QASM o simulazione di rumore quantistico, garantendo la massima efficienza su hardware convenzionale.
-                      </li>
+                      {ui.modalOutcomeClassicalItems.map((item, idx) => (
+                        <li key={idx}>
+                          <strong className="text-white">{item.bold}</strong> {item.text}
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </div>
@@ -399,34 +404,34 @@ export default function EndInterviewModal({
                 <div className="flex flex-col items-center justify-center gap-6 mt-4 p-8 bg-slate-900/80 border border-amber-500/30 rounded-xl text-center">
                   <div className="flex flex-col gap-2 max-w-xl mx-auto">
                     <Cpu className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-                    <h3 className="font-bold text-lg text-white font-mono">Esecuzione su Hardware Reale</h3>
+                    <h3 className="font-bold text-lg text-white font-mono">{ui.modalHwExecTitle}</h3>
                     <p className="text-sm text-slate-400">
-                      Avendo prodotto il circuito OpenQASM 3.0, puoi inviarlo al computer quantistico IBM per l'elaborazione sulla QPU cloud.
+                      {ui.modalHwExecDesc}
                     </p>
                   </div>
 
                   <button
                     onClick={onSendToIBM}
-                    className="flex items-center gap-3 px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold font-mono rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+                    className="flex items-center gap-3 px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold font-mono rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.3)] cursor-pointer"
                   >
                     <Play className="w-5 h-5" />
-                    <span>SEND TO IBM QUANTUM</span>
+                    <span>{ui.sendToIbmBtn}</span>
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-4 mt-4 p-6 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-center">
                   <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
                   <div className="flex flex-col gap-1 max-w-xl mx-auto">
-                    <h3 className="font-bold text-base text-white font-mono">Calcolo Classico Completato con Successo</h3>
+                    <h3 className="font-bold text-base text-white font-mono">{ui.modalClassicalDoneTitle}</h3>
                     <p className="text-xs text-slate-300">
-                      Il modello classico non richiede l'invio a una QPU IBM perché viene eseguito istantaneamente su cluster HPC convenzionali. Puoi copiare lo script Python generato per integrarlo nei tuoi sistemi.
+                      {ui.modalClassicalDoneDesc}
                     </p>
                   </div>
                   <button
                     onClick={onClose}
-                    className="mt-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs rounded-lg transition-all"
+                    className="mt-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs rounded-lg transition-all cursor-pointer"
                   >
-                    Chiudi Risultati
+                    {ui.modalCloseBtn}
                   </button>
                 </div>
               )}

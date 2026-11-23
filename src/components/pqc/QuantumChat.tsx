@@ -28,6 +28,8 @@ interface Message {
   senderId: string;
   senderName: string;
   content: string;
+  systemKind?: 'created' | 'authorized';
+  roomCode?: string;
   cipher?: string;
   isEncrypted?: boolean;
 }
@@ -90,7 +92,9 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
         id: '1',
         senderId: 'system',
         senderName: 'SYSTEM',
-        content: `Quantum Session created. ID: ${newRoomId}. Only code holders can join.`,
+        systemKind: 'created',
+        roomCode: newRoomId,
+        content: t('chat_sys_created').replace('{id}', newRoomId),
         isEncrypted: false
       }]);
     } catch (error) {
@@ -113,11 +117,13 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
         id: '1',
         senderId: 'system',
         senderName: 'SYSTEM',
-        content: `Access to session ${joinedRoomId} authorized via ML-KEM.`,
+        systemKind: 'authorized',
+        roomCode: joinedRoomId,
+        content: t('chat_sys_authorized').replace('{id}', joinedRoomId),
         isEncrypted: false
       }]);
     } catch (error) {
-      alert("Invalid code");
+      alert(t('chat_invalid_code'));
     } finally {
       setIsJoining(false);
     }
@@ -185,7 +191,7 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
             onClick={createRoom}
             className="quantum-card bg-black/60 border-quantum-primary/20 hover:border-quantum-primary/50 transition-all group p-8 flex items-center justify-between relative overflow-hidden"
           >
-            <div className="absolute top-0 right-0 p-2 opacity-5 italic font-mono text-4xl select-none">CREATE</div>
+            <div className="absolute top-0 right-0 p-2 opacity-5 italic font-mono text-4xl select-none">{t('chat_badge_create')}</div>
             <div className="flex items-center gap-6 text-left relative z-10">
               <div className="w-16 h-16 rounded-2xl bg-quantum-primary/10 flex items-center justify-center border border-quantum-primary/20 group-hover:scale-110 transition-transform">
                 <Plus className="w-8 h-8 text-quantum-primary" />
@@ -199,7 +205,7 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
           </button>
 
           <div className="quantum-card bg-black/60 border-white/10 p-8 space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-2 opacity-5 italic font-mono text-4xl select-none">JOIN</div>
+            <div className="absolute top-0 right-0 p-2 opacity-5 italic font-mono text-4xl select-none">{t('chat_badge_join')}</div>
             <div className="flex items-center gap-6 relative z-10">
               <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/5">
                 <KeyIcon className="w-8 h-8 text-gray-500" />
@@ -312,7 +318,18 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-8 sm:space-y-10 scrollbar-hide relative z-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,242,255,0.03)_0%,transparent_50%)] pointer-events-none" />
         
-        {messages.map((msg) => (
+        {messages.map((msg) => {
+          const displaySender = msg.senderId === 'system'
+            ? t('chat_system')
+            : msg.senderId === socket?.id
+              ? t('chat_you')
+              : `${t('chat_agent_prefix')}${msg.senderId.substring(0, 4)}`;
+          const displayContent = msg.systemKind === 'created'
+            ? t('chat_sys_created').replace('{id}', msg.roomCode || '')
+            : msg.systemKind === 'authorized'
+              ? t('chat_sys_authorized').replace('{id}', msg.roomCode || '')
+              : msg.content;
+          return (
           <motion.div 
             key={msg.id}
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -321,7 +338,7 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
           >
             <div className={`max-w-[75%] sm:max-w-[70%] lg:max-w-[60%] flex flex-col ${msg.senderId === socket?.id ? 'items-end' : 'items-start'}`}>
               <div className="flex items-center gap-3 mb-2 px-3">
-                <span className="text-[9px] sm:text-[10px] font-mono text-gray-500 uppercase font-black tracking-[0.2em]">{msg.senderName}</span>
+                <span className="text-[9px] sm:text-[10px] font-mono text-gray-500 uppercase font-black tracking-[0.2em]">{displaySender}</span>
                 {msg.senderId === 'system' ? <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-quantum-secondary/60" /> : <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-quantum-primary/50" />}
               </div>
               
@@ -349,7 +366,7 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
                   </div>
                 )}
                 <p className={`text-sm sm:text-base tracking-wide leading-relaxed ${msg.senderId === 'system' ? 'text-[12px] opacity-80' : 'font-medium'}`}>
-                  {msg.content}
+                  {displayContent}
                 </p>
                 {msg.isEncrypted && (
                   <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
@@ -363,7 +380,8 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
               </div>
             </div>
           </motion.div>
-        ))}
+        );
+        })}
         {isTyping && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
             <div className="bg-white/5 border border-white/5 px-4 py-3 rounded-full flex gap-1.5">

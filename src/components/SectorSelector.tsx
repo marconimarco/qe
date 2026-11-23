@@ -280,7 +280,7 @@ export default function SectorSelector({
                           {!isAllowed && (
                             <div 
                               className="absolute -top-1 -right-1 p-0.5 sm:p-1 bg-red-600 border border-red-300 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.9)] z-30 animate-pulse"
-                              title="Accesso Negato dall'Amministratore"
+                              title={t('s_access_denied')}
                             >
                               <Lock className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
                             </div>
@@ -327,18 +327,18 @@ export default function SectorSelector({
                       whileTap={{ scale: 0.95 }}
                       onClick={() => {
                         if (!isAgentAiAllowed) {
-                          onAccessDenied?.('agent_ai', 'Agent AI');
+                          onAccessDenied?.('agent_ai', t('s_agent_ai_name'));
                           return;
                         }
                         onOpenTest?.();
                       }}
                       className={`w-full h-full bg-black/95 border-2 ${isAgentAiAllowed ? 'border-quantum-primary hover:border-quantum-primary shadow-[0_0_35px_rgba(0,242,255,0.25)]' : 'border-red-500/60 shadow-[0_0_30px_rgba(239,68,68,0.3)]'} rounded-full flex flex-col items-center justify-center cursor-pointer relative overflow-hidden backdrop-blur-xl group/hub`}
-                      title={isAgentAiAllowed ? "Agent AI" : "Agent AI (Accesso Riservato)"}
+                      title={isAgentAiAllowed ? t('s_agent_ai_name') : t('s_agent_ai_reserved')}
                     >
                       {!isAgentAiAllowed && (
                         <div 
                           className="absolute top-2 right-2 p-1.5 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.9)] z-40 animate-pulse"
-                          title="Accesso riservato"
+                          title={t('s_restricted_badge')}
                         >
                           <Lock className="w-3 h-3 text-white" />
                         </div>
@@ -349,10 +349,10 @@ export default function SectorSelector({
                         <div className="flex flex-col items-center justify-center">
                           <Cpu className={`w-8 h-8 sm:w-10 sm:h-10 ${isAgentAiAllowed ? 'text-quantum-primary filter drop-shadow-[0_0_12px_rgba(0,242,255,0.6)]' : 'text-red-400 filter drop-shadow-[0_0_12px_rgba(239,68,68,0.6)]'} group-hover/hub:scale-110 transition-transform duration-300 animate-pulse`} />
                           <span className={`text-[10px] sm:text-[11px] md:text-xs font-display font-black uppercase tracking-widest ${isAgentAiAllowed ? 'text-white group-hover/hub:text-quantum-primary' : 'text-red-200 group-hover/hub:text-red-300'} mt-1.5 transition-colors max-w-[125px]`}>
-                            Agent AI
+                            {t('s_agent_ai_name')}
                           </span>
                           <span className={`text-[5px] sm:text-[7px] font-mono ${isAgentAiAllowed ? 'text-quantum-primary/60' : 'text-red-400/70'} uppercase tracking-widest mt-0.5 scale-90`}>
-                            {isAgentAiAllowed ? t('launch_gateway') : 'ACCESSO LIMITATO'}
+                            {isAgentAiAllowed ? t('launch_gateway') : t('s_limited_access')}
                           </span>
                         </div>
                       </div>
@@ -406,7 +406,7 @@ export default function SectorSelector({
                       {!isSubAllowed && (
                         <div 
                           className="absolute top-3 right-3 p-1 bg-red-600/90 border border-red-400 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] z-30 animate-pulse"
-                          title="Accesso riservato"
+                          title={t('s_restricted_badge')}
                         >
                           <Lock className="w-3 h-3 text-white" />
                         </div>

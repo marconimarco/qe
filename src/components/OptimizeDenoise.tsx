@@ -69,10 +69,10 @@ export default function OptimizeDenoise() {
     } catch (error: any) {
       console.error(error);
       if (error?.message === 'API_KEY_MISSING' || !getStoredApiKey()) {
-        setErrorMsg("Google AI Studio API Key not configured. Please enter an API key to use optimization.");
+        setErrorMsg(t('opt_api_key_missing'));
         setIsKeyModalOpen(true);
       } else {
-        setErrorMsg("Error optimizing code. Please check your API Key or try again.");
+        setErrorMsg(t('opt_error_generic'));
       }
     } finally {
       setIsProcessing(false);
@@ -86,20 +86,39 @@ export default function OptimizeDenoise() {
     // Simulate ZNE (Zero Noise Extrapolation) / Readout Mitigation
     setTimeout(() => {
       try {
-        // 1. Parsing Input (Handling both Raw format and JSON)
-        let original: Record<string, number> = {};
-        
+        // 1. Parsing Input (Handling JSON, "key: val", and CSV/semicolon/newline tables)
+        const original: Record<string, number> = {};
+        const cleanedInput = (dirtyData || '').replace(/^\uFEFF/, '').trim();
+
+        let parsedAsJson = false;
         try {
-          // Attempt JSON parse
-          original = JSON.parse(dirtyData);
-        } catch (e) {
-          // Fallback to "key: val, key: val" format
-          const pairs = dirtyData.split(',').map(p => p.trim());
-          pairs.forEach(pair => {
-            const parts = pair.split(':').map(s => s.trim());
-            if (parts.length === 2) {
-              const [key, val] = parts;
-              original[key] = parseInt(val, 10) || 0;
+          const parsed = JSON.parse(cleanedInput);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            for (const [k, v] of Object.entries(parsed)) {
+              const num = Number(v);
+              if (k.trim() && !isNaN(num) && isFinite(num) && num >= 0) {
+                original[k.trim()] = Math.round(num);
+              }
+            }
+            parsedAsJson = Object.keys(original).length > 0;
+          }
+        } catch {
+          // Not JSON, fall back to delimiter/CSV parsing
+        }
+
+        if (!parsedAsJson) {
+          const tokens = cleanedInput.includes('\n') && !cleanedInput.includes(':')
+            ? cleanedInput.split(/\r?\n/).map(p => p.trim()).filter(Boolean)
+            : cleanedInput.split(/[\n,]+/).map(p => p.trim()).filter(Boolean);
+
+          tokens.forEach(pair => {
+            const match = pair.match(/^\|?([01]+|[^:;\t,]+?)\⟩?\s*[:;\t,]\s*(-?\d+(?:[.,]\d+)?)$/);
+            if (match) {
+              const key = match[1].trim();
+              const num = parseFloat(match[2].replace(',', '.'));
+              if (key && !isNaN(num) && num >= 0) {
+                original[key] = (original[key] || 0) + Math.round(num);
+              }
             }
           });
         }
@@ -108,6 +127,7 @@ export default function OptimizeDenoise() {
         if (states.length === 0) throw new Error("Format error");
 
         const totalRaw = Object.values(original).reduce((a, b) => a + b, 0);
+        if (totalRaw <= 0) throw new Error("Zero total counts");
         
         // 2. Mitigation Algorithm (Simulated Matrix Inversion / ZNE)
         // We identify the strongest signals and sharpen them, while suppressing baseline noise.
@@ -119,27 +139,27 @@ export default function OptimizeDenoise() {
         states.forEach(state => {
           const val = original[state];
           if (val > noiseFloor) {
-            // Signal enhancement: we assume the noise leaked INTO other states, so we reclaim it
             mitigated[state] = Math.floor(val * 1.25);
           } else {
-            // Noise suppression: almost zeroing out background chatter
-            mitigated[state] = Math.max(1, Math.floor(val * 0.05));
+            mitigated[state] = val > 0 ? Math.max(1, Math.floor(val * 0.05)) : 0;
           }
           totalMitigated += mitigated[state];
         });
 
-        // Normalize to a consistent shot count (e.g. 1024)
-        const targetShots = totalRaw > 0 ? totalRaw : 1024;
+        const safeMitigatedSum = totalMitigated > 0 ? totalMitigated : 1;
+        // Normalize to a consistent shot count
+        const targetShots = totalRaw;
         states.forEach(state => {
-          mitigated[state] = Math.round((mitigated[state] / totalMitigated) * targetShots);
+          mitigated[state] = Math.round((mitigated[state] / safeMitigatedSum) * targetShots);
         });
+        const actualMitigatedTotal = Object.values(mitigated).reduce((a, b) => a + b, 0) || 1;
 
         // 3. Dynamic Metrics Calculation
         // Fidelity improvement is calculated by the increase in probability of the dominant state
         const dominantState = states.reduce((a, b) => original[a] > original[b] ? a : b);
         const probRaw = original[dominantState] / totalRaw;
-        const probMit = mitigated[dominantState] / targetShots;
-        const improvement = Math.min(25, ((probMit - probRaw) / probRaw) * 100);
+        const probMit = mitigated[dominantState] / actualMitigatedTotal;
+        const improvement = probRaw > 0 ? Math.min(25, Math.max(0, ((probMit - probRaw) / probRaw) * 100)) : 0;
 
         // 4. Dynamic Explanation
         const weakStates = states.filter(s => s !== dominantState).slice(0, 2).map(s => `|${s}⟩`).join(', ');
@@ -155,7 +175,7 @@ export default function OptimizeDenoise() {
           original,
           mitigated,
           originalTotal: totalRaw,
-          mitigatedTotal: targetShots,
+          mitigatedTotal: actualMitigatedTotal,
           improvement: parseFloat(improvement.toFixed(1)),
           explanation
         });
@@ -186,7 +206,7 @@ export default function OptimizeDenoise() {
             onClick={() => setIsKeyModalOpen(true)}
             className="px-3 py-1.5 bg-amber-400 text-black font-bold uppercase text-[10px] rounded-lg hover:bg-amber-300 transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
           >
-            <Key className="w-3.5 h-3.5" /> Set Key
+            <Key className="w-3.5 h-3.5" /> {t('opt_set_key')}
           </button>
         </div>
       )}
@@ -325,10 +345,11 @@ export default function OptimizeDenoise() {
                       if (!file) return;
                       const reader = new FileReader();
                       reader.onload = (rev) => {
-                        const content = rev.target?.result as string;
+                        const content = ((rev.target?.result as string) || '').replace(/^\uFEFF/, '');
                         setDirtyData(content);
                       };
                       reader.readAsText(file);
+                      e.target.value = '';
                     }}
                   />
                 </label>
@@ -359,7 +380,7 @@ export default function OptimizeDenoise() {
                       <h3 className="text-[10px] font-bold text-green-400 uppercase flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4" /> {t('cleanResults')}
                       </h3>
-                      <span className="px-2 py-0.5 bg-green-500 text-black text-[9px] font-bold rounded">FIDELITY +{mitigatedData.improvement}%</span>
+                      <span className="px-2 py-0.5 bg-green-500 text-black text-[9px] font-bold rounded">{t('opt_fidelity_badge')} +{mitigatedData.improvement}%</span>
                     </div>
                     
                     <div className="space-y-4">
@@ -373,7 +394,7 @@ export default function OptimizeDenoise() {
                           <div key={state} className="space-y-1">
                             <div className="flex justify-between text-[10px] font-mono">
                               <span className="text-white">|{state}⟩</span>
-                              <span className="text-green-400">{percentage.toFixed(1)}% <span className="text-gray-600 text-[8px] italic">(was {originalPercentage.toFixed(1)}%)</span></span>
+                              <span className="text-green-400">{percentage.toFixed(1)}% <span className="text-gray-600 text-[8px] italic">({t('opt_was')} {originalPercentage.toFixed(1)}%)</span></span>
                             </div>
                             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
                                 <div className="h-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" style={{ width: `${percentage}%` }} />
