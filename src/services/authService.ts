@@ -187,7 +187,7 @@ export const DEFAULT_USERS: AuthUser[] = [
     status: 'active',
     createdAt: new Date(_BASE_SEED_TIME - 90 * 86400 * 1000).toISOString(),
     lastLogin: SEED_ADMIN_LOGIN_TIME,
-    hasAcceptedAgreements: false,
+    hasAcceptedAgreements: true,
     allowedIcons: ALL_APP_ICON_IDS,
     allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
   },
@@ -201,7 +201,7 @@ export const DEFAULT_USERS: AuthUser[] = [
     status: 'active',
     createdAt: new Date(_BASE_SEED_TIME - 60 * 86400 * 1000).toISOString(),
     lastLogin: SEED_DEMO_LOGIN_TIME,
-    hasAcceptedAgreements: true,
+    hasAcceptedAgreements: false,
     allowedIcons: ALL_APP_ICON_IDS,
     allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
   },
@@ -258,7 +258,7 @@ export function getStoredUsers(): AuthUser[] {
         status: 'active',
         createdAt: new Date(_BASE_SEED_TIME - 60 * 86400 * 1000).toISOString(),
         lastLogin: SEED_DEMO_LOGIN_TIME,
-        hasAcceptedAgreements: true,
+        hasAcceptedAgreements: false,
         allowedIcons: ALL_APP_ICON_IDS,
         allowedAgentAiCategories: ALL_AGENT_AI_CATEGORY_IDS
       });
@@ -301,7 +301,7 @@ export function getCurrentSession(): CurrentUserSession | null {
         email: freshUser.email,
         role: freshUser.role,
         status: freshUser.status,
-        hasAcceptedAgreements: freshUser.hasAcceptedAgreements ?? true,
+        hasAcceptedAgreements: freshUser.role === 'admin' ? true : Boolean(freshUser.hasAcceptedAgreements),
         allowedIcons: freshUser.allowedIcons !== undefined 
           ? freshUser.allowedIcons 
           : (freshUser.role === 'admin' ? ALL_APP_ICON_IDS : []),
@@ -332,7 +332,7 @@ export function setCurrentSession(user: AuthUser | null): void {
     status: user.status,
     createdAt: user.createdAt,
     lastLogin: new Date().toISOString(),
-    hasAcceptedAgreements: user.hasAcceptedAgreements ?? false,
+    hasAcceptedAgreements: user.role === 'admin' ? true : Boolean(user.hasAcceptedAgreements),
     acceptedAgreementsTimestamp: user.acceptedAgreementsTimestamp,
     allowedIcons: user.allowedIcons ?? ALL_APP_ICON_IDS,
     allowedAgentAiCategories: user.allowedAgentAiCategories ?? ALL_AGENT_AI_CATEGORY_IDS
@@ -368,7 +368,8 @@ export function acceptAgreementsForUser(userId: string): { success: boolean; ses
       lastLogin: users[index].lastLogin,
       hasAcceptedAgreements: true,
       acceptedAgreementsTimestamp: timestamp,
-      allowedIcons: users[index].allowedIcons ?? ALL_APP_ICON_IDS
+      allowedIcons: users[index].allowedIcons ?? ALL_APP_ICON_IDS,
+      allowedAgentAiCategories: users[index].allowedAgentAiCategories ?? ALL_AGENT_AI_CATEGORY_IDS
     }
   };
 }
@@ -450,9 +451,10 @@ export function loginUser(usernameInput: string, passwordInput: string): { succe
       status: user.status,
       createdAt: user.createdAt,
       lastLogin: now,
-      hasAcceptedAgreements: user.hasAcceptedAgreements ?? true,
+      hasAcceptedAgreements: user.role === 'admin' ? true : Boolean(user.hasAcceptedAgreements),
       acceptedAgreementsTimestamp: user.acceptedAgreementsTimestamp,
-      allowedIcons: user.allowedIcons ?? ALL_APP_ICON_IDS
+      allowedIcons: user.allowedIcons ?? ALL_APP_ICON_IDS,
+      allowedAgentAiCategories: user.allowedAgentAiCategories ?? ALL_AGENT_AI_CATEGORY_IDS
     }
   };
 }
@@ -513,7 +515,7 @@ export function createNewUser(
       email: data.email.trim() || users[existingIndex].email,
       role: data.role,
       status: data.status,
-      hasAcceptedAgreements: true,
+      hasAcceptedAgreements: data.role === 'admin' ? true : (users[existingIndex].hasAcceptedAgreements ?? false),
       allowedIcons: data.allowedIcons !== undefined
         ? data.allowedIcons
         : (data.role === 'admin' ? ALL_APP_ICON_IDS : []),
@@ -545,7 +547,7 @@ export function createNewUser(
     role: data.role,
     status: data.status,
     createdAt: new Date().toISOString(),
-    hasAcceptedAgreements: true,
+    hasAcceptedAgreements: data.role === 'admin',
     allowedIcons: data.allowedIcons !== undefined
       ? data.allowedIcons
       : (data.role === 'admin' ? ALL_APP_ICON_IDS : []),
@@ -950,6 +952,10 @@ export function reconcileAndSanitizeStorage(): void {
 
     // Controllo coerenza per ciascun utente in users
     for (const u of users) {
+      if (u.role === 'admin' && !u.hasAcceptedAgreements) {
+        u.hasAcceptedAgreements = true;
+        usersChanged = true;
+      }
       if (Array.isArray(u.allowedIcons) && u.allowedIcons.includes('medical_screening')) {
         u.allowedIcons = u.allowedIcons.filter(id => id !== 'medical_screening');
         usersChanged = true;

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ExternalLink, Activity, Cpu, Play, CheckCircle2, Server } from 'lucide-react';
+import { X, ExternalLink, Activity, Cpu, Play, CheckCircle2, Server, FileText, Download, Copy, Check } from 'lucide-react';
 import { CodeBlockWithCopy, IstogrammaQuantisticoUniversale, IbmQuantumComposerMockup } from './TestPage';
 import { useTranslation } from '../lib/TranslationContext';
 import { getAgentUi } from '../lib/agentAiTranslations';
@@ -11,6 +11,8 @@ interface EndInterviewModalProps {
   qasmCode: string;
   pythonCode: string;
   jsonCode: string;
+  interviewText?: string;
+  onDownloadInterview?: () => void;
   theta: number;
   phi: number;
   targetAlgoritmo: string;
@@ -144,12 +146,58 @@ function BlochSphere({ theta, phi, targetAlgoritmo }: { theta: number; phi: numb
   return <canvas ref={canvasRef} width={280} height={280} className="w-full max-w-[280px] mx-auto" />;
 }
 
+const INTERVIEW_MODAL_COPY: Record<string, {
+  title: string;
+  autoBadge: string;
+  downloadBtn: string;
+}> = {
+  it: {
+    title: 'Report Completo & Intervista (.txt: Intervista + CSV + Pop-up + Codici)',
+    autoBadge: 'Report completo scaricato in automatico',
+    downloadBtn: 'Scarica Tutto (.txt)',
+  },
+  en: {
+    title: 'Complete Report & Interview (.txt: Interview + CSV + Pop-up + Code)',
+    autoBadge: 'Full report auto-downloaded',
+    downloadBtn: 'Download All (.txt)',
+  },
+  de: {
+    title: 'Vollständiger Bericht & Interview (.txt: Interview + CSV + Pop-up + Code)',
+    autoBadge: 'Vollständiger Bericht automatisch heruntergeladen',
+    downloadBtn: 'Alles herunterladen (.txt)',
+  },
+  fr: {
+    title: 'Rapport Complet & Entretien (.txt : Entretien + CSV + Pop-up + Codes)',
+    autoBadge: 'Rapport complet téléchargé automatiquement',
+    downloadBtn: 'Tout télécharger (.txt)',
+  },
+  zh: {
+    title: '完整报告与访谈记录 (.txt：访谈 + CSV + 弹窗结果 + 代码)',
+    autoBadge: '完整报告已自动下载',
+    downloadBtn: '下载全部 (.txt)',
+  },
+  ja: {
+    title: '完全レポート＆インタビュー (.txt：対話 + CSV + ポップアップ結果 + コード)',
+    autoBadge: '完全レポートを自動ダウンロード済み',
+    downloadBtn: 'すべてダウンロード (.txt)',
+  },
+};
+
 export default function EndInterviewModal({
-  isOpen, onClose, qasmCode, pythonCode, jsonCode, theta, phi, targetAlgoritmo, sector, scenarioType = 'quantum', fonteDati = 'utente', onSendToIBM
+  isOpen, onClose, qasmCode, pythonCode, jsonCode, interviewText = '', onDownloadInterview, theta, phi, targetAlgoritmo, sector, scenarioType = 'quantum', fonteDati = 'utente', onSendToIBM
 }: EndInterviewModalProps) {
   const { language } = useTranslation();
   const ui = getAgentUi(language);
+  const interviewCopy = INTERVIEW_MODAL_COPY[language] || INTERVIEW_MODAL_COPY.it;
+  const [copiedTranscript, setCopiedTranscript] = useState(false);
   const isQuantumScenario = scenarioType === 'quantum' && targetAlgoritmo.startsWith('Qiskit_');
+
+  const handleCopyTranscript = () => {
+    if (!interviewText) return;
+    navigator.clipboard?.writeText(interviewText)?.catch(() => {});
+    setCopiedTranscript(true);
+    setTimeout(() => setCopiedTranscript(false), 2200);
+  };
 
   let parsedThetaRad: number | null = null;
   try {
@@ -272,6 +320,55 @@ export default function EndInterviewModal({
                     </div>
                   )}
                 </div>
+
+                {/* Trascrizione completa dell'intervista insieme ai codici */}
+                {interviewText && (
+                  <div className="rounded-xl overflow-hidden border border-cyan-500/30 bg-slate-950 shadow-xl flex flex-col mt-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-900/90 border-b border-white/10 text-[11px] font-mono">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <FileText className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <span className="text-cyan-300 font-semibold tracking-wide">
+                          {interviewCopy.title}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-300 border border-emerald-500/40">
+                          {interviewCopy.autoBadge}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCopyTranscript}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/40 border border-white/15 text-white text-[11px] font-semibold transition-all cursor-pointer"
+                        >
+                          {copiedTranscript ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-400 font-bold">{ui.copiedCodeBtn}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5 text-slate-300" />
+                              <span>{ui.copyCodeBtn}</span>
+                            </>
+                          )}
+                        </button>
+                        {onDownloadInterview && (
+                          <button
+                            type="button"
+                            onClick={onDownloadInterview}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 text-[11px] font-semibold transition-all cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5 text-cyan-300" />
+                            <span>{interviewCopy.downloadBtn}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <pre className="p-3.5 text-[11px] font-mono text-slate-200 overflow-auto max-h-[220px] leading-relaxed bg-slate-950/90 whitespace-pre-wrap break-words">
+                      <code>{interviewText}</code>
+                    </pre>
+                  </div>
+                )}
               </div>
 
               {/* Grafici: Bloch, Istogramma & IBM Quantum Composer */}

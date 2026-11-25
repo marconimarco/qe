@@ -14,13 +14,8 @@ import TrialDisclaimerModal from './components/TrialDisclaimerModal';
 import TestPage from './components/TestPage';
 import { SectorId, SECTORS, LanguageCode } from './types';
 import { TranslationProvider, useTranslation } from './lib/TranslationContext';
-import { Cpu, Terminal, ArrowLeft, Layers, HelpCircle, ShieldCheck, User, LogOut, Users, Shield, Crown, AlertTriangle } from 'lucide-react';
+import { Layers, ShieldCheck, User, LogOut, Users, Crown, AlertTriangle } from 'lucide-react';
 import { getCurrentSession, logoutUser, CurrentUserSession, isIconAllowedForUser, logUserAccess } from './services/authService';
-import { motion } from 'motion/react';
-import aiStudioPrompt from './promptText.txt?raw';
-import { Check, Copy } from 'lucide-react';
-
-import QuantumNetNewsButton from './components/QuantumNetNewsButton';
 
 export default function App() {
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(() => {
@@ -44,36 +39,27 @@ export default function App() {
     return getCurrentSession();
   });
 
-  // Trial / Beta test disclaimer acceptance state (exempt for admin, blocking for standard users)
-  const [hasAcceptedTrial, setHasAcceptedTrial] = useState<boolean>(() => {
+  // In-memory fallback map so trial acceptance works synchronously per-user even across login/logout
+  const [acceptedTrialByUserId, setAcceptedTrialByUserId] = useState<Record<string, boolean>>({});
+
+  const hasAcceptedTrial = (() => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    if (acceptedTrialByUserId[currentUser.id]) return true;
     try {
-      const session = getCurrentSession();
-      if (!session) return false;
-      if (session.role === 'admin') return true;
-      return localStorage.getItem(`trial_disclaimer_accepted_${session.id}`) === 'true';
+      return localStorage.getItem(`trial_disclaimer_accepted_${currentUser.id}`) === 'true';
     } catch {
       return false;
     }
-  });
-
-  useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role === 'admin') {
-        setHasAcceptedTrial(true);
-      } else {
-        const accepted = localStorage.getItem(`trial_disclaimer_accepted_${currentUser.id}`) === 'true';
-        setHasAcceptedTrial(accepted);
-      }
-    }
-  }, [currentUser]);
+  })();
 
   const handleAcceptTrial = () => {
     if (currentUser) {
       try {
         localStorage.setItem(`trial_disclaimer_accepted_${currentUser.id}`, 'true');
       } catch {}
+      setAcceptedTrialByUserId((prev) => ({ ...prev, [currentUser.id]: true }));
     }
-    setHasAcceptedTrial(true);
   };
 
   // Keep currentUser state in sync in real time when permissions or storage changes
@@ -102,8 +88,24 @@ export default function App() {
     );
   }
 
-  // Mandatory first-login check: if user has not accepted Disclaimer + Privacy Policy, display agreement modal
-  if (!currentUser.hasAcceptedAgreements) {
+  // Pop-up 1 of 2 (non-admin only): Mandatory blocking Trial / Beta Version Notice on first access
+  if (currentUser.role !== 'admin' && !hasAcceptedTrial) {
+    return (
+      <TranslationProvider language={currentLanguage}>
+        <TrialDisclaimerModal
+          isFirstLoginFlow={true}
+          onAccept={handleAcceptTrial}
+          onDecline={() => {
+            logoutUser();
+            setCurrentUser(null);
+          }}
+        />
+      </TranslationProvider>
+    );
+  }
+
+  // Pop-up 2 of 2 (non-admin only): Mandatory legal documentation (Disclaimer, NDA, EULA, Privacy Policy) on first access
+  if (currentUser.role !== 'admin' && !currentUser.hasAcceptedAgreements) {
     return (
       <TranslationProvider language={currentLanguage}>
         <FirstLoginAgreementModal
@@ -114,15 +116,6 @@ export default function App() {
             setCurrentUser(null);
           }}
         />
-      </TranslationProvider>
-    );
-  }
-
-  // Mandatory blocking Trial / Beta Test Disclaimer for non-admin users
-  if (currentUser.role !== 'admin' && !hasAcceptedTrial) {
-    return (
-      <TranslationProvider language={currentLanguage}>
-        <TrialDisclaimerModal onAccept={handleAcceptTrial} />
       </TranslationProvider>
     );
   }
@@ -335,9 +328,11 @@ function AppContent({
         canEdit={currentUser.role === 'admin'}
       />
 
-      {/* Trial / Beta Test Disclaimer Modal (accessible on-demand via footer) */}
-      {isTrialDisclaimerOpen && (
+      {/* Trial / Beta Test Disclaimer Modal (informational on-demand via footer for non-admin users) */}
+      {currentUser.role !== 'admin' && isTrialDisclaimerOpen && (
         <TrialDisclaimerModal
+          readOnly={true}
+          onClose={() => setIsTrialDisclaimerOpen(false)}
           onAccept={() => setIsTrialDisclaimerOpen(false)}
         />
       )}
@@ -601,16 +596,18 @@ function AppContent({
             <span className="border-b border-quantum-primary/40 group-hover:border-white font-bold">{t('privacy_policy')}</span>
           </button>
 
-          {/* Trial / Beta Test Disclaimer shortcut in footer */}
-          <button
-            id="trial-disclaimer-footer-btn"
-            onClick={() => setIsTrialDisclaimerOpen(true)}
-            className="text-[9px] sm:text-[10px] text-amber-400 hover:text-white font-mono uppercase tracking-[0.15em] sm:tracking-[0.3em] flex items-center gap-1.5 transition-all cursor-pointer group hover:bg-white/5 px-2 py-1 rounded-lg border border-amber-500/20 hover:border-amber-500/60"
-            title={t('trial_disclaimer')}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-            <span className="border-b border-amber-400/40 group-hover:border-white font-bold">{t('trial_disclaimer')}</span>
-          </button>
+          {/* Trial / Beta Test Disclaimer shortcut in footer (non-admin users only) */}
+          {currentUser.role !== 'admin' && (
+            <button
+              id="trial-disclaimer-footer-btn"
+              onClick={() => setIsTrialDisclaimerOpen(true)}
+              className="text-[9px] sm:text-[10px] text-amber-400 hover:text-white font-mono uppercase tracking-[0.15em] sm:tracking-[0.3em] flex items-center gap-1.5 transition-all cursor-pointer group hover:bg-white/5 px-2 py-1 rounded-lg border border-amber-500/20 hover:border-amber-500/60"
+              title={t('trial_disclaimer')}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="border-b border-amber-400/40 group-hover:border-white font-bold">{t('trial_disclaimer')}</span>
+            </button>
+          )}
 
           {/* Quick mobile logout shortcut in footer */}
           <button

@@ -1,5 +1,5 @@
 import EndInterviewModal from "./EndInterviewModal";
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, Send, Terminal, Loader2, Sparkles, Cpu, RotateCcw, 
   CheckCircle2, Layers, Zap, Shield, Database, Activity, Compass, 
@@ -483,7 +483,7 @@ export default function TestPage({
   const [finalQasm, setFinalQasm] = useState("");
   const [finalPython, setFinalPython] = useState("");
   const [finalJson, setFinalJson] = useState("");
-  const [selectedVincolo, setSelectedVincolo] = useState<'blocco_rigido' | 'legame_morbido'>('blocco_rigido');
+  const [selectedVincolo, setSelectedVincolo] = useState<'blocco_rigido' | 'legame_morbido' | 'nessun_vincolo'>('blocco_rigido');
 
   // Live listener for real-time permission revocation
   useEffect(() => {
@@ -565,29 +565,358 @@ export default function TestPage({
   const [phi, setPhi] = useState<number>(0);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pendingAutoDownloadRef = useRef<boolean>(false);
 
-  // Copia dell'intera trascrizione dell'intervista negli appunti e download automatico in .txt
-  const handleCopyInterview = () => {
-    if (messages.length === 0) return;
-    const fullInterviewText = messages.map(m => {
+  const formatInterviewText = (msgs: typeof messages) => {
+    if (!msgs || msgs.length === 0) return '';
+    return msgs.map(m => {
       const sender = m.role === 'model' ? 'Solution Architect AI' : ui.userRoleLabel;
       return `[${sender}]\n${m.text}\n`;
     }).join('\n----------------------------------------\n\n');
+  };
 
-    try {
-      navigator.clipboard?.writeText(fullInterviewText)?.catch(() => {});
-    } catch {}
+  const buildCompleteBundleTxt = (overrideMsgs?: typeof messages) => {
+    const msgsToUse = overrideMsgs || messages;
+    const interviewStr = formatInterviewText(msgsToUse);
+    if (!interviewStr) return '';
 
+    const now = new Date();
+    const effectiveSector = (assetSector && assetSector !== 'N/A' ? assetSector : selectedSector) || 'Finanza e Mercati';
+    const effectiveScenarioId = selectedScenario?.id || '';
+    const effectiveVincolo = vincoloStile !== 'N/A' ? vincoloStile : (selectedVincolo || 'blocco_rigido');
+    const effectiveStrategy = selectedStrategy || 'Prudente';
+    const effectivePeriod = selectedPeriod || ui.presets[1]?.val || '1 Trimestre';
+    const isClassicalScenario =
+      selectedScenario?.type === 'classical' ||
+      selectedInfra === 'classical' ||
+      targetAlgoritmo.startsWith('Python_HPC_');
+
+    const effectiveTargetAlgo =
+      targetAlgoritmo !== 'IDLE'
+        ? targetAlgoritmo
+        : isClassicalScenario
+          ? 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline')
+          : 'Qiskit_' + (selectedScenario?.modelCode || 'QAOA');
+
+    const taxSector = getTaxonomicSector(effectiveSector, effectiveScenarioId, language);
+    const localizedScenarioName = selectedScenario
+      ? getLocalizedTestScenario(selectedScenario, language).name
+      : taxSector.name;
+
+    const { csv1: demoCsv1, csv2: demoCsv2 } = getDemoCsvBySector(
+      effectiveSector,
+      effectiveScenarioId,
+      effectiveVincolo,
+      effectiveStrategy
+    );
+    const effectiveCsv1 = customCsv1Content ?? demoCsv1;
+    const effectiveCsv2 = customCsv2Content ?? demoCsv2;
+    const file1Label = uploadedFile1Name || '1_anagrafica_risorse_guida.csv';
+    const file2Label =
+      uploadedFile2Name ||
+      (effectiveCsv2 && effectiveCsv2.trim()
+        ? '2_matrice_connessioni_guida.csv'
+        : 'Nessuna matrice vincoli (risorse indipendenti)');
+
+    const hasCompletedOutput =
+      currentPhase === '5_done' ||
+      Boolean(finalPython) ||
+      Boolean(finalJson) ||
+      msgsToUse.some(m => m.kind === 'sim_complete' || m.text.includes('[SIMULAZIONE COMPLETATA'));
+
+    const lines: string[] = [];
+    const hr = '================================================================================';
+    const subHr = '--------------------------------------------------------------------------------';
+
+    lines.push(hr);
+    lines.push('QUANTUM ENTERPRISE ENGINE - REPORT COMPLETO ELABORAZIONE & INTERVISTA');
+    lines.push(hr);
+    lines.push(`Data / Ora Esportazione : ${now.toLocaleString('it-IT')}`);
+    lines.push(`Categoria / Settore     : ${taxSector.name} (${effectiveSector})`);
+    lines.push(
+      `Scenario Selezionato    : ${localizedScenarioName}${selectedScenario ? ` [ID: ${selectedScenario.id} | Modello: ${selectedScenario.modelCode}]` : ''}`
+    );
+    lines.push(
+      `Tipo Pipeline           : ${isClassicalScenario ? ui.modalPipelineClassical : ui.modalPipelineQuantum}`
+    );
+    lines.push(`Algoritmo Target        : ${effectiveTargetAlgo}`);
+    lines.push(`Arco Temporale          : ${effectivePeriod}`);
+    lines.push(`Strategia Operativa     : ${effectiveStrategy}`);
+    lines.push(`Stile Vincoli / Graph   : ${effectiveVincolo}`);
+    lines.push(
+      `Fonte Dati CSV          : ${isDemoActive ? ui.modalSourceDemoShort : ui.modalSourceUserShort}`
+    );
+    lines.push(`File 1 (Risorse)        : ${file1Label}`);
+    lines.push(`File 2 (Matrice)        : ${file2Label}`);
+    lines.push('');
+
+    lines.push(hr);
+    lines.push('SEZIONE 1 - TRASCRIZIONE COMPLETA INTERVISTA (FASE 0 -> OUTPUT)');
+    lines.push(hr);
+    lines.push(interviewStr);
+    lines.push('');
+
+    lines.push(hr);
+    lines.push('SEZIONE 2 - FILE CSV UTILIZZATI PER IL CALCOLO');
+    lines.push(hr);
+    lines.push(`--- FILE 1: ${file1Label} ---`);
+    lines.push(effectiveCsv1 && effectiveCsv1.trim() ? effectiveCsv1.trim() : '[Nessun contenuto File 1 disponibile]');
+    lines.push('');
+    lines.push(`--- FILE 2: ${file2Label} ---`);
+    lines.push(
+      effectiveCsv2 && effectiveCsv2.trim()
+        ? effectiveCsv2.trim()
+        : '[Nessuna matrice di connessione caricata: risorse trattate come indipendenti]'
+    );
+    lines.push('');
+
+    if (hasCompletedOutput) {
+      const effectiveQasm = isClassicalScenario
+        ? ''
+        : finalQasm ||
+          generateQiskitCode(
+            effectiveSector,
+            effectiveCsv1,
+            effectiveCsv2,
+            effectiveVincolo,
+            effectiveStrategy
+          );
+
+      const effectivePython =
+        finalPython ||
+        (isClassicalScenario
+          ? generateClassicalHpcPythonCode(
+              effectiveSector,
+              selectedScenario?.name || effectiveScenarioId || 'Scenario Classico',
+              effectiveScenarioId || 'HPC-Model',
+              effectiveCsv1,
+              effectiveCsv2,
+              effectiveStrategy,
+              file1Label,
+              file2Label,
+              isDemoActive
+            )
+          : generateQiskitPythonCode(
+              effectiveSector,
+              effectiveCsv1,
+              effectiveCsv2,
+              effectiveVincolo,
+              effectiveStrategy,
+              file1Label,
+              file2Label,
+              isDemoActive
+            ));
+
+      const fallbackThetaRad = (theta * Math.PI) / 180;
+      const fallbackPhiRad = (phi * Math.PI) / 180;
+      const effectiveJson =
+        finalJson ||
+        JSON.stringify(
+          isClassicalScenario
+            ? {
+                settore: taxSector.name,
+                scenario: localizedScenarioName,
+                infrastruttura: 'HPC / GPU / CPU Multi-Core',
+                modello: selectedScenario?.modelCode || 'Machine Learning / Pipeline Classica',
+                strategia: effectiveStrategy,
+                entanglement: 'nessuno (calcolo convenzionale classico)',
+                calcolo_quantistico: false,
+                predisposizione_grafico: false,
+              }
+            : {
+                settore: taxSector.name,
+                scenario: localizedScenarioName,
+                strategia: effectiveStrategy,
+                entanglement:
+                  effectiveVincolo === 'nessun_vincolo'
+                    ? 'none'
+                    : effectiveVincolo === 'blocco_rigido'
+                      ? 'cx'
+                      : 'cp',
+                theta_radianti: parseFloat(fallbackThetaRad.toFixed(6)),
+                thetas_radianti: [parseFloat(fallbackThetaRad.toFixed(6))],
+                phi_radianti: parseFloat(fallbackPhiRad.toFixed(6)),
+                predisposizione_grafico: true,
+              },
+          null,
+          2
+        );
+
+      lines.push(hr);
+      lines.push('SEZIONE 3 - RISULTATI, PARAMETRI E GRAFICI DEL POP-UP FINALE');
+      lines.push(hr);
+
+      if (!isClassicalScenario) {
+        let parsedThetaRad: number | null = null;
+        let parsedThetas: number[] = [];
+        let parsedPhiRad: number | null = null;
+        try {
+          const parsedObj = JSON.parse(effectiveJson || '{}');
+          if (typeof parsedObj?.theta_radianti === 'number' && !isNaN(parsedObj.theta_radianti)) {
+            parsedThetaRad = parsedObj.theta_radianti;
+          }
+          if (Array.isArray(parsedObj?.thetas_radianti)) {
+            parsedThetas = parsedObj.thetas_radianti.filter((x: unknown) => typeof x === 'number' && !isNaN(x));
+          }
+          if (typeof parsedObj?.phi_radianti === 'number' && !isNaN(parsedObj.phi_radianti)) {
+            parsedPhiRad = parsedObj.phi_radianti;
+          }
+        } catch {
+          // ignore JSON parse issues
+        }
+
+        const thetaRadVal = parsedThetaRad !== null ? parsedThetaRad : (theta * Math.PI) / 180;
+        const thetaDegVal = (thetaRadVal * 180) / Math.PI;
+        const phiDegVal = phi;
+        const phiRadVal = parsedPhiRad !== null ? parsedPhiRad : (phi * Math.PI) / 180;
+
+        const p0Val = Math.pow(Math.cos(thetaRadVal / 2), 2);
+        const p1Val = Math.pow(Math.sin(thetaRadVal / 2), 2);
+        const count0Val = Math.round(p0Val * 1024);
+        const count1Val = Math.round(p1Val * 1024);
+
+        let label0 = ui.histDefault0;
+        let label1 = ui.histDefault1;
+        const sLower = effectiveSector.toLowerCase();
+        if (taxSector.id === 'finanza' || sLower.includes('finanz')) {
+          label0 = ui.histFin0;
+          label1 = ui.histFin1;
+        } else if (taxSector.id === 'chimica' || sLower.includes('chimic') || sLower.includes('farmaceutica') || sLower.includes('materiali')) {
+          label0 = ui.histChem0;
+          label1 = ui.histChem1;
+        } else if (taxSector.id === 'manifattura' || sLower.includes('produzion') || sLower.includes('manifattura')) {
+          label0 = ui.histMan0;
+          label1 = ui.histMan1;
+        } else if (taxSector.id === 'sicurezza' || sLower.includes('sicurezz') || sLower.includes('telecomunicazion') || sLower.includes('reti')) {
+          label0 = ui.histSec0;
+          label1 = ui.histSec1;
+        } else if (taxSector.id === 'sanita' || sLower.includes('sanità') || sLower.includes('sanita') || sLower.includes('genomica')) {
+          label0 = ui.histSan0;
+          label1 = ui.histSan1;
+        }
+
+        const quantumOutcome = ui.modalOutcomeQuantumHtml(thetaRadVal.toFixed(4));
+
+        lines.push(`[1] ${ui.modalBlochTitle}`);
+        lines.push(`  - ${ui.modalCoordsLabel} Theta = ${thetaRadVal.toFixed(6)} rad (${thetaDegVal.toFixed(2)}°) | Phi = ${phiRadVal.toFixed(6)} rad (${phiDegVal.toFixed(2)}°)`);
+        if (parsedThetas.length > 0) {
+          lines.push(`  - Vettore Completo Thetas (rad): [${parsedThetas.map(v => v.toFixed(6)).join(', ')}]`);
+        }
+
+        try {
+          const { risorse } = parseCsv1Deterministic(effectiveCsv1);
+          if (risorse.length > 0) {
+            lines.push('  - Mappatura Dettagliata Qubit (FIFO da File 1):');
+            risorse.slice(0, MAX_QUANTUM_QUBITS).forEach((r, idx) => {
+              const w = Math.max(0.0, Math.min(1.0, r.peso));
+              const tRad = 2.0 * Math.asin(Math.sqrt(w));
+              const tDeg = (tRad * 180) / Math.PI;
+              const pct1 = (w * 100).toFixed(2);
+              const pct0 = ((1 - w) * 100).toFixed(2);
+              lines.push(
+                `    * q[${idx}] -> ${r.id} | peso=${w.toFixed(4)} | theta=${tRad.toFixed(6)} rad (${tDeg.toFixed(2)}°) | |1>=${pct1}% | |0>=${pct0}%`
+              );
+            });
+          }
+        } catch {
+          // ignore CSV parse detail errors
+        }
+
+        lines.push('');
+        lines.push(`[2] ${ui.modalProbTitle} (1024 shots - Qubit di riferimento q[0])`);
+        lines.push(`  - Stato |0> (${label0}): ${(p0Val * 100).toFixed(2)}% (~${count0Val} / 1024 shots)`);
+        lines.push(`  - Stato |1> (${label1}): ${(p1Val * 100).toFixed(2)}% (~${count1Val} / 1024 shots)`);
+        lines.push('');
+        lines.push(`[3] ${ui.modalComposerTitle}`);
+        lines.push(`  - Stato Composer : ${ui.composerCompiled}`);
+        lines.push(`  - Descrizione    : ${ui.composerActionDesc}`);
+        lines.push('  - Link IBM Cloud : https://quantum.ibm.com/composer');
+        lines.push('');
+        lines.push(`[4] ${ui.modalOutcomeTitle}`);
+        lines.push(
+          `  ${quantumOutcome.part1}${quantumOutcome.bold1} / ${quantumOutcome.bold2}${quantumOutcome.part2}${quantumOutcome.bold3}${quantumOutcome.part3}`
+        );
+        lines.push(`  ${ui.modalHwExecTitle}: ${ui.modalHwExecDesc}`);
+      } else {
+        lines.push(`[1] Metriche Engine HPC Classico`);
+        lines.push(`  - ${ui.modalHpcStatusLabel}: ${ui.modalHpcStatusVal} (SciPy SLSQP · Markowitz)`);
+        lines.push(`  - ${ui.modalHpcTargetLabel}: ${ui.modalHpcTargetVal} (${ui.modalHpcTargetSub})`);
+        lines.push(`  - ${ui.modalHpcMathLabel}: NumPy / SciPy / ML (${ui.modalHpcMathSub})`);
+        lines.push(`  - ${ui.modalHpcNoiseLabel}: ${ui.modalHpcNoiseVal} (${ui.modalHpcNoiseSub})`);
+        lines.push('');
+        lines.push(`[2] ${ui.modalHpcSummaryTitle}`);
+        lines.push(`  ${ui.modalHpcSummaryBody}`);
+        lines.push('');
+        lines.push(`[3] ${ui.modalOutcomeTitle}`);
+        ui.modalOutcomeClassicalItems.forEach(item => {
+          lines.push(`  - ${item.bold} ${item.text}`);
+        });
+        lines.push(`  ${ui.modalClassicalDoneTitle}: ${ui.modalClassicalDoneDesc}`);
+      }
+      lines.push('');
+
+      lines.push(hr);
+      lines.push(`SEZIONE 4 - ${ui.modalManifestTitle}`);
+      lines.push(hr);
+      lines.push(effectiveJson || '{}');
+      lines.push('');
+
+      lines.push(hr);
+      lines.push(
+        `SEZIONE 5 - ${isClassicalScenario ? ui.modalPythonClassicalTitle : ui.modalPythonQuantumTitle}`
+      );
+      lines.push(hr);
+      lines.push(effectivePython || '# Python script non disponibile');
+      lines.push('');
+
+      if (!isClassicalScenario) {
+        lines.push(hr);
+        lines.push(`SEZIONE 6 - ${ui.modalQasmTitle}`);
+        lines.push(hr);
+        lines.push(effectiveQasm || '// OpenQASM 3.0 non disponibile');
+        lines.push('');
+      } else {
+        lines.push(subHr);
+        lines.push('NOTA OPENQASM 3.0: Scenario Classico HPC - nessun circuito quantistico OpenQASM richiesto.');
+        lines.push(subHr);
+        lines.push('');
+      }
+    }
+
+    return lines.join('\n');
+  };
+
+  const downloadInterviewTxt = (contentToDownload: string, isCompleteReport = true) => {
+    if (!contentToDownload) return;
     try {
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
-      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
-      const sectorSlug = selectedSector
-        ? '_' + selectedSector.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
-        : '';
-      const filename = `intervista_agent_ai${sectorSlug}_${timestamp}.txt`;
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
 
-      const blob = new Blob([fullInterviewText], { type: 'text/plain;charset=utf-8;' });
+      const sanitizeFilenamePart = (val: string) =>
+        val
+          .normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9\u4e00-\u9fff\u3040-\u30ff]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+
+      const rawSectorName = assetSector && assetSector !== 'N/A' ? assetSector : selectedSector;
+      const localizedCategoryName = rawSectorName ? getLocalizedSectorName(rawSectorName, language) : '';
+      const localizedScenarioName = selectedScenario
+        ? getLocalizedTestScenario(selectedScenario, language).name
+        : '';
+
+      const categorySlug = localizedCategoryName ? sanitizeFilenamePart(localizedCategoryName) : '';
+      const scenarioSlug = localizedScenarioName ? sanitizeFilenamePart(localizedScenarioName).slice(0, 120).replace(/_+$/g, '') : '';
+      const subjectSlug = [categorySlug, scenarioSlug].filter(Boolean).join('_-_');
+      const docType = isCompleteReport ? 'report_completo' : 'intervista';
+      const filename = subjectSlug
+        ? `${subjectSlug}_${docType}_${timestamp}.txt`
+        : `agent_ai_${docType}_${timestamp}.txt`;
+
+      const blob = new Blob([contentToDownload], { type: 'text/plain;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -599,6 +928,40 @@ export default function TestPage({
     } catch (err) {
       console.error('Errore durante il download del file TXT:', err);
     }
+  };
+
+  const fullInterviewText = useMemo(
+    () => formatInterviewText(messages),
+    [messages, ui.userRoleLabel]
+  );
+
+  // Scarica automaticamente il pacchetto completo .txt (intervista + CSV + risultati pop-up + JSON + Python + QASM) sul PC ogni volta che si conclude un calcolo
+  useEffect(() => {
+    if (!pendingAutoDownloadRef.current) return;
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || (lastMsg.kind !== 'sim_complete' && !lastMsg.text.includes('[SIMULAZIONE COMPLETATA'))) return;
+    pendingAutoDownloadRef.current = false;
+    const bundleToDownload = buildCompleteBundleTxt(messages);
+    if (bundleToDownload) {
+      downloadInterviewTxt(bundleToDownload, true);
+    }
+  }, [messages, finalQasm, finalPython, finalJson, theta, phi]);
+
+  // Copia dell'intero report/intervista negli appunti e download automatico in .txt
+  const handleCopyInterview = () => {
+    if (messages.length === 0) return;
+    const hasCompleted =
+      currentPhase === '5_done' ||
+      Boolean(finalPython) ||
+      Boolean(finalJson) ||
+      messages.some(m => m.kind === 'sim_complete' || m.text.includes('[SIMULAZIONE COMPLETATA'));
+    const exportStr = buildCompleteBundleTxt(messages);
+
+    try {
+      navigator.clipboard?.writeText(exportStr)?.catch(() => {});
+    } catch {}
+
+    downloadInterviewTxt(exportStr, hasCompleted);
 
     setCopiedInterview(true);
     setTimeout(() => setCopiedInterview(false), 2200);
@@ -1252,6 +1615,7 @@ export default function TestPage({
     let nextPhase = forcePhaseNext || currentPhase;
     let resolvedSectorForCall = selectedSector;
     let resolvedScenarioForCall = selectedScenario;
+    let resolvedVincoloForCall: 'blocco_rigido' | 'legame_morbido' | 'nessun_vincolo' = selectedVincolo;
 
     if (activePhase === '0_cat') {
       const canonicalSector = resolveSectorCanonicalKey(userMessage);
@@ -1298,6 +1662,7 @@ export default function TestPage({
       setSelectedStrategy(userMessage);
       const isClassical = selectedScenario?.type === 'classical';
       if (isClassical) {
+        resolvedVincoloForCall = 'nessun_vincolo';
         setSelectedInfra('classical');
         setSelectedVincolo('nessun_vincolo');
         setVincoloStile('nessun_vincolo');
@@ -1329,6 +1694,7 @@ export default function TestPage({
             autoVincolo = 'blocco_rigido';
           }
         }
+        resolvedVincoloForCall = autoVincolo;
         setSelectedVincolo(autoVincolo);
         setVincoloStile(autoVincolo);
         nextPhase = '5_done';
@@ -1361,7 +1727,8 @@ export default function TestPage({
         const targetAlgo = selectedScenario?.type === 'classical'
           ? 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline')
           : 'Qiskit_' + (selectedScenario?.modelCode || 'QAOA');
-        const style = selectedVincolo || 'blocco_rigido';
+        setTargetAlgoritmo(targetAlgo);
+        const style = resolvedVincoloForCall || selectedVincolo || 'blocco_rigido';
         const finalExplanation = buildFinalOutcomeExplanation(
           targetAlgo,
           assetSector || selectedSector,
@@ -1526,6 +1893,7 @@ export default function TestPage({
 
       const jsonString = JSON.stringify(jsonObj, null, 2);
       setFinalJson(jsonString);
+      pendingAutoDownloadRef.current = true;
       setShowEndModal(true);
 
       return ui.classicalDoneSummary(
@@ -1587,6 +1955,7 @@ export default function TestPage({
 
     const jsonString = JSON.stringify(jsonObj, null, 2);
     setFinalJson(jsonString);
+    pendingAutoDownloadRef.current = true;
     setShowEndModal(true);
 
     if (liveUser) {
@@ -1619,6 +1988,7 @@ ${ui.quantumFooterHint}`;
   };
 
   const handleResetInterview = () => {
+    pendingAutoDownloadRef.current = false;
     setMessages([{
       role: 'model',
       text: ui.welcomeMessage
@@ -1642,6 +2012,10 @@ ${ui.quantumFooterHint}`;
     setVincoloStile('N/A');
     setTheta(0);
     setPhi(0);
+    setFinalQasm('');
+    setFinalPython('');
+    setFinalJson('');
+    setShowEndModal(false);
   };
 
   const radTheta = (theta * Math.PI) / 180;
@@ -2441,6 +2815,8 @@ ${ui.quantumFooterHint}`;
           phi_radianti: (phi * Math.PI) / 180,
           predisposizione_grafico: selectedScenario?.type !== 'classical'
         }, null, 2)}
+        interviewText={fullInterviewText}
+        onDownloadInterview={() => downloadInterviewTxt(buildCompleteBundleTxt(), true)}
         theta={theta}
         phi={phi}
         targetAlgoritmo={targetAlgoritmo !== 'IDLE' ? targetAlgoritmo : (selectedScenario?.type === 'classical' ? 'Python_HPC_' + (selectedScenario?.modelCode || 'Pipeline') : 'Qiskit_QAOA')}
