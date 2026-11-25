@@ -7,6 +7,23 @@ import crypto from "crypto";
 import multer from "multer";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import {
+  submitRealIbmJob,
+  pollRealIbmJobStatus,
+  exchangeIamToken,
+  discoverQuantumInstances,
+  listAvailableBackends,
+  validateOpenQasmSyntax,
+} from "./server/ibmQuantumService";
+import {
+  saveSubmittedJob,
+  updateJobState,
+  getSavedJob,
+  listSavedJobs,
+  deleteSavedJob,
+  registerActiveWorkerKey,
+  startBackgroundJobWorker,
+} from "./server/ibmJobStore";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -422,68 +439,296 @@ async function startServer() {
     });
   });
 
-  // --- IBM QUANTUM GATEWAY PROXY ---
-  app.post("/api/ibm-quantum/submit", async (req, res) => {
-    try {
-      const { code, token, usePQC, encryptedPayload, encapsulatedKey } = req.body;
-      console.log(`[IBM GATEWAY] Sottomissione circuito registrata (${code ? code.length : 0} chars). Token prefix: ${token ? token.substring(0, 8) : 'nessuno'}`);
-      
-      const jobId = `job_ibm_pqc_${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+  // --- IBM QUANTUM GATEWAY PROXY (REAL IBM QUANTUM CLOUD REST API v1 + SQLITE JOB STORE) ---
+  startBackgroundJobWorker(async (p) => pollRealIbmJobStatus(p));
 
-      if (usePQC) {
-        console.log(`[IBM GATEWAY PQC] Ricevuto pacchetto con Cifratura Quantistica ML-KEM-768 (Kyber).`);
-        
-        // Generate PQC encrypted results response payload
+  const buildCompletedResponse = (params: {
+    jobId: string;
+    backend: string | null;
+    rawState: string;
+    counts: Record<string, number>;
+    totalShots: number;
+    usePQC: boolean;
+  }) => {
+    if (params.usePQC) {
+      let skBuffer: Buffer | null = null;
+      let ssBuffer: Buffer | null = null;
+      try {
         const rawResultsText = JSON.stringify({
-          jobId,
+          jobId: params.jobId,
+          backend: params.backend,
           status: "COMPLETED",
-          shots: 1024,
+          shots: params.totalShots,
           timestamp: new Date().toISOString(),
-          measurementCounts: {
-            "00": 518,
-            "01": 12,
-            "10": 14,
-            "11": 480
-          },
-          fidelityScore: "99.982%",
-          cryostatTemp: "0.015 K (-273.135 °C)"
+          measurementCounts: params.counts,
+          realHardware: true,
         });
 
-        // PQC Encrypt the response
         const [pk, sk] = kyber.KeyGen768();
+        skBuffer = Buffer.from(sk);
         const [c, ss] = kyber.Encrypt768(pk);
+        ssBuffer = Buffer.from(ss);
         const iv = crypto.randomBytes(12);
-        const cipher = crypto.createCipheriv("aes-256-gcm", Buffer.from(ss), iv);
+        const cipher = crypto.createCipheriv("aes-256-gcm", ssBuffer, iv);
         const encryptedData = Buffer.concat([cipher.update(Buffer.from(rawResultsText)), cipher.final()]);
         const authTag = cipher.getAuthTag();
 
         const encryptedResultPayload = Buffer.concat([iv, authTag, encryptedData]).toString("base64");
         const resEncapsulatedKey = Buffer.from(c).toString("hex");
-        const resUnlockKey = Buffer.from(sk).toString("hex");
+        const resUnlockKey = skBuffer.toString("hex");
 
-        return res.json({
-          success: true,
-          jobId,
+        return {
+          status: "COMPLETED",
+          rawState: params.rawState,
+          backend: params.backend,
+          totalShots: params.totalShots,
           pqcEnabled: true,
-          message: "Circuito inviato e protetto con cifratura quantistica PQC ML-KEM-768 (NIST FIPS 203).",
           encryptedResults: {
             encryptedPayload: encryptedResultPayload,
             encapsulatedKey: resEncapsulatedKey,
             unlockKey: resUnlockKey,
-            algorithm: "ML-KEM-768 (Kyber) + AES-256-GCM"
-          }
+            algorithm: "ML-KEM-768 (Kyber) + AES-256-GCM",
+          },
+        };
+      } finally {
+        if (ssBuffer) serverZeroize(ssBuffer);
+        if (skBuffer) serverZeroize(skBuffer);
+      }
+    }
+
+    return {
+      status: "COMPLETED",
+      rawState: params.rawState,
+      backend: params.backend,
+      totalShots: params.totalShots,
+      pqcEnabled: false,
+      measurementCounts: params.counts,
+    };
+  };
+
+  app.post("/api/ibm-quantum/validate", (req, res) => {
+    try {
+      const code = String(req.body?.code || "");
+      const shots = Number(req.body?.shots || 1024);
+      const validation = validateOpenQasmSyntax(code, shots);
+      return res.status(validation.valid ? 200 : 400).json(validation);
+    } catch (error: any) {
+      return res.status(400).json({
+        valid: false,
+        error: error?.message || "Errore durante la validazione del circuito OpenQASM.",
+      });
+    }
+  });
+
+  app.get("/api/ibm-quantum/jobs", (req, res) => {
+    try {
+      const limit = Number(req.query?.limit || 25);
+      const jobs = listSavedJobs(limit);
+      return res.json({ success: true, jobs });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Errore lettura cronologia job." });
+    }
+  });
+
+  app.delete("/api/ibm-quantum/jobs/:jobId", (req, res) => {
+    try {
+      const jobId = String(req.params?.jobId || "").trim();
+      if (!jobId) {
+        return res.status(400).json({ error: "Job ID mancante." });
+      }
+      const deleted = deleteSavedJob(jobId);
+      return res.json({ success: true, deleted });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Errore eliminazione job." });
+    }
+  });
+
+  app.post("/api/ibm-quantum/backends", async (req, res) => {
+    try {
+      const apiKey = String(req.body?.apiKey || req.body?.token || "").trim();
+      const overrideCrn = String(req.body?.crn || "").trim();
+      if (!apiKey) {
+        return res.status(400).json({ error: "API Key IBM Quantum mancante." });
+      }
+
+      const bearerToken = await exchangeIamToken(apiKey);
+      let serviceCrn = overrideCrn;
+      let instanceName = "IBM Quantum Instance";
+      if (!serviceCrn) {
+        const instances = await discoverQuantumInstances(bearerToken);
+        serviceCrn = instances[0].crn;
+        instanceName = instances[0].name;
+      }
+
+      const backends = await listAvailableBackends(bearerToken, serviceCrn);
+      return res.json({
+        success: true,
+        crn: serviceCrn,
+        instanceName,
+        backends,
+      });
+    } catch (error: any) {
+      const msg = error?.message || "Errore durante il recupero dei backend IBM Quantum.";
+      const statusCode = msg.includes("Autenticazione IBM Cloud rifiutata") ? 401 : 400;
+      console.error("[IBM GATEWAY BACKENDS ERROR]:", msg);
+      return res.status(statusCode).json({ error: msg });
+    }
+  });
+
+  app.post("/api/ibm-quantum/submit", async (req, res) => {
+    try {
+      const code = String(req.body?.code || "").trim();
+      const apiKey = String(req.body?.apiKey || req.body?.token || "").trim();
+      const backend = req.body?.backend ? String(req.body.backend).trim() : "auto";
+      const overrideCrn = req.body?.crn ? String(req.body.crn).trim() : undefined;
+      const shots = Number(req.body?.shots || 1024);
+
+      if (!apiKey) {
+        return res.status(400).json({ error: "Inserisci la tua API Key IBM Cloud / IBM Quantum." });
+      }
+      if (!code) {
+        return res.status(400).json({ error: "Il codice del circuito OpenQASM è vuoto." });
+      }
+
+      console.log(`[IBM GATEWAY] Invio reale verso IBM Quantum (circuito ${code.length} chars, backend richiesto: ${backend}, shots: ${shots}).`);
+
+      const result = await submitRealIbmJob({
+        apiKey,
+        code,
+        preferredBackend: backend,
+        shots,
+        overrideCrn,
+      });
+
+      const initialNormalizedStatus = String(result.state || "QUEUED").toUpperCase().includes("RUN")
+        ? "RUNNING"
+        : "QUEUED";
+
+      saveSubmittedJob({
+        jobId: result.jobId,
+        backend: result.backend,
+        isSimulator: result.isSimulator,
+        instanceName: result.instanceName,
+        crn: result.serviceCrn,
+        shots: result.shots,
+        numBits: result.numBits,
+        gateCount: result.gateCount,
+        status: initialNormalizedStatus,
+        rawState: result.state,
+        isaQasm: result.isaQasm,
+      });
+      registerActiveWorkerKey(result.jobId, apiKey);
+
+      console.log(`[IBM GATEWAY] Job reale registrato su ${result.backend}: ${result.jobId} (stato: ${result.state})`);
+
+      return res.json({
+        success: true,
+        realHardware: !result.isSimulator,
+        jobId: result.jobId,
+        backend: result.backend,
+        queueLength: result.queueLength,
+        backendQubits: result.backendQubits,
+        basisGates: result.basisGates,
+        crn: result.serviceCrn,
+        instanceName: result.instanceName,
+        isaQasm: result.isaQasm,
+        numBits: result.numBits,
+        numLogicalQubits: result.numLogicalQubits,
+        gateCount: result.gateCount,
+        shots: result.shots,
+        status: result.state,
+        allBackends: result.allBackends,
+      });
+    } catch (error: any) {
+      const msg = error?.message || "Errore durante l'invio reale verso IBM Quantum.";
+      const statusCode = msg.includes("Autenticazione IBM Cloud rifiutata")
+        ? 401
+        : msg.includes("IBM Quantum API")
+          ? 502
+          : 400;
+      console.error("[IBM GATEWAY SUBMIT ERROR]:", msg);
+      return res.status(statusCode).json({ error: msg });
+    }
+  });
+
+  app.post("/api/ibm-quantum/job-status", async (req, res) => {
+    try {
+      const apiKey = String(req.body?.apiKey || req.body?.token || "").trim();
+      const jobId = String(req.body?.jobId || "").trim();
+      const reqCrn = String(req.body?.crn || "").trim();
+      const reqNumBits = Number(req.body?.numBits || 0);
+      const usePQC = Boolean(req.body?.usePQC);
+
+      if (!jobId) {
+        return res.status(400).json({ error: "Job ID mancante per il controllo dello stato." });
+      }
+
+      const saved = getSavedJob(jobId);
+      if (saved && saved.status === "COMPLETED" && saved.counts) {
+        return res.json(
+          buildCompletedResponse({
+            jobId,
+            backend: saved.backend,
+            rawState: saved.rawState || "Completed",
+            counts: saved.counts,
+            totalShots: saved.totalShots || saved.shots || 1024,
+            usePQC,
+          })
+        );
+      }
+
+      const crn = reqCrn || saved?.crn || "";
+      const numBits = reqNumBits || saved?.numBits || 2;
+
+      if (!apiKey || !crn) {
+        return res.status(400).json({ error: "Inserisci la tua API Key IBM Quantum per interrogare lo stato del job." });
+      }
+
+      // Keep background worker armed while client checks pending job
+      registerActiveWorkerKey(jobId, apiKey);
+
+      const poll = await pollRealIbmJobStatus({
+        apiKey,
+        jobId,
+        crn,
+        numBits,
+      });
+
+      if (saved) {
+        updateJobState(jobId, {
+          status: poll.status,
+          rawState: poll.rawState,
+          errorReason: poll.reason,
+          backend: poll.backend,
+          counts: poll.counts,
+          totalShots: poll.totalShots || null,
         });
       }
 
-      res.json({ 
-        success: true, 
-        jobId, 
-        pqcEnabled: false,
-        message: "Job inoltrato con successo dal proxy quantistico." 
+      if (poll.status === "COMPLETED" && poll.counts) {
+        return res.json(
+          buildCompletedResponse({
+            jobId,
+            backend: poll.backend,
+            rawState: poll.rawState,
+            counts: poll.counts,
+            totalShots: poll.totalShots,
+            usePQC,
+          })
+        );
+      }
+
+      return res.json({
+        status: poll.status,
+        rawState: poll.rawState,
+        reason: poll.reason,
+        backend: poll.backend,
       });
-    } catch (error) {
-      console.error("[IBM GATEWAY ERROR]:", error);
-      res.status(500).json({ error: "Errore durante l'inoltro tramite il Proxy Quantistico" });
+    } catch (error: any) {
+      const msg = error?.message || "Errore durante il controllo dello stato del job IBM Quantum.";
+      const statusCode = msg.includes("Autenticazione IBM Cloud rifiutata") ? 401 : 502;
+      console.error("[IBM GATEWAY STATUS ERROR]:", msg);
+      return res.status(statusCode).json({ error: msg });
     }
   });
 

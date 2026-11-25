@@ -64,6 +64,56 @@ measure q -> c;`);
   const [pollingActive, setPollingActive] = useState<boolean>(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
+  // --- REAL IBM QUANTUM RUNTIME STATES ---
+  const [selectedBackend, setSelectedBackend] = useState<string>('auto');
+  const [availableBackends, setAvailableBackends] = useState<Array<{
+    name: string;
+    isSimulator: boolean;
+    status: string;
+    isOnline: boolean;
+    queueLength: number;
+    qubits: number;
+  }>>([]);
+  const [isCheckingBackends, setIsCheckingBackends] = useState<boolean>(false);
+  const [optionalCrn, setOptionalCrn] = useState<string>('');
+  const [showAdvancedCrn, setShowAdvancedCrn] = useState<boolean>(false);
+  const [activeBackendName, setActiveBackendName] = useState<string | null>(null);
+  const [isRealHardware, setIsRealHardware] = useState<boolean | null>(null);
+  const [isaQasmPreview, setIsaQasmPreview] = useState<string | null>(null);
+  const [showIsaPreview, setShowIsaPreview] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [shotsCount, setShotsCount] = useState<number>(1024);
+  const [validationState, setValidationState] = useState<{
+    valid: boolean;
+    qasmVersion?: string;
+    numQubits?: number;
+    gateCount?: number;
+    warnings?: string[];
+    error?: string;
+  } | null>(null);
+  const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [savedJobs, setSavedJobs] = useState<Array<{
+    jobId: string;
+    backend: string;
+    isSimulator: boolean;
+    crn: string;
+    shots: number;
+    numBits: number;
+    status: string;
+    errorReason?: string | null;
+    counts?: Record<string, number> | null;
+    totalShots?: number | null;
+    createdAt: string;
+    isaQasm?: string | null;
+  }>>([]);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState<boolean>(false);
+
+  const activeCrnRef = useRef<string>('');
+  const activeApiKeyRef = useRef<string>('');
+  const activeNumBitsRef = useRef<number>(3);
+  const isPollingInFlightRef = useRef<boolean>(false);
+  const lastLoggedStateRef = useRef<string>('');
+
   // --- PQC QUANTUM ENCRYPTION STATES ---
   const [usePqc, setUsePqc] = useState<boolean>(true);
   
@@ -91,8 +141,27 @@ measure q -> c;`);
   useEffect(() => {
     if (initialCode) {
       setCircuitCode(initialCode);
+      setValidationState(null);
     }
   }, [initialCode]);
+
+  const fetchSavedJobs = async () => {
+    try {
+      const resp = await fetch('/api/ibm-quantum/jobs?limit=20');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data.jobs)) {
+          setSavedJobs(data.jobs);
+        }
+      }
+    } catch {
+      // Ignore network hiccup during history load
+    }
+  };
+
+  useEffect(() => {
+    fetchSavedJobs();
+  }, []);
 
   useEffect(() => {
     // Scroll to bottom of terminal when logs update
@@ -294,23 +363,157 @@ measure q -> c;`);
     }
   };
 
+  const handleCheckBackends = async () => {
+    const key = apiToken.trim();
+    if (!key) {
+      setTokenMissingError(true);
+      apiTokenInputRef.current?.focus();
+      addLog(t('ibm_log_err_token'), 'error');
+      return;
+    }
+
+    setTokenMissingError(false);
+    setSubmitError(null);
+    setIsCheckingBackends(true);
+    addLog('Connessione a IBM Cloud IAM & Resource Controller per elenco QPU...', 'system');
+
+    try {
+      const resp = await fetch('/api/ibm-quantum/backends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: key,
+          crn: optionalCrn.trim() || undefined,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.error || 'Impossibile recuperare le QPU IBM Quantum.');
+      }
+
+      if (data.crn) {
+        activeCrnRef.current = data.crn;
+      }
+      const list = Array.isArray(data.backends) ? data.backends : [];
+      setAvailableBackends(list);
+
+      const onlineQpus = list.filter((b: any) => b.isOnline && !b.isSimulator);
+      addLog(
+        `Istanza rilevata: ${data.instanceName || 'IBM Quantum'} — ${onlineQpus.length} QPU reali online (${list.length} backend totali).`,
+        'success'
+      );
+    } catch (err: any) {
+      const msg = err?.message || 'Errore durante la verifica QPU IBM.';
+      setSubmitError(msg);
+      addLog(msg, 'error');
+    } finally {
+      setIsCheckingBackends(false);
+    }
+  };
+
+  const handleValidateCircuit = async (): Promise<boolean> => {
+    setIsValidating(true);
+    setSubmitError(null);
+    try {
+      const resp = await fetch('/api/ibm-quantum/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: circuitCode, shots: shotsCount }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      setValidationState(data);
+      if (!resp.ok || !data.valid) {
+        const err = data?.error || 'Sintassi OpenQASM non valida.';
+        setSubmitError(err);
+        addLog(`VALIDAZIONE QASM FALLITA: ${err}`, 'error');
+        return false;
+      }
+      addLog(
+        `Validazione QASM superata (${data.qasmVersion} · ${data.numQubits} qubit · ${data.gateCount} gate · ${shotsCount} shots).`,
+        'success'
+      );
+      return true;
+    } catch (err: any) {
+      addLog(`Errore verifica sintassi: ${err?.message || 'rete'}`, 'error');
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleOpenSavedJob = async (job: any) => {
+    setSubmitError(null);
+    setPollingActive(false);
+    setPqcRxData(null);
+    setPqcDecryptedResults(null);
+    setJobId(job.jobId);
+    setActiveBackendName(job.backend);
+    setIsRealHardware(!job.isSimulator);
+    setIsaQasmPreview(job.isaQasm || null);
+    activeCrnRef.current = job.crn || '';
+    activeNumBitsRef.current = Number(job.numBits || 3);
+
+    if (job.status === 'COMPLETED' && job.counts) {
+      setJobStatus('COMPLETED');
+      setFinalResults(job.counts);
+      setIsLoading(false);
+      setShowHistoryDrawer(false);
+      addLog(`Caricati risultati reali salvati per ${job.jobId} (${job.backend}).`, 'success');
+      return;
+    }
+
+    const cleanKey = apiToken.trim() || activeApiKeyRef.current;
+    if (!cleanKey) {
+      setTokenMissingError(true);
+      apiTokenInputRef.current?.focus();
+      addLog(`Inserisci la tua API Key IBM per riprendere il polling del job ${job.jobId}.`, 'warn');
+      return;
+    }
+
+    activeApiKeyRef.current = cleanKey;
+    setFinalResults(null);
+    setJobStatus(job.status || 'QUEUED');
+    setIsLoading(true);
+    lastLoggedStateRef.current = '';
+    setShowHistoryDrawer(false);
+    addLog(`Ripresa monitoraggio reale per job ${job.jobId} su ${job.backend}...`, 'system');
+    setPollingActive(true);
+  };
+
+  const handleDeleteSavedJob = async (targetJobId: string) => {
+    try {
+      await fetch(`/api/ibm-quantum/jobs/${encodeURIComponent(targetJobId)}`, { method: 'DELETE' });
+      setSavedJobs((prev) => prev.filter((j) => j.jobId !== targetJobId));
+    } catch {
+      // ignore
+    }
+  };
+
   const executeSend = async () => {
     if (!circuitCode.trim()) {
       addLog(t('ibm_log_err_empty'), "error");
       return;
     }
-    if (!apiToken.trim()) {
+    const cleanKey = apiToken.trim();
+    if (!cleanKey) {
       setTokenMissingError(true);
       apiTokenInputRef.current?.focus();
       addLog(t('ibm_log_err_token'), "error");
       return;
     }
     setTokenMissingError(false);
+    setSubmitError(null);
+    setPollingActive(false);
+    isPollingInFlightRef.current = false;
+    lastLoggedStateRef.current = '';
 
     setIsLoading(true);
     setFinalResults(null);
     setJobId(null);
-    setJobStatus(null);
+    setJobStatus('VALIDATING');
+    setActiveBackendName(null);
+    setIsRealHardware(null);
+    setIsaQasmPreview(null);
     setLogs([]);
     setPqcTxData(null);
     setPqcRxData(null);
@@ -320,11 +523,16 @@ measure q -> c;`);
     addLog(t('ibm_log_analyzing'), 'info');
     addLog(t('ibm_log_len').replace('{len}', circuitCode.length.toString()), 'info');
 
-    let currentEncryptedPayload = '';
-    let currentEncapsulatedKey = '';
-    let currentUnlockKey = '';
+    // Step 0: Pre-flight QASM Syntax Validation before contacting IBM servers
+    const isSyntaxOk = await handleValidateCircuit();
+    if (!isSyntaxOk) {
+      setJobStatus('ERROR');
+      setIsLoading(false);
+      return;
+    }
+    setJobStatus('SUBMITTING');
 
-    // Step 1: PQC Encryption of circuit code before transmission if enabled
+    // Step 1: PQC Encryption local audit envelope if enabled
     if (usePqc) {
       addLog(t('ibm_log_pqc_start'), 'system');
       try {
@@ -336,62 +544,24 @@ measure q -> c;`);
 
         if (encRes.ok) {
           const encData = await encRes.json();
-          currentEncryptedPayload = encData.encryptedPayload;
-          currentEncapsulatedKey = encData.encapsulatedKey;
-          currentUnlockKey = encData.unlockKey;
-
           setPqcTxData({
             encryptedPayload: encData.encryptedPayload,
             encapsulatedKey: encData.encapsulatedKey,
             unlockKey: encData.unlockKey,
             algorithm: encData.algorithm || "ML-KEM-768 (Kyber) + AES-256-GCM"
           });
-
           addLog(t('ibm_log_pqc_ok'), 'success');
           addLog(`${t('ibm_log_pqc_encap')} ${encData.encapsulatedKey.substring(0, 32)}...`, 'info');
-          addLog(`${t('ibm_log_pqc_unlock')} ${encData.unlockKey.substring(0, 24)}...`, 'info');
         }
-      } catch (pqcErr) {
+      } catch {
         addLog(t('ibm_log_pqc_warn'), 'warn');
       }
     }
 
-    addLog(t('ibm_log_direct_post'), 'info');
-
+    // Step 2: Real submission to IBM Quantum Cloud REST API via backend proxy
     try {
-      // 1. Direct call to https://ibm.com as requested
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      addLog('Autenticazione IBM Cloud IAM, rilevamento CRN e transpiling ISA verso QPU IBM...', 'system');
 
-      const response = await fetch('https://ibm.com', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-IBM-Client-Token': apiToken.substring(0, 8) + '...',
-          'X-Quantum-PQC-Protected': usePqc ? 'true' : 'false'
-        },
-        body: JSON.stringify({
-          circuit: usePqc && currentEncryptedPayload ? currentEncryptedPayload : circuitCode,
-          encapsulatedKey: currentEncapsulatedKey,
-          api_token_preview: apiToken,
-          platform: 'AI_STUDIO_QUANTUM_GATEWAY'
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      addLog(`${t('ibm_log_direct_ok')} ${response.status}`, 'success');
-    } catch (err: any) {
-      console.warn("Direct browser post to ibm.com blocked/intercepted (expected CORS behavior of browsers):", err);
-      addLog(t('ibm_log_cors_warn'), 'warn');
-      addLog(t('ibm_log_proxy_fwd'), 'info');
-    }
-
-    // 2. Express Proxy submission
-    try {
-      addLog(t('ibm_log_proxy_sub'), 'info');
-      
       const serverResponse = await fetch('/api/ibm-quantum/submit', {
         method: 'POST',
         headers: {
@@ -399,112 +569,153 @@ measure q -> c;`);
         },
         body: JSON.stringify({
           code: circuitCode,
-          token: apiToken,
+          apiKey: cleanKey,
+          backend: selectedBackend,
+          crn: optionalCrn.trim() || undefined,
           usePQC: usePqc,
-          encryptedPayload: currentEncryptedPayload,
-          encapsulatedKey: currentEncapsulatedKey
+          shots: shotsCount
         })
       });
 
-      if (serverResponse.ok) {
-        const serverData = await serverResponse.json();
-        addLog(t('ibm_log_proxy_ok'), 'success');
-        if (serverData.jobId) {
-          setJobId(serverData.jobId);
-          addLog(`${t('ibm_log_job_reg')} ${serverData.jobId}`, 'success');
-        }
-        if (serverData.encryptedResults) {
-          setPqcRxData(serverData.encryptedResults);
-          setCustomUnlockKey(serverData.encryptedResults.unlockKey);
-          addLog(t('ibm_log_rx_ok'), 'system');
-        }
-      }
-    } catch (proxyErr) {
-      // Offline fallback
-      addLog(t('ibm_log_proxy_off'), "warn");
-    }
+      const serverData = await serverResponse.json().catch(() => ({}));
 
-    // 3. Complete Polling Simulation representing real physical IBM hardware (eg. ibm_brisbane)
-    const generatedJobId = `job_ibm_pqc_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    if (!jobId) setJobId(generatedJobId);
-    setJobStatus('SUBMITTING');
-    
-    addLog(`${t('ibm_log_gen_job')} ${generatedJobId}`, 'success');
-    addLog(t('ibm_log_transpiling'), 'info');
-    
-    setPollingActive(true);
+      if (!serverResponse.ok) {
+        const errMsg = serverData?.error || `Errore IBM Quantum HTTP ${serverResponse.status}`;
+        throw new Error(errMsg);
+      }
+
+      activeApiKeyRef.current = cleanKey;
+      activeCrnRef.current = serverData.crn;
+      activeNumBitsRef.current = Number(serverData.numBits || 3);
+
+      if (Array.isArray(serverData.allBackends) && serverData.allBackends.length > 0) {
+        setAvailableBackends(serverData.allBackends);
+      }
+      setActiveBackendName(serverData.backend);
+      setIsRealHardware(Boolean(serverData.realHardware));
+      setIsaQasmPreview(serverData.isaQasm || null);
+
+      const initialStatusUpper = String(serverData.status || 'Queued').toUpperCase();
+      const mappedInitial = initialStatusUpper.includes('RUN') ? 'RUNNING' : 'QUEUED';
+      lastLoggedStateRef.current = mappedInitial;
+
+      setJobId(serverData.jobId);
+      setJobStatus(mappedInitial);
+
+      addLog(`Istanza IBM Quantum: ${serverData.instanceName || 'Attiva'}`, 'info');
+      addLog(
+        `Backend selezionato: ${serverData.backend} (${serverData.realHardware ? 'QPU Hardware Reale' : 'Simulatore IBM'}, ${serverData.backendQubits} qubit, coda: ${serverData.queueLength})`,
+        'success'
+      );
+      addLog(
+        `Circuito transpilato su ISA nativa (${Array.isArray(serverData.basisGates) ? serverData.basisGates.join(', ') : 'rz, sx, cz'} — ${serverData.gateCount} gate fisici)`,
+        'info'
+      );
+      addLog(`Job reale inviato a IBM Quantum! ID: ${serverData.jobId}`, 'success');
+      addLog('Job salvato nel database locale. Monitoraggio coda su IBM Quantum attivo...', 'warn');
+
+      fetchSavedJobs();
+      setPollingActive(true);
+    } catch (err: any) {
+      const msg = err?.message || 'Errore durante l\'invio reale a IBM Quantum.';
+      setSubmitError(msg);
+      setJobStatus('ERROR');
+      setIsLoading(false);
+      setPollingActive(false);
+      addLog(`INVIO FALLITO: ${msg}`, 'error');
+    }
   };
 
-  // State-machine poll simulation
-  useEffect(() => {
-    if (!pollingActive || !jobId) return;
+  const pollOnceNow = async () => {
+    if (!jobId || !activeCrnRef.current || !activeApiKeyRef.current || isPollingInFlightRef.current) {
+      return;
+    }
+    isPollingInFlightRef.current = true;
 
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      
-      if (step === 1) {
+    try {
+      const resp = await fetch('/api/ibm-quantum/job-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: activeApiKeyRef.current,
+          jobId,
+          crn: activeCrnRef.current,
+          numBits: activeNumBitsRef.current,
+          usePQC: usePqc
+        })
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        addLog(`Errore polling IBM: ${data?.error || `HTTP ${resp.status}`}`, 'warn');
+        return;
+      }
+
+      if (data.status === 'QUEUED') {
         setJobStatus('QUEUED');
-        addLog(t('ibm_log_queued'), 'warn');
-        addLog(t('ibm_log_cryo'), 'info');
-      } else if (step === 2) {
+        if (lastLoggedStateRef.current !== 'QUEUED') {
+          lastLoggedStateRef.current = 'QUEUED';
+          addLog(`Job ${jobId} in coda su ${data.backend || activeBackendName || 'IBM QPU'}...`, 'warn');
+        }
+      } else if (data.status === 'RUNNING') {
         setJobStatus('RUNNING');
-        addLog(t('ibm_log_running'), 'system');
-        addLog(t('ibm_log_shots'), 'info');
-        addLog(t('ibm_log_dd'), 'success');
-      } else if (step === 3) {
+        if (lastLoggedStateRef.current !== 'RUNNING') {
+          lastLoggedStateRef.current = 'RUNNING';
+          addLog(`Esecuzione fisica in corso su ${data.backend || activeBackendName || 'IBM QPU'} (1024 shots)...`, 'system');
+        }
+      } else if (data.status === 'COMPLETED') {
         setJobStatus('COMPLETED');
-        addLog(t('ibm_log_completed'), 'success');
-        
-        if (usePqc) {
+        lastLoggedStateRef.current = 'COMPLETED';
+        addLog(`Esecuzione reale completata su ${data.backend || activeBackendName || 'IBM QPU'} (${data.totalShots || 1024} shots raccolti)!`, 'success');
+
+        if (data.pqcEnabled && data.encryptedResults) {
+          setPqcRxData(data.encryptedResults);
+          setCustomUnlockKey(data.encryptedResults.unlockKey);
           addLog(t('ibm_log_rx_dl'), 'system');
           addLog(t('ibm_log_rx_prot'), 'warn');
           addLog(t('ibm_log_rx_hint'), 'info');
-        } else {
-          addLog(t('ibm_log_dl_reg'), 'info');
-          
-          // Dynamic bitstring distribution matching circuit qubit count
-          const qMatch = circuitCode.match(/qreg\s+q\[(\d+)\]/) || circuitCode.match(/qubit\[(\d+)\]\s+q/);
-          const detectedQubits = Math.min(12, Math.max(2, qMatch ? parseInt(qMatch[1], 10) : 3));
-          const isBell = detectedQubits === 2 && circuitCode.includes('h q[0]') && circuitCode.includes('cx');
-          const results: Record<string, number> = {};
-
-          if (isBell) {
-            results["00"] = Math.round(512 + (Math.random() * 20 - 10));
-            results["01"] = Math.round(10 + (Math.random() * 6));
-            results["10"] = Math.round(12 + (Math.random() * 6));
-            results["11"] = 1024 - results["00"] - results["01"] - results["10"];
-          } else {
-            const ryMatches = Array.from(circuitCode.matchAll(/ry\(([\d.]+)\)\s+q\[(\d+)\]/g));
-            const probs = Array.from({ length: detectedQubits }, (_, idx) => {
-              const found = ryMatches.find(m => parseInt(m[2], 10) === idx);
-              if (found) {
-                const theta = parseFloat(found[1]);
-                return Math.pow(Math.sin(theta / 2), 2);
-              }
-              return 0.5;
-            });
-            for (let s = 0; s < 1024; s++) {
-              let bits = '';
-              for (let q = detectedQubits - 1; q >= 0; q--) {
-                bits += Math.random() < probs[q] ? '1' : '0';
-              }
-              results[bits] = (results[bits] || 0) + 1;
-            }
-          }
-
-          setFinalResults(results);
-          addLog(t('ibm_log_processed'), 'success');
+        } else if (data.measurementCounts) {
+          setFinalResults(data.measurementCounts);
+          addLog('Istogramma reale IBM Quantum caricato.', 'success');
         }
-        
-        setIsLoading(false);
+
         setPollingActive(false);
-        clearInterval(interval);
+        setIsLoading(false);
+        fetchSavedJobs();
+      } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
+        setJobStatus(data.status);
+        lastLoggedStateRef.current = data.status;
+        const failReason = data.reason || `Job terminato con stato ${data.status} su IBM Quantum.`;
+        setSubmitError(failReason);
+        addLog(`${data.status}: ${failReason}`, 'error');
+        setPollingActive(false);
+        setIsLoading(false);
+        fetchSavedJobs();
       }
+    } catch (err: any) {
+      addLog(`Connessione temporanea di polling interrotta: ${err?.message || 'riprovo'}`, 'warn');
+    } finally {
+      isPollingInFlightRef.current = false;
+    }
+  };
+
+  // Real IBM Quantum polling loop
+  useEffect(() => {
+    if (!pollingActive || !jobId) return;
+
+    const initialTimer = setTimeout(() => {
+      pollOnceNow();
+    }, 1500);
+
+    const interval = setInterval(() => {
+      pollOnceNow();
     }, 4000);
 
-    return () => clearInterval(interval);
-  }, [pollingActive, jobId, circuitCode, usePqc]);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [pollingActive, jobId, usePqc]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full max-w-7xl mx-auto px-3 sm:px-6 pt-2 sm:pt-3 pb-14 sm:pb-16 relative text-white overflow-hidden">
@@ -571,19 +782,30 @@ measure q -> c;`);
               ? 'border-amber-500/80 shadow-[0_0_25px_rgba(245,158,11,0.2)]'
               : 'border-white/10 hover:border-quantum-primary/30'
           }`}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-black uppercase tracking-widest text-white font-mono flex items-center gap-2">
                 <Key className="w-4 h-4 text-quantum-primary" />
                 {t('ibm_api_key_token')}
               </h3>
-              <a 
-                href="https://quantum.ibm.com/" 
-                target="_blank" 
-                rel="noreferrer" 
-                className="text-[9px] font-mono text-gray-500 hover:text-quantum-primary transition-colors flex items-center gap-1"
-              >
-                {t('ibm_get_token')} <ExternalLink className="w-2.5 h-2.5" />
-              </a>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleCheckBackends}
+                  disabled={isCheckingBackends}
+                  className="text-[9px] font-mono px-2 py-0.5 rounded bg-quantum-primary/10 hover:bg-quantum-primary/20 border border-quantum-primary/30 text-quantum-primary transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-2.5 h-2.5 ${isCheckingBackends ? 'animate-spin' : ''}`} />
+                  {isCheckingBackends ? 'Verifica...' : 'Verifica QPU'}
+                </button>
+                <a 
+                  href="https://quantum.cloud.ibm.com/" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="text-[9px] font-mono text-gray-400 hover:text-quantum-primary transition-colors flex items-center gap-1"
+                >
+                  {t('ibm_get_token')} <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
             </div>
             
             <div className="relative">
@@ -594,9 +816,10 @@ measure q -> c;`);
                 onChange={(e) => {
                   setApiToken(e.target.value);
                   if (e.target.value.trim()) setTokenMissingError(false);
+                  if (submitError) setSubmitError(null);
                 }}
                 placeholder={t('ibm_paste_token_placeholder')}
-                className={`w-full bg-quantum-bg border rounded-xl px-4 py-3 pr-11 text-xs text-quantum-primary font-mono placeholder-gray-600 focus:outline-none transition-all ${
+                className={`w-full bg-quantum-bg border rounded-xl px-4 py-2.5 pr-11 text-xs text-quantum-primary font-mono placeholder-gray-600 focus:outline-none transition-all ${
                   tokenMissingError
                     ? 'border-amber-500 focus:border-amber-400'
                     : 'border-white/10 focus:border-quantum-primary'
@@ -611,6 +834,65 @@ measure q -> c;`);
                 {showApiToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span className="text-[9px] font-mono uppercase text-gray-400 shrink-0">QPU:</span>
+                <select
+                  value={selectedBackend}
+                  onChange={(e) => setSelectedBackend(e.target.value)}
+                  className="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-[10px] font-mono text-quantum-primary focus:border-quantum-primary focus:outline-none max-w-[215px]"
+                >
+                  <option value="auto">Auto (QPU Reale meno occupata)</option>
+                  {availableBackends.map((b) => (
+                    <option key={b.name} value={b.name}>
+                      {b.name} ({b.isSimulator ? 'Sim' : 'QPU'} · {b.qubits}q · coda {b.queueLength}{b.isOnline ? '' : ' · offline'})
+                    </option>
+                  ))}
+                </select>
+
+                <span className="text-[9px] font-mono uppercase text-gray-400 shrink-0 ml-1">Shots:</span>
+                <select
+                  value={shotsCount}
+                  onChange={(e) => setShotsCount(Number(e.target.value))}
+                  className="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-[10px] font-mono text-white focus:border-quantum-primary focus:outline-none"
+                >
+                  <option value={256}>256</option>
+                  <option value={512}>512</option>
+                  <option value={1024}>1024</option>
+                  <option value={2048}>2048</option>
+                  <option value={4096}>4096</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAdvancedCrn(!showAdvancedCrn)}
+                className="text-[9px] font-mono text-gray-500 hover:text-gray-300 underline cursor-pointer"
+              >
+                {showAdvancedCrn ? 'Nascondi CRN' : 'CRN manuale (opzionale)'}
+              </button>
+            </div>
+
+            {showAdvancedCrn && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={optionalCrn}
+                  onChange={(e) => setOptionalCrn(e.target.value)}
+                  placeholder="crn:v1:bluemix:public:quantum-computing:... (lascia vuoto per rilevamento automatico)"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-gray-200 font-mono placeholder-gray-600 focus:border-quantum-primary focus:outline-none"
+                />
+              </div>
+            )}
+
+            {submitError && (
+              <div className="mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-[10px] text-red-300 font-mono flex items-start gap-2">
+                <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                <span>{submitError}</span>
+              </div>
+            )}
+
             {tokenMissingError ? (
               <p className="text-[10px] text-amber-400 font-mono mt-2 leading-relaxed font-semibold">
                 {t('ibm_token_missing_alert')}
@@ -660,15 +942,35 @@ measure q -> c;`);
 
             <textarea 
               value={circuitCode}
-              onChange={(e) => setCircuitCode(e.target.value)}
+              onChange={(e) => {
+                setCircuitCode(e.target.value);
+                if (validationState) setValidationState(null);
+              }}
               placeholder={t('ibm_code_placeholder')}
               className="flex-1 min-h-0 w-full bg-quantum-bg border border-white/10 rounded-xl p-3 text-xs font-mono text-white leading-relaxed focus:border-quantum-primary focus:outline-none focus:ring-1 focus:ring-quantum-primary/20 resize-none scrollbar-hide"
             />
 
+            {validationState && (
+              <div className={`shrink-0 mt-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-mono flex items-center justify-between gap-2 ${
+                validationState.valid
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  : 'bg-red-500/10 border-red-500/30 text-red-300'
+              }`}>
+                <span className="truncate">
+                  {validationState.valid
+                    ? `QASM ${validationState.qasmVersion} valido · ${validationState.numQubits} qubit · ${validationState.gateCount} gate`
+                    : `Errore QASM: ${validationState.error}`}
+                </span>
+                {validationState.valid && (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                )}
+              </div>
+            )}
+
             <div className="shrink-0 mt-3 pt-3 border-t border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] font-mono text-gray-500 uppercase">
-                  {t('ibm_tag_circuit')} {circuitCode.includes('OPENQASM 3.0') ? 'OPENQASM 3.0' : (circuitCode.includes('OPENQASM') ? 'OPENQASM 2.0' : 'JSON SCHEMA')}
+                  {t('ibm_tag_circuit')} {circuitCode.includes('OPENQASM 3') ? 'OPENQASM 3.0' : (circuitCode.includes('OPENQASM') ? 'OPENQASM 2.0' : 'JSON SCHEMA')}
                 </span>
                 {usePqc && (
                   <span className="text-[9px] font-mono text-quantum-primary bg-quantum-primary/10 border border-quantum-primary/20 px-2 py-0.5 rounded flex items-center gap-1">
@@ -677,18 +979,29 @@ measure q -> c;`);
                 )}
               </div>
               
-              <button 
-                onClick={executeSend}
-                disabled={isLoading}
-                className="btn-quantum bg-quantum-primary/10 flex items-center justify-center gap-2 px-5 py-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-black text-xs tracking-widest text-quantum-primary hover:text-quantum-bg font-mono cursor-pointer"
-              >
-                {isLoading ? (
-                  <RefreshCw className="w-4 h-4 animate-spin text-quantum-primary group-hover:text-quantum-bg" />
-                ) : (
-                  <Play className="w-4 h-4 text-quantum-primary group-hover:text-quantum-bg fill-current" />
-                )}
-                {usePqc ? t('ibm_send_encrypted_btn') : t('ibm_send_code_btn')}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleValidateCircuit}
+                  disabled={isValidating || isLoading}
+                  className="px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-[10px] font-mono font-bold uppercase tracking-wider text-gray-200 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isValidating ? 'Verifica...' : 'Valida QASM'}
+                </button>
+
+                <button 
+                  onClick={executeSend}
+                  disabled={isLoading}
+                  className="btn-quantum bg-quantum-primary/10 flex items-center justify-center gap-2 px-5 py-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-black text-xs tracking-widest text-quantum-primary hover:text-quantum-bg font-mono cursor-pointer"
+                >
+                  {isLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-quantum-primary group-hover:text-quantum-bg" />
+                  ) : (
+                    <Play className="w-4 h-4 text-quantum-primary group-hover:text-quantum-bg fill-current" />
+                  )}
+                  {usePqc ? t('ibm_send_encrypted_btn') : t('ibm_send_code_btn')}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -800,26 +1113,132 @@ measure q -> c;`);
 
           {/* Job Details & Calculated Quantum Registers */}
           <div className="quantum-card bg-black/40 border-white/10 p-3.5 sm:p-4 flex flex-col flex-1 min-h-0 overflow-hidden">
-            <h3 className="shrink-0 text-xs font-black uppercase tracking-widest text-white font-mono flex items-center gap-2 mb-3">
-              <Clock className="w-4 h-4 text-quantum-primary" />
-              {t('ibm_register_status_results')}
-            </h3>
+            <div className="shrink-0 flex items-center justify-between gap-2 mb-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-white font-mono flex items-center gap-2">
+                <Clock className="w-4 h-4 text-quantum-primary" />
+                {t('ibm_register_status_results')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  fetchSavedJobs();
+                  setShowHistoryDrawer(!showHistoryDrawer);
+                }}
+                className="text-[9px] font-mono px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-quantum-primary transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <Layers className="w-3 h-3" />
+                {showHistoryDrawer ? 'Chiudi Cronologia' : `Job Salvati (${savedJobs.length})`}
+              </button>
+            </div>
+
+            {showHistoryDrawer && (
+              <div className="shrink-0 mb-3 p-2.5 rounded-xl bg-black/70 border border-quantum-primary/25 space-y-2 max-h-48 overflow-y-auto scrollbar-hide font-mono">
+                <div className="flex items-center justify-between text-[9px] text-gray-400 uppercase border-b border-white/10 pb-1">
+                  <span>Database Job IBM Quantum (SQLite)</span>
+                  <button
+                    type="button"
+                    onClick={fetchSavedJobs}
+                    className="text-quantum-primary hover:underline cursor-pointer"
+                  >
+                    Aggiorna lista
+                  </button>
+                </div>
+                {savedJobs.length === 0 ? (
+                  <p className="text-[10px] text-gray-500 py-2 text-center">Nessun job inviato finora.</p>
+                ) : (
+                  savedJobs.map((j) => (
+                    <div
+                      key={j.jobId}
+                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 text-[9px]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-quantum-primary font-bold truncate">{j.jobId}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                              j.status === 'COMPLETED'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : j.status === 'FAILED' || j.status === 'CANCELLED'
+                                  ? 'bg-red-500/20 text-red-300'
+                                  : 'bg-amber-500/20 text-amber-300'
+                            }`}
+                          >
+                            {j.status}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 truncate mt-0.5">
+                          {j.backend} · {j.shots} shots · {new Date(j.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSavedJob(j)}
+                          className="px-2 py-1 rounded bg-quantum-primary/15 hover:bg-quantum-primary/30 text-quantum-primary font-bold cursor-pointer"
+                        >
+                          {j.status === 'COMPLETED' && j.counts ? 'Apri' : 'Riprendi'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSavedJob(j.jobId)}
+                          className="px-1.5 py-1 rounded bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-300 cursor-pointer"
+                          title="Elimina dalla cronologia"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
 
             <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-3 font-mono">
               <div className="grid grid-cols-2 gap-3 text-[10px] bg-white/5 p-3 rounded-lg border border-white/5">
                 <div>
                   <p className="text-gray-500 uppercase">{t('ibm_generated_job_id')}</p>
-                  <p className="text-quantum-primary font-bold overflow-hidden text-ellipsis whitespace-nowrap mt-0.5">
+                  <p className="text-quantum-primary font-bold overflow-hidden text-ellipsis whitespace-nowrap mt-0.5" title={jobId || 'N/A'}>
                     {jobId || 'N/A'}
                   </p>
+                  {activeBackendName && (
+                    <p className="text-[9px] text-emerald-400 mt-0.5 truncate">
+                      {activeBackendName} ({isRealHardware ? 'QPU Reale' : 'Simulatore IBM'})
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <p className="text-gray-500 uppercase">{t('ibm_calculation_queue')}</p>
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-gray-500 uppercase">{t('ibm_calculation_queue')}</p>
+                    {pollingActive && (
+                      <button
+                        type="button"
+                        onClick={pollOnceNow}
+                        className="text-[8px] text-quantum-primary hover:underline cursor-pointer"
+                      >
+                        Aggiorna
+                      </button>
+                    )}
+                  </div>
                   <p className="text-white mt-0.5 font-bold">
                     {jobStatus === 'QUEUED' ? t('ibm_queue_pos') : jobStatus || t('ibm_queue_inactive')}
                   </p>
+                  {isaQasmPreview && (
+                    <button
+                      type="button"
+                      onClick={() => setShowIsaPreview(!showIsaPreview)}
+                      className="text-[9px] text-gray-400 hover:text-quantum-primary underline mt-0.5 cursor-pointer"
+                    >
+                      {showIsaPreview ? 'Nascondi ISA QASM inviato' : 'Vedi ISA QASM inviato'}
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {showIsaPreview && isaQasmPreview && (
+                <pre className="bg-black/80 border border-quantum-primary/20 rounded-lg p-2.5 text-[9px] text-emerald-300 font-mono max-h-36 overflow-y-auto whitespace-pre-wrap">
+                  {isaQasmPreview}
+                </pre>
+              )}
 
               {/* PQC Received Encrypted Telemetry Card */}
               {pqcRxData && !pqcDecryptedResults && (
@@ -877,11 +1296,13 @@ measure q -> c;`);
                   {/* States distribution with real company asset labels */}
                   {(() => {
                     const qubitLabels = getQubitLabels();
+                    const totalShots: number = (Object.values(finalResults) as number[]).reduce((sum, v) => sum + Number(v || 0), 0) || 1024;
+                    const sortedEntries = Object.entries(finalResults).sort((a, b) => Number(b[1]) - Number(a[1]));
 
                     return (
                       <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1 scrollbar-hide font-sans">
-                        {Object.entries(finalResults).map(([state, shots]) => {
-                          const percentage = (((shots as number) / 1024) * 100).toFixed(1);
+                        {sortedEntries.map(([state, shots]) => {
+                          const percentage = (((shots as number) / totalShots) * 100).toFixed(1);
                           const translated = translateBitstring(state, qubitLabels);
 
                           return (
@@ -984,10 +1405,11 @@ measure q -> c;`);
 
                   {/* 2. Elementary Explanation Module for the Client */}
                   {(() => {
+                    const totalShots: number = (Object.values(finalResults) as number[]).reduce((sum, v) => sum + Number(v || 0), 0) || 1024;
                     const sortedStates = Object.entries(finalResults).sort((a, b) => (b[1] as number) - (a[1] as number));
                     const topState = sortedStates[0] ? sortedStates[0][0] : '000';
                     const topShots = sortedStates[0] ? sortedStates[0][1] : 0;
-                    const topPercentage = (((topShots as number) / 1024) * 100).toFixed(1);
+                    const topPercentage = (((topShots as number) / totalShots) * 100).toFixed(1);
                     const qubitLabels = getQubitLabels();
                     const topTranslated = translateBitstring(topState, qubitLabels);
 
