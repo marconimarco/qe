@@ -32,6 +32,16 @@ import {
   EncryptedWireMessage
 } from '../../lib/pqc/e2eeChatCrypto';
 import { zeroizeBuffer } from '../../lib/pqc/zeroTraceMemory';
+import { isBackendUnavailableError } from '../../lib/pqc/clientPqcFallback';
+import {
+  createFirestorePqcRoom,
+  isFirestoreChatAvailable,
+  joinFirestorePqcRoom,
+  leaveFirestorePqcRoom,
+  rotateFirestoreInviteCode,
+  sendFirestoreEncryptedMessage,
+  subscribeFirestorePqcRoom,
+} from '../../lib/pqc/firestoreChatRelay';
 
 interface UiChatMessage {
   id: string;
@@ -66,14 +76,21 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [transportMode, setTransportMode] = useState<'socket' | 'firestore'>('socket');
 
   const socketRef = useRef<Socket | null>(null);
+  const firestoreUnsubRef = useRef<(() => void) | null>(null);
+  const transportModeRef = useRef<'socket' | 'firestore'>('socket');
   const mySecretKeyRef = useRef<Uint8Array | null>(null);
   const myPeerIdRef = useRef<string | null>(null);
   const roomIdRef = useRef<string | null>(null);
   const peerTokenRef = useRef<string | null>(null);
   const seenMessageIdsRef = useRef<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    transportModeRef.current = transportMode;
+  }, [transportMode]);
 
   useEffect(() => {
     myPeerIdRef.current = myPeerId;
@@ -133,12 +150,13 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
     }
   }, []);
 
-  // Real-time Socket.IO connection with E2EE authentication & auto-rejoin
+  // Real-time Socket.IO connection with E2EE authentication & auto-rejoin (bounded attempts so static hosts fall back cleanly)
   useEffect(() => {
-    const sock = io();
+    const sock = io({ reconnectionAttempts: 2, timeout: 3000 });
     socketRef.current = sock;
 
     sock.on('connect', () => {
+      if (transportModeRef.current === 'firestore') return;
       setSocketConnected(true);
       if (roomIdRef.current && myPeerIdRef.current && peerTokenRef.current) {
         sock.emit('join-room', {
@@ -150,7 +168,9 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
     });
 
     sock.on('disconnect', () => {
-      setSocketConnected(false);
+      if (transportModeRef.current === 'socket') {
+        setSocketConnected(false);
+      }
     });
 
     sock.on('room-error', (payload: { error?: string }) => {
@@ -171,6 +191,13 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
     });
 
     return () => {
+      if (firestoreUnsubRef.current) {
+        firestoreUnsubRef.current();
+        firestoreUnsubRef.current = null;
+      }
+      if (transportModeRef.current === 'firestore' && roomIdRef.current && myPeerIdRef.current) {
+        void leaveFirestorePqcRoom(roomIdRef.current, myPeerIdRef.current);
+      }
       sock.emit('leave-room');
       sock.close();
       socketRef.current = null;
@@ -184,6 +211,31 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
     }
   }, [messages]);
 
+  const attachFirestoreRoomListeners = useCallback(
+    (targetRoomId: string) => {
+      if (firestoreUnsubRef.current) {
+        firestoreUnsubRef.current();
+        firestoreUnsubRef.current = null;
+      }
+      firestoreUnsubRef.current = subscribeFirestorePqcRoom({
+        roomId: targetRoomId,
+        onPeers: (updatedPeers) => {
+          setPeers(updatedPeers);
+        },
+        onMessage: async (wireMsg) => {
+          if (!wireMsg?.id || seenMessageIdsRef.current.has(wireMsg.id)) return;
+          seenMessageIdsRef.current.add(wireMsg.id);
+          const uiMsg = await decryptIncomingWireMessage(wireMsg);
+          setMessages((prev) => (prev.some((m) => m.id === uiMsg.id) ? prev : [...prev, uiMsg]));
+        },
+        onError: (errMsg) => {
+          setRoomError(errMsg);
+        },
+      });
+    },
+    [decryptIncomingWireMessage]
+  );
+
   const createRoom = async () => {
     setLobbyError(null);
     setRoomError(null);
@@ -194,35 +246,101 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
       const kp = generateClientMlKemKeyPair();
       mySecretKeyRef.current = kp.secretKeyBytes;
 
-      const response = await axios.post('/api/pqc/chat/create-room', {
-        publicKey: kp.publicKeyHex,
+      let useFirestoreFallback = false;
+      let serverData: any = null;
+      try {
+        const response = await axios.post(
+          '/api/pqc/chat/create-room',
+          {
+            publicKey: kp.publicKeyHex,
+            displayName: displayName.trim() || undefined,
+          },
+          { timeout: 3500 }
+        );
+        if (response.data && response.data.roomId) {
+          serverData = response.data;
+        } else {
+          useFirestoreFallback = true;
+        }
+      } catch (err: any) {
+        if (isBackendUnavailableError(err)) {
+          useFirestoreFallback = true;
+        } else {
+          throw err;
+        }
+      }
+
+      if (!useFirestoreFallback && serverData) {
+        const {
+          roomId: newRoomId,
+          inviteCode: newInviteCode,
+          peerId: newPeerId,
+          peerToken: newPeerToken,
+          peers: initialPeers,
+        } = serverData;
+
+        setTransportMode('socket');
+        transportModeRef.current = 'socket';
+        myPeerIdRef.current = newPeerId;
+        roomIdRef.current = newRoomId;
+        peerTokenRef.current = newPeerToken;
+
+        setRoomId(newRoomId);
+        setInviteCode(newInviteCode);
+        setMyPeerId(newPeerId);
+        setMyPeerToken(newPeerToken);
+        setPeers(initialPeers || []);
+        setView('chat');
+
+        socketRef.current?.emit('join-room', {
+          roomId: newRoomId,
+          peerId: newPeerId,
+          peerToken: newPeerToken,
+        });
+
+        setMessages([
+          {
+            id: 'sys-created',
+            senderId: 'system',
+            senderName: 'SYSTEM',
+            systemKind: 'created',
+            roomCode: newInviteCode,
+            content: `Sessione E2EE creata (ID #${newRoomId}). Codice invito: ${newInviteCode}. Condividi il codice con un altro utente/scheda per chattare con ML-KEM-768 reale.`,
+            isEncrypted: false,
+          },
+        ]);
+        return;
+      }
+
+      // Firestore Real-Time E2EE Relay Fallback (GitHub Pages / Static)
+      if (!isFirestoreChatAvailable()) {
+        throw new Error(
+          'Server Node non disponibile: per creare una stanza E2EE su GitHub Pages via Cloud Firestore, effettua prima l\'accesso con Google dalla schermata di login.'
+        );
+      }
+
+      const fsRoom = await createFirestorePqcRoom({
+        publicKeyHex: kp.publicKeyHex,
         displayName: displayName.trim() || undefined,
       });
 
-      const {
-        roomId: newRoomId,
-        inviteCode: newInviteCode,
-        peerId: newPeerId,
-        peerToken: newPeerToken,
-        peers: initialPeers,
-      } = response.data;
+      setTransportMode('firestore');
+      transportModeRef.current = 'firestore';
+      setSocketConnected(true);
+      socketRef.current?.disconnect();
 
-      myPeerIdRef.current = newPeerId;
-      roomIdRef.current = newRoomId;
-      peerTokenRef.current = newPeerToken;
+      myPeerIdRef.current = fsRoom.peerId;
+      roomIdRef.current = fsRoom.roomId;
+      peerTokenRef.current = null;
 
-      setRoomId(newRoomId);
-      setInviteCode(newInviteCode);
-      setMyPeerId(newPeerId);
-      setMyPeerToken(newPeerToken);
-      setPeers(initialPeers || []);
+      setRoomId(fsRoom.roomId);
+      setInviteCode(fsRoom.inviteCode);
+      setMyPeerId(fsRoom.peerId);
+      setMyPeerToken(null);
+      setPeers(fsRoom.peers);
       setView('chat');
 
-      socketRef.current?.emit('join-room', {
-        roomId: newRoomId,
-        peerId: newPeerId,
-        peerToken: newPeerToken,
-      });
+      attachFirestoreRoomListeners(fsRoom.roomId);
 
       setMessages([
         {
@@ -230,14 +348,14 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
           senderId: 'system',
           senderName: 'SYSTEM',
           systemKind: 'created',
-          roomCode: newInviteCode,
-          content: `Sessione E2EE creata (ID #${newRoomId}). Codice invito: ${newInviteCode}. Condividi il codice con un altro utente/scheda per chattare con ML-KEM-768 reale.`,
+          roomCode: fsRoom.inviteCode,
+          content: `Sessione E2EE Cloud Firestore creata (ID #${fsRoom.roomId}). Codice invito: ${fsRoom.inviteCode}. Condividi il codice per chattare con ML-KEM-768 reale anche su GitHub Pages.`,
           isEncrypted: false,
         },
       ]);
     } catch (error: any) {
       scrubLocalSessionKeys();
-      setLobbyError(error?.response?.data?.error || 'Impossibile creare la stanza E2EE.');
+      setLobbyError(error?.response?.data?.error || error?.message || 'Impossibile creare la stanza E2EE.');
     } finally {
       setIsCreating(false);
     }
@@ -255,37 +373,111 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
       const kp = generateClientMlKemKeyPair();
       mySecretKeyRef.current = kp.secretKeyBytes;
 
-      const response = await axios.post('/api/pqc/chat/validate-code', {
-        code: cleanCode,
-        publicKey: kp.publicKeyHex,
+      let useFirestoreFallback = false;
+      let serverData: any = null;
+      try {
+        const response = await axios.post(
+          '/api/pqc/chat/validate-code',
+          {
+            code: cleanCode,
+            publicKey: kp.publicKeyHex,
+            displayName: displayName.trim() || undefined,
+          },
+          { timeout: 3500 }
+        );
+        if (response.data && response.data.roomId) {
+          serverData = response.data;
+        } else {
+          useFirestoreFallback = true;
+        }
+      } catch (err: any) {
+        if (isBackendUnavailableError(err)) {
+          useFirestoreFallback = true;
+        } else {
+          throw err;
+        }
+      }
+
+      if (!useFirestoreFallback && serverData) {
+        const {
+          roomId: joinedRoomId,
+          inviteCode: roomInviteCode,
+          peerId: newPeerId,
+          peerToken: newPeerToken,
+          peers: currentPeers,
+          encryptedHistory,
+        } = serverData;
+
+        setTransportMode('socket');
+        transportModeRef.current = 'socket';
+        myPeerIdRef.current = newPeerId;
+        roomIdRef.current = joinedRoomId;
+        peerTokenRef.current = newPeerToken;
+
+        setRoomId(joinedRoomId);
+        setInviteCode(roomInviteCode);
+        setMyPeerId(newPeerId);
+        setMyPeerToken(newPeerToken);
+        setPeers(currentPeers || []);
+        setView('chat');
+
+        socketRef.current?.emit('join-room', {
+          roomId: joinedRoomId,
+          peerId: newPeerId,
+          peerToken: newPeerToken,
+        });
+
+        const historyUi: UiChatMessage[] = [
+          {
+            id: 'sys-joined',
+            senderId: 'system',
+            senderName: 'SYSTEM',
+            systemKind: 'authorized',
+            roomCode: joinedRoomId,
+            content: `Accesso E2EE autorizzato (Stanza #${joinedRoomId}). Chiave ML-KEM-768 generata localmente nel browser.`,
+            isEncrypted: false,
+          },
+        ];
+
+        if (Array.isArray(encryptedHistory)) {
+          for (const wireMsg of encryptedHistory as EncryptedWireMessage[]) {
+            seenMessageIdsRef.current.add(wireMsg.id);
+            historyUi.push(await decryptIncomingWireMessage(wireMsg));
+          }
+        }
+
+        setMessages(historyUi);
+        return;
+      }
+
+      // Firestore Real-Time E2EE Relay Fallback (GitHub Pages / Static)
+      if (!isFirestoreChatAvailable()) {
+        throw new Error(
+          'Server Node non disponibile: per entrare in una stanza E2EE su GitHub Pages via Cloud Firestore, effettua prima l\'accesso con Google.'
+        );
+      }
+
+      const fsJoined = await joinFirestorePqcRoom({
+        inviteCode: cleanCode,
+        publicKeyHex: kp.publicKeyHex,
         displayName: displayName.trim() || undefined,
       });
 
-      const {
-        roomId: joinedRoomId,
-        inviteCode: roomInviteCode,
-        peerId: newPeerId,
-        peerToken: newPeerToken,
-        peers: currentPeers,
-        encryptedHistory,
-      } = response.data;
+      setTransportMode('firestore');
+      transportModeRef.current = 'firestore';
+      setSocketConnected(true);
+      socketRef.current?.disconnect();
 
-      myPeerIdRef.current = newPeerId;
-      roomIdRef.current = joinedRoomId;
-      peerTokenRef.current = newPeerToken;
+      myPeerIdRef.current = fsJoined.peerId;
+      roomIdRef.current = fsJoined.roomId;
+      peerTokenRef.current = null;
 
-      setRoomId(joinedRoomId);
-      setInviteCode(roomInviteCode);
-      setMyPeerId(newPeerId);
-      setMyPeerToken(newPeerToken);
-      setPeers(currentPeers || []);
+      setRoomId(fsJoined.roomId);
+      setInviteCode(fsJoined.inviteCode);
+      setMyPeerId(fsJoined.peerId);
+      setMyPeerToken(null);
+      setPeers(fsJoined.peers);
       setView('chat');
-
-      socketRef.current?.emit('join-room', {
-        roomId: joinedRoomId,
-        peerId: newPeerId,
-        peerToken: newPeerToken,
-      });
 
       const historyUi: UiChatMessage[] = [
         {
@@ -293,48 +485,63 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
           senderId: 'system',
           senderName: 'SYSTEM',
           systemKind: 'authorized',
-          roomCode: joinedRoomId,
-          content: `Accesso E2EE autorizzato (Stanza #${joinedRoomId}). Chiave ML-KEM-768 generata localmente nel browser.`,
+          roomCode: fsJoined.roomId,
+          content: `Accesso E2EE Cloud Firestore autorizzato (Stanza #${fsJoined.roomId}). Chiave ML-KEM-768 generata localmente nel browser.`,
           isEncrypted: false,
         },
       ];
 
-      if (Array.isArray(encryptedHistory)) {
-        for (const wireMsg of encryptedHistory as EncryptedWireMessage[]) {
-          seenMessageIdsRef.current.add(wireMsg.id);
-          historyUi.push(await decryptIncomingWireMessage(wireMsg));
-        }
+      for (const wireMsg of fsJoined.encryptedHistory) {
+        seenMessageIdsRef.current.add(wireMsg.id);
+        historyUi.push(await decryptIncomingWireMessage(wireMsg));
       }
 
       setMessages(historyUi);
+      attachFirestoreRoomListeners(fsJoined.roomId);
     } catch (error: any) {
       scrubLocalSessionKeys();
-      setLobbyError(error?.response?.data?.error || t('chat_invalid_code'));
+      setLobbyError(error?.response?.data?.error || error?.message || t('chat_invalid_code'));
     } finally {
       setIsJoining(false);
     }
   };
 
   const rotateInviteCode = async () => {
-    if (!roomId || !myPeerId || !myPeerToken) return;
+    if (!roomId || !myPeerId) return;
     setIsRotatingCode(true);
     try {
-      const response = await axios.post('/api/pqc/chat/rotate-invite', {
-        roomId,
-        peerId: myPeerId,
-        peerToken: myPeerToken,
-      });
-      if (response.data?.inviteCode) {
-        setInviteCode(response.data.inviteCode);
+      if (transportMode === 'firestore') {
+        const newCode = await rotateFirestoreInviteCode({
+          roomId,
+          oldInviteCode: inviteCode || '',
+        });
+        setInviteCode(newCode);
+      } else {
+        if (!myPeerToken) return;
+        const response = await axios.post('/api/pqc/chat/rotate-invite', {
+          roomId,
+          peerId: myPeerId,
+          peerToken: myPeerToken,
+        });
+        if (response.data?.inviteCode) {
+          setInviteCode(response.data.inviteCode);
+        }
       }
     } catch (error: any) {
-      setRoomError(error?.response?.data?.error || 'Impossibile rigenerare il codice.');
+      setRoomError(error?.response?.data?.error || error?.message || 'Impossibile rigenerare il codice.');
     } finally {
       setIsRotatingCode(false);
     }
   };
 
   const handleLeaveRoom = () => {
+    if (firestoreUnsubRef.current) {
+      firestoreUnsubRef.current();
+      firestoreUnsubRef.current = null;
+    }
+    if (transportModeRef.current === 'firestore' && roomId && myPeerId) {
+      void leaveFirestorePqcRoom(roomId, myPeerId);
+    }
     socketRef.current?.emit('leave-room');
     scrubLocalSessionKeys();
     setView('lobby');
@@ -359,10 +566,7 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
           ? window.crypto.randomUUID()
           : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-      const targetPeers =
-        peers.length > 0
-          ? peers
-          : [];
+      const targetPeers = peers.length > 0 ? peers : [];
 
       const { iv, ciphertext, envelopes } = await encryptE2EERoomMessage({
         plaintext,
@@ -372,14 +576,27 @@ export default function QuantumChat({ onBack }: { onBack?: (forceHome?: boolean)
         peers: targetPeers,
       });
 
-      // Emit ONLY ciphertext + per-peer ML-KEM-768 envelopes (ZERO plaintext on wire)
-      socketRef.current?.emit('send-message', {
-        roomId,
-        id: messageId,
-        iv,
-        ciphertext,
-        envelopes,
-      });
+      if (transportMode === 'firestore') {
+        const myPeer = targetPeers.find((p) => p.peerId === myPeerId);
+        await sendFirestoreEncryptedMessage({
+          roomId,
+          messageId,
+          senderPeerId: myPeerId,
+          senderName: myPeer?.name || displayName.trim() || `Nodo_${myPeerId.slice(0, 4).toUpperCase()}`,
+          iv,
+          ciphertext,
+          envelopes,
+        });
+      } else {
+        // Emit ONLY ciphertext + per-peer ML-KEM-768 envelopes (ZERO plaintext on wire)
+        socketRef.current?.emit('send-message', {
+          roomId,
+          id: messageId,
+          iv,
+          ciphertext,
+          envelopes,
+        });
+      }
 
       setInputValue('');
     } catch (error: any) {

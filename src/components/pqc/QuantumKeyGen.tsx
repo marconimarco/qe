@@ -20,6 +20,7 @@ import axios from 'axios';
 import { useTranslation } from '../../lib/TranslationContext';
 import { prepareClientEntropyContribution, EntropySourceType, EntropyReport } from '../../lib/pqc/qrng';
 import { zeroizeBuffer } from '../../lib/pqc/zeroTraceMemory';
+import { clientGenerateMlKem768Keypair, isBackendUnavailableError } from '../../lib/pqc/clientPqcFallback';
 
 export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolean) => void }) {
   const { t } = useTranslation();
@@ -60,14 +61,31 @@ export default function QuantumKeyGen({ onBack }: { onBack?: (forceHome?: boolea
       const response = await axios.post('/api/pqc/keygen', {
         entropySource,
         clientEntropyHex: report.clientEntropyHex,
-      });
+      }, { timeout: 5000 });
 
       if (response.data && response.data.publicKey) {
         setKeys(response.data);
       } else {
-        setStatusMessage({ type: 'error', text: t('keygen_invalid_resp') });
+        // Static host fallback (e.g. GitHub Pages)
+        const localKeys = await clientGenerateMlKem768Keypair({
+          entropySource,
+          clientEntropyHex: report.clientEntropyHex,
+        });
+        setKeys(localKeys);
       }
     } catch (error: any) {
+      if (isBackendUnavailableError(error)) {
+        try {
+          const localKeys = await clientGenerateMlKem768Keypair({
+            entropySource,
+          });
+          setKeys(localKeys);
+          return;
+        } catch (fallbackErr: any) {
+          setStatusMessage({ type: 'error', text: fallbackErr?.message || t('keygen_err_gen') });
+          return;
+        }
+      }
       console.error('Key generation failed', error);
       const errorMsg = error.response?.data?.error || error.message || t('keygen_err_gen');
       setStatusMessage({ type: 'error', text: errorMsg });

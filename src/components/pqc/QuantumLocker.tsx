@@ -19,6 +19,11 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useTranslation } from '../../lib/TranslationContext';
+import {
+  clientEncryptVault,
+  clientDecryptVault,
+  isBackendUnavailableError,
+} from '../../lib/pqc/clientPqcFallback';
 
 export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolean) => void }) {
   const { t } = useTranslation();
@@ -93,7 +98,7 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
 
   const handleEncrypt = async () => {
     if (!inputText.trim() && !selectedFile) {
-      alert(t('locker_original_text_placeholder') || 'Enter text or select a file to encrypt.');
+      setDecryptError(t('locker_original_text_placeholder') || 'Enter text or select a file to encrypt.');
       return;
     }
 
@@ -106,23 +111,39 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
       if (selectedFile) {
         const formData = new FormData();
         formData.append('file', selectedFile);
-        response = await axios.post('/api/pqc/encrypt', formData);
+        response = await axios.post('/api/pqc/encrypt', formData, { timeout: 5000 });
       } else {
-        response = await axios.post('/api/pqc/encrypt', { 
-          text: inputText 
-        });
+        response = await axios.post('/api/pqc/encrypt', {
+          text: inputText
+        }, { timeout: 5000 });
       }
 
       if (response.data && response.data.encryptedPayload) {
         setResult(response.data);
       } else {
-        console.error('Invalid response format', response.data);
-        alert(t('locker_error_server') || 'Server error during encryption');
+        // Static host fallback (e.g. GitHub Pages returning index.html)
+        const bytes = selectedFile
+          ? new Uint8Array(await selectedFile.arrayBuffer())
+          : new TextEncoder().encode(inputText);
+        const localRes = await clientEncryptVault(bytes);
+        setResult(localRes);
       }
     } catch (error: any) {
+      if (isBackendUnavailableError(error)) {
+        try {
+          const bytes = selectedFile
+            ? new Uint8Array(await selectedFile.arrayBuffer())
+            : new TextEncoder().encode(inputText);
+          const localRes = await clientEncryptVault(bytes);
+          setResult(localRes);
+          return;
+        } catch (fallbackErr: any) {
+          console.error('Client PQC encryption fallback failed:', fallbackErr);
+        }
+      }
       console.error('Encryption failed:', error);
       const errorMsg = error.response?.data?.error || error.message || t('locker_error_server') || 'Encryption error';
-      alert(`Error: ${errorMsg}`);
+      setDecryptError(`Error: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
     }
@@ -147,14 +168,33 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
         encryptedPayload: cleanPayload,
         encapsulatedKey: cleanEnc,
         unlockKey: cleanSec
-      });
+      }, { timeout: 5000 });
 
       if (response.data && response.data.decryptedContent !== undefined) {
         setDecryptedResult(response.data.decryptedContent);
       } else {
-        setDecryptError(t('locker_err_empty_resp'));
+        const localPlaintext = await clientDecryptVault({
+          encryptedPayload: cleanPayload,
+          encapsulatedKey: cleanEnc,
+          unlockKey: cleanSec,
+        });
+        setDecryptedResult(localPlaintext);
       }
     } catch (error: any) {
+      if (isBackendUnavailableError(error)) {
+        try {
+          const localPlaintext = await clientDecryptVault({
+            encryptedPayload: cleanPayload,
+            encapsulatedKey: cleanEnc,
+            unlockKey: cleanSec,
+          });
+          setDecryptedResult(localPlaintext);
+          return;
+        } catch (fallbackErr: any) {
+          setDecryptError(fallbackErr?.message || t('locker_error_decryption') || 'Decryption failed');
+          return;
+        }
+      }
       console.error('Decryption failed:', error);
       const errorMsg = error.response?.data?.error || error.message || t('locker_error_decryption') || 'Decryption failed';
       setDecryptError(errorMsg);
@@ -359,7 +399,13 @@ export default function QuantumLocker({ onBack }: { onBack?: (forceHome?: boolea
               </div>
 
               {/* Action Button */}
-              <div className="pt-6 mt-6 border-t border-white/5">
+              <div className="pt-6 mt-6 border-t border-white/5 space-y-3">
+                {decryptError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-mono text-red-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>{decryptError}</span>
+                  </div>
+                )}
                 <button 
                   id="pqc-lock-vault-btn"
                   onClick={handleEncrypt}

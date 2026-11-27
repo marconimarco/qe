@@ -1,3 +1,18 @@
+import { auth } from '../firebase';
+import {
+  firebaseSignOut,
+  hashPasswordWithSalt,
+  isFirebaseAdminActive,
+  signInWithGoogleAndResolveUser,
+  subscribeFirestoreDirectory,
+  syncCreateAccessLog,
+  syncCreateOrUpdateAppUser,
+  syncDeleteAccessLogs,
+  syncDeleteAppUser,
+  syncSelfAgreementsToFirestore,
+  verifyPasswordAgainstHash,
+} from './firebaseSync';
+
 export type UserRole = 'admin' | 'user';
 export type UserStatus = 'active' | 'suspended';
 
@@ -121,7 +136,11 @@ export const ALL_APP_ICON_IDS: string[] = ALL_APP_ICONS.map(i => i.id);
 export interface AuthUser {
   id: string;
   username: string;
-  password: string; // Stored securely in client storage for local simulation
+  password: string; // Local-only plaintext when created locally; empty when synced from Firestore
+  passwordHash?: string;
+  passwordSalt?: string;
+  hasCloudPassword?: boolean;
+  uid?: string;
   name: string;
   email: string;
   role: UserRole;
@@ -354,6 +373,9 @@ export function acceptAgreementsForUser(userId: string): { success: boolean; ses
 
   saveStoredUsers(users);
   setCurrentSession(users[index]);
+  void syncSelfAgreementsToFirestore(userId, timestamp).catch((err) =>
+    console.error('Firestore agreement sync failed:', err)
+  );
 
   return {
     success: true,
@@ -459,6 +481,130 @@ export function loginUser(usernameInput: string, passwordInput: string): { succe
   };
 }
 
+export async function loginUserAsync(
+  usernameInput: string,
+  passwordInput: string
+): Promise<{ success: boolean; message?: string; user?: CurrentUserSession }> {
+  const syncResult = loginUser(usernameInput, passwordInput);
+  if (syncResult.success) {
+    return syncResult;
+  }
+
+  // Fallback verification against salted SHA-256 hash (for Firestore-synced accounts)
+  const users = getStoredUsers();
+  const normalizedUsername = usernameInput.trim().toLowerCase();
+  const userIndex = users.findIndex(
+    (u) =>
+      u.username.trim().toLowerCase() === normalizedUsername ||
+      u.email.trim().toLowerCase() === normalizedUsername
+  );
+
+  if (userIndex === -1) {
+    return syncResult;
+  }
+
+  const user = users[userIndex];
+  if (user.passwordHash && user.passwordSalt) {
+    const hashOk = await verifyPasswordAgainstHash(
+      passwordInput.trim(),
+      user.passwordHash,
+      user.passwordSalt
+    );
+    const exactHashOk = hashOk || (await verifyPasswordAgainstHash(passwordInput, user.passwordHash, user.passwordSalt));
+    if (exactHashOk) {
+      if (user.status === 'suspended') {
+        return { success: false, message: 'Questo account è stato sospeso dall\'amministratore.' };
+      }
+      const now = new Date().toISOString();
+      users[userIndex] = { ...user, lastLogin: now };
+      saveStoredUsers(users);
+      setCurrentSession(users[userIndex]);
+
+      logUserAccess({
+        userId: user.id,
+        username: user.username,
+        userRole: user.role,
+        type: 'login',
+        actionName: 'Accesso al Portale (Login Riuscito)',
+        viewDetail: `Accesso autorizzato (verifica hash Firestore SHA-256). Permessi attivi: ${user.role === 'admin' ? 'Amministratore Totale' : `${user.allowedIcons?.length ?? ALL_APP_ICON_IDS.length} Icone e ${user.allowedAgentAiCategories?.length ?? ALL_AGENT_AI_CATEGORY_IDS.length} Categorie AI`}`,
+        targetId: 'auth_login',
+        allowedIconsSnapshot: user.allowedIcons ?? (user.role === 'admin' ? ALL_APP_ICON_IDS : []),
+        allowedCategoriesSnapshot: user.allowedAgentAiCategories ?? ALL_AGENT_AI_CATEGORY_IDS,
+      });
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          createdAt: user.createdAt,
+          lastLogin: now,
+          hasAcceptedAgreements: user.role === 'admin' ? true : Boolean(user.hasAcceptedAgreements),
+          acceptedAgreementsTimestamp: user.acceptedAgreementsTimestamp,
+          allowedIcons: user.allowedIcons ?? ALL_APP_ICON_IDS,
+          allowedAgentAiCategories: user.allowedAgentAiCategories ?? ALL_AGENT_AI_CATEGORY_IDS,
+        },
+      };
+    }
+  }
+
+  return syncResult;
+}
+
+export async function loginWithGoogle(): Promise<{
+  success: boolean;
+  message?: string;
+  user?: CurrentUserSession;
+}> {
+  const res = await signInWithGoogleAndResolveUser();
+  if (!res.success || !res.session || !res.matchedUser) {
+    return { success: false, message: res.message };
+  }
+
+  // Merge user into local directory so permission guards & modals work seamlessly
+  const users = getStoredUsers();
+  const idx = users.findIndex(
+    (u) =>
+      u.id === res.matchedUser!.id ||
+      u.email.trim().toLowerCase() === res.matchedUser!.email.trim().toLowerCase()
+  );
+  if (idx !== -1) {
+    users[idx] = {
+      ...users[idx],
+      ...res.matchedUser,
+      password: users[idx].password || '',
+    };
+  } else {
+    users.push(res.matchedUser);
+  }
+  saveStoredUsers(users);
+  setCurrentSession(res.matchedUser);
+
+  logUserAccess({
+    userId: res.session.id,
+    username: res.session.username,
+    userRole: res.session.role,
+    type: 'login',
+    actionName: 'Accesso Google + Cloud Firestore',
+    viewDetail: `Autenticazione Google verificata (${res.session.email}). Ruolo: ${res.session.role.toUpperCase()}`,
+    targetId: 'auth_google_login',
+    allowedIconsSnapshot: res.session.allowedIcons ?? [],
+    allowedCategoriesSnapshot: res.session.allowedAgentAiCategories ?? [],
+  });
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('quantum_user_permissions_updated', { detail: { username: res.session.username } })
+    );
+  }
+
+  return { success: true, user: res.session };
+}
+
 export function logoutUser(): void {
   const session = getCurrentSession();
   if (session) {
@@ -473,6 +619,7 @@ export function logoutUser(): void {
     });
   }
   localStorage.removeItem(SESSION_STORAGE_KEY);
+  void firebaseSignOut();
 }
 
 export function createNewUser(
@@ -524,6 +671,9 @@ export function createNewUser(
         : (data.role === 'admin' ? ALL_AGENT_AI_CATEGORY_IDS : ALL_AGENT_AI_CATEGORY_IDS)
     };
     saveStoredUsers(users);
+    void syncCreateOrUpdateAppUser(users[existingIndex], cleanPassword).catch((err) =>
+      console.error('Firestore user update sync failed:', err)
+    );
 
     // If active session belongs to this user, update active session immediately
     const session = getCurrentSession();
@@ -542,8 +692,9 @@ export function createNewUser(
     id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     username,
     password: cleanPassword,
+    hasCloudPassword: true,
     name: data.name.trim() || username,
-    email: data.email.trim() || `${username}@sparkquantum.internal`,
+    email: (data.email.trim() || `${username}@sparkquantum.internal`).toLowerCase(),
     role: data.role,
     status: data.status,
     createdAt: new Date().toISOString(),
@@ -558,6 +709,19 @@ export function createNewUser(
 
   users.push(newUser);
   saveStoredUsers(users);
+  void hashPasswordWithSalt(cleanPassword).then(({ passwordHash, passwordSalt }) => {
+    const latestUsers = getStoredUsers();
+    const idx = latestUsers.findIndex((u) => u.id === newUser.id);
+    if (idx !== -1) {
+      latestUsers[idx].passwordHash = passwordHash;
+      latestUsers[idx].passwordSalt = passwordSalt;
+      latestUsers[idx].hasCloudPassword = true;
+      saveStoredUsers(latestUsers);
+    }
+    void syncCreateOrUpdateAppUser({ ...newUser, passwordHash, passwordSalt, hasCloudPassword: true }, cleanPassword).catch(
+      (err) => console.error('Firestore new user sync failed:', err)
+    );
+  });
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated', { detail: { username } }));
@@ -608,6 +772,11 @@ export function updateExistingUser(
   };
 
   saveStoredUsers(users);
+  const changedPlainPassword =
+    updates.password && updates.password.trim().length >= 3 ? updates.password.trim() : undefined;
+  void syncCreateOrUpdateAppUser(users[index], changedPlainPassword).catch((err) =>
+    console.error('Firestore updateExistingUser sync failed:', err)
+  );
 
   // If the updated user is the current logged-in user, refresh session
   const session = getCurrentSession();
@@ -702,6 +871,9 @@ export function updateUserIconPermissions(
 
   users[index].allowedIcons = allowedIcons;
   saveStoredUsers(users);
+  void syncCreateOrUpdateAppUser(users[index]).catch((err) =>
+    console.error('Firestore icon permissions sync failed:', err)
+  );
 
   // If target is current user or session matches username, update session
   const session = getCurrentSession();
@@ -733,6 +905,9 @@ export function updateUserAgentAiCategoryPermissions(
 
   users[index].allowedAgentAiCategories = allowedCategories;
   saveStoredUsers(users);
+  void syncCreateOrUpdateAppUser(users[index]).catch((err) =>
+    console.error('Firestore category permissions sync failed:', err)
+  );
 
   // If target is current user or session matches username, update session
   const session = getCurrentSession();
@@ -778,6 +953,9 @@ export function deleteExistingUser(
 
   const updated = users.filter(u => u.id !== userIdToDelete);
   saveStoredUsers(updated);
+  void syncDeleteAppUser(userIdToDelete).catch((err) =>
+    console.error('Firestore delete user sync failed:', err)
+  );
 
   return { success: true, message: `Utente ${targetUser.username} eliminato con successo.` };
 }
@@ -1057,6 +1235,9 @@ export function logUserAccess(entry: Omit<UserAccessLog, 'id' | 'timestamp'>): U
 
   const updatedLogs = [newLog, ...currentLogs];
   saveStoredUserAccessLogs(updatedLogs);
+  void syncCreateAccessLog(newLog).catch((err) =>
+    console.error('Firestore access log sync failed:', err)
+  );
 
   // Sincronizza lo stato utente per garantire che lastLogin rispecchi la sessione
   try {
@@ -1094,6 +1275,9 @@ export function clearUserAccessLogs(userId?: string): void {
     const filtered = current.filter(l => l.userId !== userId);
     saveStoredUserAccessLogs(filtered);
   }
+  void syncDeleteAccessLogs(userId === 'all' ? undefined : userId).catch((err) =>
+    console.error('Firestore clear access logs failed:', err)
+  );
 }
 
 export function resetDefaultAccessLogs(): void {
@@ -1143,4 +1327,101 @@ export function exportUserAccessLogsAsCsv(userId?: string): string {
 
   return [headers.join(','), ...rows].join('\n');
 }
+
+const FIRESTORE_MIGRATED_KEY = 'spark_firestore_users_migrated_v1';
+
+export function initFirebaseAuthSync(): () => void {
+  return subscribeFirestoreDirectory({
+    onAuthChange: () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated'));
+      }
+    },
+    onCloudUsers: (cloudUsers, isFullDirectory) => {
+      const localUsers = getStoredUsers();
+      const localById = new Map(localUsers.map((u) => [u.id, u]));
+
+      if (isFullDirectory) {
+        // One-time seed of local accounts into Firestore when database has not been seeded yet
+        const alreadyMigrated = localStorage.getItem(FIRESTORE_MIGRATED_KEY) === 'true';
+        const cloudIds = new Set(cloudUsers.map((u) => u.id));
+        if (!alreadyMigrated) {
+          localStorage.setItem(FIRESTORE_MIGRATED_KEY, 'true');
+          for (const localU of localUsers) {
+            if (!cloudIds.has(localU.id)) {
+              void syncCreateOrUpdateAppUser(localU, localU.password || undefined).catch(() => {});
+            }
+          }
+        }
+
+        if (cloudUsers.length > 0) {
+          const merged: AuthUser[] = cloudUsers.map((cu) => {
+            const existingLocal = localById.get(cu.id);
+            return {
+              ...cu,
+              password: existingLocal?.password || '',
+            };
+          });
+          // Retain local defaults not yet uploaded if first migration cycle is in flight
+          if (!alreadyMigrated) {
+            for (const lu of localUsers) {
+              if (!merged.some((m) => m.id === lu.id)) {
+                merged.push(lu);
+              }
+            }
+          }
+          saveStoredUsers(merged);
+        }
+      } else if (cloudUsers.length > 0) {
+        // Standard user: update only their matching record in local storage
+        for (const cu of cloudUsers) {
+          const idx = localUsers.findIndex(
+            (u) =>
+              u.id === cu.id ||
+              (u.email && cu.email && u.email.trim().toLowerCase() === cu.email.trim().toLowerCase())
+          );
+          if (idx !== -1) {
+            localUsers[idx] = {
+              ...localUsers[idx],
+              ...cu,
+              password: localUsers[idx].password || '',
+            };
+          } else {
+            localUsers.push(cu);
+          }
+        }
+        saveStoredUsers(localUsers);
+      }
+
+      // Refresh active session immediately
+      getCurrentSession();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated'));
+      }
+    },
+    onCloudLogs: (cloudLogs) => {
+      if (cloudLogs.length === 0) return;
+      const localLogs = getStoredUserAccessLogs();
+      const map = new Map<string, UserAccessLog>();
+      for (const l of localLogs) map.set(l.id, l);
+      for (const cl of cloudLogs) map.set(cl.id, cl);
+      const merged = Array.from(map.values()).sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      saveStoredUserAccessLogs(merged);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('quantum_user_permissions_updated'));
+      }
+    },
+  });
+}
+
+export function isCloudFirestoreSessionActive(): boolean {
+  return Boolean(auth.currentUser && auth.currentUser.emailVerified);
+}
+
+export function isCloudAdminSessionActive(): boolean {
+  return isFirebaseAdminActive();
+}
+
 

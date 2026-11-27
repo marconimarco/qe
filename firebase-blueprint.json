@@ -1,0 +1,420 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Trusted administrator lookup document keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 128,
+          "description": "Verified administrator email address."
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the administrator who granted this admin record."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of admin provisioning."
+        }
+      },
+      "required": ["email", "createdBy", "createdAt"]
+    },
+    "AppUser": {
+      "title": "AppUser",
+      "description": "Application user account with RBAC role, salted SHA-256 password hash (zero plaintext), and granular icon/category permissions.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "user"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "suspended"]
+        },
+        "passwordHash": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "passwordSalt": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64
+        },
+        "hasCloudPassword": {
+          "type": "boolean"
+        },
+        "hasAcceptedAgreements": {
+          "type": "boolean"
+        },
+        "acceptedAgreementsTimestamp": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "allowedIcons": {
+          "type": "array",
+          "description": "Bounded list of permitted application module icon IDs (max 20)."
+        },
+        "allowedAgentAiCategories": {
+          "type": "array",
+          "description": "Bounded list of permitted Agent AI industry sector IDs (max 20)."
+        },
+        "uid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "lastLogin": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "name",
+        "email",
+        "role",
+        "status",
+        "passwordHash",
+        "passwordSalt",
+        "hasCloudPassword",
+        "hasAcceptedAgreements",
+        "allowedIcons",
+        "allowedAgentAiCategories",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AccessLog": {
+      "title": "AccessLog",
+      "description": "Immutable audit log entry tracking user logins, logouts, module views, and access denials.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "userRole": {
+          "type": "string",
+          "enum": ["admin", "user"]
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "type": {
+          "type": "string",
+          "enum": ["login", "logout", "view_page", "action", "access_denied"]
+        },
+        "actionName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "viewDetail": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "targetId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "ipAddress": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "deviceInfo": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "uid",
+        "userId",
+        "username",
+        "userRole",
+        "timestamp",
+        "type",
+        "actionName",
+        "viewDetail",
+        "createdAt"
+      ]
+    },
+    "PqcInvite": {
+      "title": "PqcInvite",
+      "description": "Single-document lookup mapping an E2EE room invite code to its room ID without exposing a listable directory.",
+      "type": "object",
+      "properties": {
+        "inviteCode": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 12,
+          "pattern": "^[A-Z0-9]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "hostUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["inviteCode", "roomId", "hostUid", "createdAt"]
+    },
+    "PqcRoom": {
+      "title": "PqcRoom",
+      "description": "Post-Quantum E2EE chat room metadata (zero plaintext stored).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "inviteCode": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 12,
+          "pattern": "^[A-Z0-9]+$"
+        },
+        "hostUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "closed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "inviteCode", "hostUid", "status", "createdAt", "updatedAt"]
+    },
+    "PqcPeer": {
+      "title": "PqcPeer",
+      "description": "Participant inside an E2EE PQC chat room holding only public ML-KEM-768 key and node alias.",
+      "type": "object",
+      "properties": {
+        "peerId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "publicKey": {
+          "type": "string",
+          "minLength": 2368,
+          "maxLength": 2368,
+          "pattern": "^[0-9a-fA-F]+$"
+        },
+        "online": {
+          "type": "boolean"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["peerId", "roomId", "uid", "name", "publicKey", "online", "joinedAt"]
+    },
+    "PqcEncryptedMessage": {
+      "title": "PqcEncryptedMessage",
+      "description": "E2EE encrypted wire message relayed via Firestore (ciphertext + per-peer ML-KEM-768 envelopes only, zero plaintext).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "senderPeerId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "iv": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 64
+        },
+        "ciphertext": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 32768
+        },
+        "envelopes": {
+          "type": "object"
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "senderUid",
+        "senderPeerId",
+        "senderName",
+        "iv",
+        "ciphertext",
+        "envelopes",
+        "timestamp",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Verified administrator UID registry."
+    },
+    "/app_users/{userId}": {
+      "schema": { "$ref": "#/entities/AppUser" },
+      "description": "Application user records with RBAC roles, permissions, and salted password hashes."
+    },
+    "/access_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AccessLog" },
+      "description": "Audit log trail of logins, views, actions, and access denials."
+    },
+    "/pqc_invites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/PqcInvite" },
+      "description": "Non-listable invite code lookup mapping to E2EE roomId."
+    },
+    "/pqc_rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/PqcRoom" },
+      "description": "E2EE post-quantum chat rooms."
+    },
+    "/pqc_rooms/{roomId}/peers/{peerId}": {
+      "schema": { "$ref": "#/entities/PqcPeer" },
+      "description": "Active room participants with ML-KEM-768 public keys."
+    },
+    "/pqc_rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/PqcEncryptedMessage" },
+      "description": "End-to-end encrypted room message relay (zero plaintext)."
+    }
+  }
+}

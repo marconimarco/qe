@@ -105,6 +105,10 @@ export default function AdminUserManagementModal({
   };
 
   const handleCopyPassword = (user: AuthUser) => {
+    if (!user.password) {
+      showToast('error', 'Password protetta con hash SHA-256 su Firestore: usa Modifica per impostarne una nuova.');
+      return;
+    }
     if (navigator.clipboard) {
       navigator.clipboard.writeText(user.password);
       setCopiedPasswordUserId(user.id);
@@ -144,6 +148,14 @@ export default function AdminUserManagementModal({
     if (isOpen) {
       loadUsers();
       loadLogs();
+      const onSync = () => {
+        loadUsers();
+        loadLogs();
+      };
+      window.addEventListener('quantum_user_permissions_updated', onSync);
+      return () => {
+        window.removeEventListener('quantum_user_permissions_updated', onSync);
+      };
     }
   }, [isOpen]);
 
@@ -830,7 +842,7 @@ export default function AdminUserManagementModal({
                                 <Key className="w-3 h-3 text-amber-400 shrink-0" />
                                 <span className="text-[10px] text-gray-400 font-sans">Password:</span>
                                 <span className="text-white font-bold">
-                                  {visiblePasswords[user.id] ? user.password : '••••••••'}
+                                  {visiblePasswords[user.id] ? (user.password || 'Cifrata SHA-256 (Cloud)') : '••••••••'}
                                 </span>
                                 <button
                                   type="button"
@@ -2249,7 +2261,7 @@ export default function AdminUserManagementModal({
                   </label>
                   {editingUser && (
                     <span className="text-[9px] text-gray-400 font-mono">
-                      Password Attuale: <strong className="text-amber-300 font-bold">{editingUser.password}</strong>
+                      Password Attuale: <strong className="text-amber-300 font-bold">{editingUser.password || 'Cifrata SHA-256 (Cloud)'}</strong>
                     </span>
                   )}
                 </div>

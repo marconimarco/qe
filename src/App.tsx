@@ -15,7 +15,7 @@ import TestPage from './components/TestPage';
 import { SectorId, SECTORS, LanguageCode } from './types';
 import { TranslationProvider, useTranslation } from './lib/TranslationContext';
 import { Layers, ShieldCheck, User, LogOut, Users, Crown, AlertTriangle } from 'lucide-react';
-import { getCurrentSession, logoutUser, CurrentUserSession, isIconAllowedForUser, logUserAccess } from './services/authService';
+import { getCurrentSession, logoutUser, CurrentUserSession, isIconAllowedForUser, logUserAccess, initFirebaseAuthSync } from './services/authService';
 
 export default function App() {
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(() => {
@@ -62,8 +62,9 @@ export default function App() {
     }
   };
 
-  // Keep currentUser state in sync in real time when permissions or storage changes
+  // Keep currentUser state in sync in real time when permissions, storage, or Firestore change
   useEffect(() => {
+    const unsubscribeFirebase = initFirebaseAuthSync();
     const handlePermissionsUpdated = () => {
       const freshSession = getCurrentSession();
       if (freshSession) {
@@ -75,6 +76,7 @@ export default function App() {
     window.addEventListener('storage', handlePermissionsUpdated);
 
     return () => {
+      unsubscribeFirebase();
       window.removeEventListener('quantum_user_permissions_updated', handlePermissionsUpdated);
       window.removeEventListener('storage', handlePermissionsUpdated);
     };

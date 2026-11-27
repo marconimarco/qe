@@ -1,0 +1,344 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // GLOBAL HARDENED PRIMITIVES
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdminEmail() {
+      return isEmailVerified() && request.auth.token.email == 'mrcmrcn@gmail.com';
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && (
+        isBootstrappedAdminEmail() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidBoundedStringList(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || arr[0] is string);
+    }
+
+    // =========================================================================
+    // ENTITY VALIDATION BLUEPRINTS
+    // =========================================================================
+    function isValidAdminDoc(data) {
+      return data.keys().hasAll(['email', 'createdBy', 'createdAt']) &&
+        data.keys().hasOnly(['email', 'createdBy', 'createdAt']) &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 128 &&
+        isValidId(data.createdBy) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidAppUser(data) {
+      return data.keys().hasAll([
+          'id', 'username', 'name', 'email', 'role', 'status',
+          'passwordHash', 'passwordSalt', 'hasCloudPassword',
+          'hasAcceptedAgreements', 'allowedIcons', 'allowedAgentAiCategories',
+          'createdByUid', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'username', 'name', 'email', 'role', 'status',
+          'passwordHash', 'passwordSalt', 'hasCloudPassword',
+          'hasAcceptedAgreements', 'acceptedAgreementsTimestamp',
+          'allowedIcons', 'allowedAgentAiCategories',
+          'uid', 'createdByUid', 'lastLogin', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.username is string && data.username.size() >= 2 && data.username.size() <= 64 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 128 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 128 &&
+        (data.role == 'admin' || data.role == 'user') &&
+        (data.status == 'active' || data.status == 'suspended') &&
+        data.passwordHash is string && data.passwordHash.size() <= 128 &&
+        data.passwordSalt is string && data.passwordSalt.size() <= 64 &&
+        data.hasCloudPassword is bool &&
+        data.hasAcceptedAgreements is bool &&
+        isValidBoundedStringList(data.allowedIcons, 20) &&
+        isValidBoundedStringList(data.allowedAgentAiCategories, 20) &&
+        data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        (!('acceptedAgreementsTimestamp' in data) || (data.acceptedAgreementsTimestamp is string && data.acceptedAgreementsTimestamp.size() <= 64)) &&
+        (!('uid' in data) || (data.uid is string && data.uid.size() <= 128)) &&
+        (!('lastLogin' in data) || (data.lastLogin is string && data.lastLogin.size() <= 64));
+    }
+
+    function isValidAccessLog(data) {
+      return data.keys().hasAll([
+          'id', 'uid', 'userId', 'username', 'userRole',
+          'timestamp', 'type', 'actionName', 'viewDetail', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'uid', 'userId', 'username', 'userRole',
+          'timestamp', 'type', 'actionName', 'viewDetail',
+          'targetId', 'ipAddress', 'deviceInfo', 'createdAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid == request.auth.uid &&
+        isValidId(data.userId) &&
+        data.username is string && data.username.size() >= 1 && data.username.size() <= 64 &&
+        (data.userRole == 'admin' || data.userRole == 'user') &&
+        data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 64 &&
+        (data.type == 'login' || data.type == 'logout' || data.type == 'view_page' || data.type == 'action' || data.type == 'access_denied') &&
+        data.actionName is string && data.actionName.size() >= 1 && data.actionName.size() <= 200 &&
+        data.viewDetail is string && data.viewDetail.size() >= 1 && data.viewDetail.size() <= 500 &&
+        data.createdAt is timestamp &&
+        (!('targetId' in data) || (data.targetId is string && data.targetId.size() <= 128)) &&
+        (!('ipAddress' in data) || (data.ipAddress is string && data.ipAddress.size() <= 128)) &&
+        (!('deviceInfo' in data) || (data.deviceInfo is string && data.deviceInfo.size() <= 160));
+    }
+
+    function isValidPqcInvite(data) {
+      return data.keys().hasAll(['inviteCode', 'roomId', 'hostUid', 'createdAt']) &&
+        data.keys().hasOnly(['inviteCode', 'roomId', 'hostUid', 'createdAt']) &&
+        data.inviteCode is string && data.inviteCode.size() >= 6 && data.inviteCode.size() <= 12 && data.inviteCode.matches('^[A-Z0-9]+$') &&
+        isValidId(data.roomId) && data.roomId.size() >= 6 && data.roomId.size() <= 32 &&
+        data.hostUid is string && data.hostUid.size() >= 1 && data.hostUid.size() <= 128 && data.hostUid == request.auth.uid &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidPqcRoom(data) {
+      return data.keys().hasAll(['id', 'inviteCode', 'hostUid', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'inviteCode', 'hostUid', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id.size() >= 6 && data.id.size() <= 32 &&
+        data.inviteCode is string && data.inviteCode.size() >= 6 && data.inviteCode.size() <= 12 && data.inviteCode.matches('^[A-Z0-9]+$') &&
+        data.hostUid is string && data.hostUid.size() >= 1 && data.hostUid.size() <= 128 &&
+        (data.status == 'active' || data.status == 'closed') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPqcPeer(data) {
+      return data.keys().hasAll(['peerId', 'roomId', 'uid', 'name', 'publicKey', 'online', 'joinedAt']) &&
+        data.keys().hasOnly(['peerId', 'roomId', 'uid', 'name', 'publicKey', 'online', 'joinedAt']) &&
+        isValidId(data.peerId) && data.peerId.size() >= 6 && data.peerId.size() <= 64 &&
+        isValidId(data.roomId) && data.roomId.size() >= 6 && data.roomId.size() <= 32 &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 32 &&
+        data.publicKey is string && data.publicKey.size() == 2368 && data.publicKey.matches('^[0-9a-fA-F]+$') &&
+        data.online is bool &&
+        data.joinedAt is timestamp;
+    }
+
+    function isValidPqcMessage(data) {
+      return data.keys().hasAll([
+          'id', 'roomId', 'senderUid', 'senderPeerId', 'senderName',
+          'iv', 'ciphertext', 'envelopes', 'timestamp', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'roomId', 'senderUid', 'senderPeerId', 'senderName',
+          'iv', 'ciphertext', 'envelopes', 'timestamp', 'createdAt'
+        ]) &&
+        isValidId(data.id) && data.id.size() >= 4 && data.id.size() <= 128 &&
+        isValidId(data.roomId) && data.roomId.size() >= 6 && data.roomId.size() <= 32 &&
+        data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128 && data.senderUid == request.auth.uid &&
+        isValidId(data.senderPeerId) && data.senderPeerId.size() >= 6 && data.senderPeerId.size() <= 64 &&
+        data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 32 &&
+        data.iv is string && data.iv.size() >= 12 && data.iv.size() <= 64 &&
+        data.ciphertext is string && data.ciphertext.size() >= 16 && data.ciphertext.size() <= 32768 &&
+        data.envelopes is map && data.envelopes.size() >= 1 && data.envelopes.size() <= 50 &&
+        data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 64 &&
+        data.createdAt is timestamp;
+    }
+
+    // =========================================================================
+    // COLLECTION RULES
+    // =========================================================================
+
+    // Healthcheck probe (requires signed-in session)
+    match /test/connection {
+      allow get: if isSignedIn();
+      allow list, write: if false;
+    }
+
+    // Trusted Admin UID registry
+    match /admins/{uid} {
+      allow get: if isEmailVerified() && isValidId(uid) && (request.auth.uid == uid || isAdmin());
+      allow list: if false;
+      allow create: if isEmailVerified() && isValidId(uid) && isValidAdminDoc(incoming()) &&
+        incoming().createdAt == request.time &&
+        (
+          (request.auth.uid == uid && isBootstrappedAdminEmail() && incoming().email == request.auth.token.email && incoming().createdBy == request.auth.uid) ||
+          isAdmin()
+        );
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(uid) && uid != request.auth.uid;
+    }
+
+    // Application Users (PII-isolated: email, roles, permissions, salted hash only)
+    match /app_users/{userId} {
+      allow get: if isEmailVerified() && isValidId(userId) && (
+        isAdmin() ||
+        existing().email == request.auth.token.email ||
+        existing().uid == request.auth.uid
+      );
+      allow list: if isEmailVerified() && (
+        isBootstrappedAdminEmail() ||
+        existing().createdByUid == request.auth.uid ||
+        existing().email == request.auth.token.email ||
+        existing().uid == request.auth.uid
+      );
+      allow create: if isAdmin() && isValidId(userId) && isValidAppUser(incoming()) &&
+        incoming().id == userId &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isEmailVerified() && isValidId(userId) && isValidAppUser(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          // Tier 1: Admin full update of non-immutable fields
+          isAdmin() ||
+          // Tier 2a: Self-linking Firebase Auth UID on first Google Sign-In
+          (
+            existing().email == request.auth.token.email &&
+            incoming().uid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['uid', 'lastLogin', 'updatedAt'])
+          ) ||
+          // Tier 2b: Self accepting legal agreements
+          (
+            (existing().email == request.auth.token.email || existing().uid == request.auth.uid) &&
+            incoming().hasAcceptedAgreements == true &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['hasAcceptedAgreements', 'acceptedAgreementsTimestamp', 'updatedAt'])
+          ) ||
+          // Tier 2c: Self updating lastLogin timestamp
+          (
+            (existing().email == request.auth.token.email || existing().uid == request.auth.uid) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['lastLogin', 'updatedAt'])
+          )
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // Immutable User Access Audit Logs
+    match /access_logs/{logId} {
+      allow get: if isEmailVerified() && isValidId(logId) && (isAdmin() || existing().uid == request.auth.uid);
+      allow list: if isEmailVerified() && (isBootstrappedAdminEmail() || existing().uid == request.auth.uid);
+      allow create: if isEmailVerified() && isValidId(logId) && isValidAccessLog(incoming()) &&
+        incoming().id == logId &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(logId);
+    }
+
+    // Non-listable PQC Chat Invite Lookup
+    match /pqc_invites/{inviteCode} {
+      allow get: if isEmailVerified() && isValidId(inviteCode);
+      allow list: if false;
+      allow create: if isEmailVerified() && isValidId(inviteCode) && isValidPqcInvite(incoming()) &&
+        incoming().inviteCode == inviteCode &&
+        incoming().createdAt == request.time &&
+        existsAfter(/databases/$(database)/documents/pqc_rooms/$(incoming().roomId));
+      allow update: if false;
+      allow delete: if isEmailVerified() && isValidId(inviteCode) && (existing().hostUid == request.auth.uid || isAdmin());
+    }
+
+    // Post-Quantum E2EE Chat Rooms
+    match /pqc_rooms/{roomId} {
+      allow get: if isEmailVerified() && isValidId(roomId);
+      allow list: if isEmailVerified() && (existing().hostUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isEmailVerified() && isValidId(roomId) && isValidPqcRoom(incoming()) &&
+        incoming().id == roomId &&
+        incoming().hostUid == request.auth.uid &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/pqc_invites/$(incoming().inviteCode));
+      allow update: if isEmailVerified() && isValidId(roomId) && isValidPqcRoom(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().hostUid == existing().hostUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().hostUid == request.auth.uid &&
+            existing().status == 'active' &&
+            (
+              incoming().diff(existing()).affectedKeys().hasOnly(['inviteCode', 'updatedAt']) ||
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+            )
+          )
+        );
+      allow delete: if isEmailVerified() && isValidId(roomId) && (existing().hostUid == request.auth.uid || isAdmin());
+
+      match /peers/{peerId} {
+        allow get: if isEmailVerified() && isValidId(roomId) && isValidId(peerId);
+        allow list: if isEmailVerified() && existing().roomId == roomId;
+        allow create: if isEmailVerified() && isValidId(roomId) && isValidId(peerId) &&
+          isValidPqcPeer(incoming()) &&
+          incoming().peerId == peerId &&
+          incoming().roomId == roomId &&
+          incoming().uid == request.auth.uid &&
+          incoming().joinedAt == request.time &&
+          exists(/databases/$(database)/documents/pqc_rooms/$(roomId)) &&
+          get(/databases/$(database)/documents/pqc_rooms/$(roomId)).data.status == 'active';
+        allow update: if isEmailVerified() && isValidId(roomId) && isValidId(peerId) &&
+          isValidPqcPeer(incoming()) &&
+          incoming().peerId == existing().peerId &&
+          incoming().roomId == existing().roomId &&
+          incoming().uid == existing().uid &&
+          incoming().publicKey == existing().publicKey &&
+          incoming().joinedAt == existing().joinedAt &&
+          (
+            isAdmin() ||
+            (
+              existing().uid == request.auth.uid &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['online', 'name'])
+            )
+          );
+        allow delete: if isEmailVerified() && isValidId(roomId) && isValidId(peerId) && (
+          existing().uid == request.auth.uid ||
+          get(/databases/$(database)/documents/pqc_rooms/$(roomId)).data.hostUid == request.auth.uid ||
+          isAdmin()
+        );
+      }
+
+      match /messages/{messageId} {
+        allow get: if isEmailVerified() && isValidId(roomId) && isValidId(messageId);
+        allow list: if isEmailVerified() && existing().roomId == roomId;
+        allow create: if isEmailVerified() && isValidId(roomId) && isValidId(messageId) &&
+          isValidPqcMessage(incoming()) &&
+          incoming().id == messageId &&
+          incoming().roomId == roomId &&
+          incoming().createdAt == request.time &&
+          exists(/databases/$(database)/documents/pqc_rooms/$(roomId)) &&
+          get(/databases/$(database)/documents/pqc_rooms/$(roomId)).data.status == 'active' &&
+          exists(/databases/$(database)/documents/pqc_rooms/$(roomId)/peers/$(incoming().senderPeerId)) &&
+          get(/databases/$(database)/documents/pqc_rooms/$(roomId)/peers/$(incoming().senderPeerId)).data.uid == request.auth.uid;
+        allow update: if false;
+        allow delete: if isEmailVerified() && isValidId(roomId) && isValidId(messageId) && (
+          existing().senderUid == request.auth.uid || isAdmin()
+        );
+      }
+    }
+  }
+}
