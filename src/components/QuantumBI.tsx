@@ -28,7 +28,7 @@ import {
 import { useTranslation } from '../lib/TranslationContext';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import { generateQuantumBiLocalResponse } from '../data/quantumBiEngine';
+import { generateQuantumBiLocalResponse } from '../engines/quantumBiEngine';
 
 interface Props {
   onSwitchToCross?: () => void;

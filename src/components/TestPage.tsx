@@ -10,9 +10,9 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import aiStudioPrompt from '../promptText.txt?raw';
 import { getStoredApiKey } from '../services/apiKeyService';
-import { getDemoCsvBySector } from "../data/demoCsv";
-import { generateQiskitCode, generateQiskitPythonCode, generateClassicalHpcPythonCode, parseCsv1Deterministic, parseCsv2MatrixDeterministic, classifyUploadedCsv, validaMatriceFile2, MAX_QUANTUM_QUBITS } from "../data/codeGenerators";
-import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfile } from "../data/taxonomicEngine";
+import { getDemoCsvBySector } from "../engines/demoCsv";
+import { generateQiskitCode, generateQiskitPythonCode, generateClassicalHpcPythonCode, parseCsv1Deterministic, parseCsv2MatrixDeterministic, classifyUploadedCsv, validaMatriceFile2, MAX_QUANTUM_QUBITS } from "../engines/codeGenerators";
+import { getTaxonomicSector, purgeParasiticStrings, getScenarioEntanglementProfile } from "../engines/taxonomicEngine";
 import { 
   CurrentUserSession, 
   isAgentAiCategoryAllowedForUser, 

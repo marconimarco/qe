@@ -17,7 +17,7 @@ REGOLA 1. CONTROLLO DI SICUREZZA TRA CATEGORIE E SCENARI (Anti Domain-Leak):
      completamente isolati e parametrizzati all'origine sul settore e scenario corrente.
 
 REGOLA 2. SEPARAZIONE NETTA TRA GENERATORE (TypeScript) E GENERATO (Python):
-   - Il codice TypeScript (/src/data/codeGenerators.ts) funge esclusivamente da "stampante di testo deterministica".
+   - Il codice TypeScript (/src/engines/codeGenerators.ts) funge esclusivamente da "stampante di testo deterministica".
    - Non deve MAI iniettare la sua sintassi o le sue variabili all'interno della stringa finale destinata a Python.
    - Tutte le variabili di TypeScript (es. cleanSector, cleanStrategy, resourceNames) devono essere risolte e
      convertite in testo puro e letterali Python validi PRIMA di consegnare il codice all'utente.
