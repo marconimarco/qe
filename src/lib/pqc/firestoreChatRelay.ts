@@ -7,7 +7,7 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  orderBy,
+  where,
   serverTimestamp,
   writeBatch,
   Timestamp,
@@ -183,7 +183,9 @@ export async function joinFirestorePqcRoom(params: {
       joinedAt: serverTimestamp(),
     });
 
-    const peersSnap = await getDocs(collection(db, 'pqc_rooms', roomId, 'peers'));
+    const peersSnap = await getDocs(
+      query(collection(db, 'pqc_rooms', roomId, 'peers'), where('roomId', '==', roomId))
+    );
     const peers: ChatPeerPublic[] = peersSnap.docs.map((d) => {
       const data = d.data();
       return {
@@ -195,21 +197,23 @@ export async function joinFirestorePqcRoom(params: {
     });
 
     const msgsSnap = await getDocs(
-      query(collection(db, 'pqc_rooms', roomId, 'messages'), orderBy('createdAt', 'asc'))
+      query(collection(db, 'pqc_rooms', roomId, 'messages'), where('roomId', '==', roomId))
     );
-    const encryptedHistory: EncryptedWireMessage[] = msgsSnap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: String(data.id),
-        roomId: String(data.roomId),
-        senderPeerId: String(data.senderPeerId),
-        senderName: String(data.senderName),
-        iv: String(data.iv),
-        ciphertext: String(data.ciphertext),
-        envelopes: (data.envelopes || {}) as Record<string, PeerKemEnvelope>,
-        timestamp: toIso(data.timestamp || data.createdAt),
-      };
-    });
+    const encryptedHistory: EncryptedWireMessage[] = msgsSnap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: String(data.id),
+          roomId: String(data.roomId),
+          senderPeerId: String(data.senderPeerId),
+          senderName: String(data.senderName),
+          iv: String(data.iv),
+          ciphertext: String(data.ciphertext),
+          envelopes: (data.envelopes || {}) as Record<string, PeerKemEnvelope>,
+          timestamp: toIso(data.timestamp || data.createdAt),
+        };
+      })
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     return {
       roomId,
@@ -271,6 +275,7 @@ export async function sendFirestoreEncryptedMessage(params: {
   }
 
   const cleanMsgId = params.messageId.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 128);
+  const cleanSenderName = (params.senderName || 'Nodo').trim().slice(0, 32) || 'Nodo';
   const path = `pqc_rooms/${params.roomId}/messages/${cleanMsgId}`;
   try {
     await setDoc(doc(db, 'pqc_rooms', params.roomId, 'messages', cleanMsgId), {
@@ -278,7 +283,7 @@ export async function sendFirestoreEncryptedMessage(params: {
       roomId: params.roomId,
       senderUid: fbUser.uid,
       senderPeerId: params.senderPeerId,
-      senderName: params.senderName.slice(0, 32),
+      senderName: cleanSenderName,
       iv: params.iv,
       ciphertext: params.ciphertext,
       envelopes: params.envelopes,
@@ -310,7 +315,7 @@ export function subscribeFirestorePqcRoom(params: {
   const msgsPath = `pqc_rooms/${params.roomId}/messages`;
 
   const unsubPeers = onSnapshot(
-    collection(db, 'pqc_rooms', params.roomId, 'peers'),
+    query(collection(db, 'pqc_rooms', params.roomId, 'peers'), where('roomId', '==', params.roomId)),
     (snap) => {
       const peers: ChatPeerPublic[] = snap.docs.map((d) => {
         const data = d.data();
@@ -330,12 +335,13 @@ export function subscribeFirestorePqcRoom(params: {
   );
 
   const unsubMsgs = onSnapshot(
-    query(collection(db, 'pqc_rooms', params.roomId, 'messages'), orderBy('createdAt', 'asc')),
+    query(collection(db, 'pqc_rooms', params.roomId, 'messages'), where('roomId', '==', params.roomId)),
     (snap) => {
+      const addedMsgs: EncryptedWireMessage[] = [];
       for (const change of snap.docChanges()) {
         if (change.type === 'added') {
           const data = change.doc.data();
-          params.onMessage({
+          addedMsgs.push({
             id: String(data.id),
             roomId: String(data.roomId),
             senderPeerId: String(data.senderPeerId),
@@ -347,6 +353,9 @@ export function subscribeFirestorePqcRoom(params: {
           });
         }
       }
+      addedMsgs
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .forEach((m) => params.onMessage(m));
     },
     (error) => {
       params.onError(error.message);

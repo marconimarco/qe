@@ -18,7 +18,7 @@ service cloud.firestore {
     }
 
     function isBootstrappedAdminEmail() {
-      return isEmailVerified() && request.auth.token.email == 'mrcmrcn@gmail.com';
+      return isEmailVerified() && request.auth.token.email.lower() == 'mrcmrcn@gmail.com';
     }
 
     function isAdmin() {
@@ -195,13 +195,13 @@ service cloud.firestore {
     match /app_users/{userId} {
       allow get: if isEmailVerified() && isValidId(userId) && (
         isAdmin() ||
-        existing().email == request.auth.token.email ||
+        existing().email.lower() == request.auth.token.email.lower() ||
         existing().uid == request.auth.uid
       );
       allow list: if isEmailVerified() && (
         isBootstrappedAdminEmail() ||
         existing().createdByUid == request.auth.uid ||
-        existing().email == request.auth.token.email ||
+        existing().email.lower() == request.auth.token.email.lower() ||
         existing().uid == request.auth.uid
       );
       allow create: if isAdmin() && isValidId(userId) && isValidAppUser(incoming()) &&
@@ -219,19 +219,19 @@ service cloud.firestore {
           isAdmin() ||
           // Tier 2a: Self-linking Firebase Auth UID on first Google Sign-In
           (
-            existing().email == request.auth.token.email &&
+            existing().email.lower() == request.auth.token.email.lower() &&
             incoming().uid == request.auth.uid &&
             incoming().diff(existing()).affectedKeys().hasOnly(['uid', 'lastLogin', 'updatedAt'])
           ) ||
           // Tier 2b: Self accepting legal agreements
           (
-            (existing().email == request.auth.token.email || existing().uid == request.auth.uid) &&
+            (existing().email.lower() == request.auth.token.email.lower() || existing().uid == request.auth.uid) &&
             incoming().hasAcceptedAgreements == true &&
             incoming().diff(existing()).affectedKeys().hasOnly(['hasAcceptedAgreements', 'acceptedAgreementsTimestamp', 'updatedAt'])
           ) ||
           // Tier 2c: Self updating lastLogin timestamp
           (
-            (existing().email == request.auth.token.email || existing().uid == request.auth.uid) &&
+            (existing().email.lower() == request.auth.token.email.lower() || existing().uid == request.auth.uid) &&
             incoming().diff(existing()).affectedKeys().hasOnly(['lastLogin', 'updatedAt'])
           )
         );

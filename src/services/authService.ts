@@ -607,19 +607,36 @@ export async function loginWithGoogle(): Promise<{
 
 export function logoutUser(): void {
   const session = getCurrentSession();
+  localStorage.removeItem(SESSION_STORAGE_KEY);
   if (session) {
-    logUserAccess({
+    const currentLogs = getStoredUserAccessLogs();
+    const nowIso = new Date().toISOString();
+    const newLog: UserAccessLog = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       userId: session.id,
       username: session.username,
       userRole: session.role,
+      timestamp: nowIso,
       type: 'logout',
       actionName: 'Disconnessione Utente (Logout)',
       viewDetail: 'Chiusura sessione di lavoro e disconnessione dalla piattaforma',
-      targetId: 'auth_logout'
-    });
+      targetId: 'auth_logout',
+      ipAddress:
+        typeof window !== 'undefined' && window.location.hostname === 'localhost'
+          ? '127.0.0.1 (Locale)'
+          : 'Client Web Autenticato',
+      deviceInfo:
+        typeof navigator !== 'undefined' ? `${navigator.userAgent.slice(0, 45)}...` : 'Browser Web',
+    };
+    saveStoredUserAccessLogs([newLog, ...currentLogs]);
+    void syncCreateAccessLog(newLog)
+      .catch(() => {})
+      .finally(() => {
+        void firebaseSignOut();
+      });
+  } else {
+    void firebaseSignOut();
   }
-  localStorage.removeItem(SESSION_STORAGE_KEY);
-  void firebaseSignOut();
 }
 
 export function createNewUser(
