@@ -645,10 +645,6 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
     processFile(file);
   };
 
-  const resetSelection = () => {
-    onBack();
-  };
-
   // Remove intermediate screen
   
   const isMitigationLocked = sector.id === 'mitigation';
@@ -665,21 +661,21 @@ export default function QuantumDashboard({ sector, onBack, onSectorChange, onOpe
           ? 'shrink-0 flex items-center justify-between mb-2 gap-2'
           : 'flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 sm:mb-8 gap-3 sm:gap-0'
       }>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <button 
-            onClick={resetSelection}
-            className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1"
+            onClick={() => onBack(true)}
+            className="flex items-center gap-2 text-gray-400 hover:text-quantum-primary transition-colors py-1 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 h-5" />
             <span className="font-mono text-[10px] sm:text-sm tracking-widest uppercase">{t('dash_back_home')}</span>
           </button>
           {['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(sector.id) && (
             <button 
-              onClick={() => onBack(true)}
-              className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors py-1 px-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20"
+              onClick={() => onBack(false)}
+              className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors py-1 px-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20 cursor-pointer"
             >
-              <ArrowLeft className="w-3 h-3" />
-              <span className="font-mono text-[9px] sm:text-xs tracking-widest uppercase font-bold">{t('dash_back_home')}</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="font-mono text-[9px] sm:text-xs tracking-widest uppercase font-bold">{t('dash_back_pqc')}</span>
             </button>
           )}
         </div>

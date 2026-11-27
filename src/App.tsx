@@ -265,18 +265,24 @@ function AppContent({
   };
 
   const handleBackFromDashboard = (forceHome?: boolean) => {
+    const isReturningToPqcSubMenu =
+      !forceHome &&
+      Boolean(selectedSectorId) &&
+      ['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(selectedSectorId as string);
     logUserAccess({
       userId: currentUser.id,
       username: currentUser.username,
       userRole: currentUser.role,
       type: 'view_page',
-      actionName: 'Ritorno alla Schermata Principale',
-      viewDetail: 'Visualizzazione Dashboard Home (Panoramica Moduli Quantistici)',
-      targetId: 'home',
+      actionName: isReturningToPqcSubMenu ? 'Ritorno al Menu Crittografia PQC' : 'Ritorno alla Schermata Principale',
+      viewDetail: isReturningToPqcSubMenu
+        ? 'Visualizzazione Menu PQC (Scelta tra Quantum Locker, Key-Gen e E2EE Chat)'
+        : 'Visualizzazione Dashboard Home (Panoramica Moduli Quantistici)',
+      targetId: isReturningToPqcSubMenu ? 'pqc_group' : 'home',
       allowedIconsSnapshot: currentUser.allowedIcons,
       allowedCategoriesSnapshot: currentUser.allowedAgentAiCategories
     });
-    if (!forceHome && selectedSectorId && ['pqc_locker', 'pqc_keygen', 'pqc_chat'].includes(selectedSectorId)) {
+    if (isReturningToPqcSubMenu) {
       setReturnToSubMenu('pqc_group');
     } else {
       setReturnToSubMenu(null);

@@ -156,17 +156,17 @@ export default function SectorSelector({
       <div className="absolute inset-x-0 top-0 h-full bg-[radial-gradient(circle_at_center,rgba(0,242,255,0.05)_0%,transparent_70%)] pointer-events-none" />
 
       {isSubActive && (
-        <div className="fixed top-3 left-3 sm:top-5 sm:left-5 z-50">
+        <div className="absolute top-3 left-3 sm:top-5 sm:left-5 z-30">
           <button 
             onClick={handleBackToMain}
-            className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-black/60 border border-white/15 rounded-full text-gray-400 transition-all group backdrop-blur-xl shadow-lg ${
+            className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-black/60 border border-white/15 rounded-full text-gray-400 transition-all group backdrop-blur-xl shadow-lg cursor-pointer ${
               activeSubMenu === 'pqc_group' 
                 ? 'hover:text-emerald-400 hover:border-emerald-500/50' 
                 : 'hover:text-quantum-primary hover:border-quantum-primary/50'
             }`}
           >
             <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="font-mono text-[9px] sm:text-xs tracking-widest uppercase font-bold">{t('back')}</span>
+            <span className="font-mono text-[9px] sm:text-xs tracking-widest uppercase font-bold">{t('dash_back_home')}</span>
           </button>
         </div>
       )}

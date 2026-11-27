@@ -61,3 +61,18 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-quantum-border rounded-full hover:bg-quantum-primary/50;
 }
+
+@keyframes quantum-border-pulse {
+  0%, 100% {
+    border-color: rgba(0, 242, 255, 0.35);
+    box-shadow: 0 0 18px rgba(0, 242, 255, 0.18), 0 0 42px rgba(34, 211, 238, 0.08), inset 0 0 12px rgba(0, 242, 255, 0.06);
+  }
+  50% {
+    border-color: rgba(0, 242, 255, 0.9);
+    box-shadow: 0 0 30px rgba(0, 242, 255, 0.48), 0 0 64px rgba(34, 211, 238, 0.24), inset 0 0 20px rgba(0, 242, 255, 0.14);
+  }
+}
+
+.login-pulse-border {
+  animation: quantum-border-pulse 2.8s ease-in-out infinite;
+}
