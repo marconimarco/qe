@@ -704,7 +704,8 @@ export default function TestPage({
               effectiveStrategy,
               file1Label,
               file2Label,
-              isDemoActive
+              isDemoActive,
+              selectedScenario?.modelCode || '' // <-- AGGIUNTO QUI
             ));
 
       const fallbackThetaRad = (theta * Math.PI) / 180;
@@ -1905,7 +1906,18 @@ export default function TestPage({
     }
 
     const qasmOut = generateQiskitCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy);
-    const pythonSnippet = generateQiskitPythonCode(effectiveSector, sourceCsv1, sourceCsv2, vincolo, effectiveStrategy, uploadedFile1Name, uploadedFile2Name, isDemoActive);
+    // In TestPage.tsx, cerca la chiamata a generateQiskitPythonCode e aggiungi il parametro finale
+    const pythonSnippet = generateQiskitPythonCode(
+      effectiveSector,
+      sourceCsv1,
+      sourceCsv2,
+      vincolo,
+      effectiveStrategy,
+      uploadedFile1Name,
+      uploadedFile2Name,
+      isDemoActive,
+      selectedScenario?.modelCode || '' // <-- AGGIUNGI QUESTO
+    );
     setFinalQasm(qasmOut);
     setFinalPython(pythonSnippet);
 
@@ -2803,8 +2815,8 @@ ${ui.quantumFooterHint}`;
         fonteDati={isDemoActive ? 'demo' : 'utente'}
         qasmCode={finalQasm || (selectedScenario?.type === 'classical' ? '' : generateQiskitCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedVincolo, selectedStrategy || 'Prudente'))}
         pythonCode={finalPython || (selectedScenario?.type === 'classical' 
-          ? generateClassicalHpcPythonCode(assetSector || selectedSector || 'Finanza e Mercati', selectedScenario?.name || selectedScenario?.id || 'Scenario Classico', selectedScenario?.id || 'HPC-Model', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive)
-          : generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedVincolo, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive))}
+        ? generateClassicalHpcPythonCode(assetSector || selectedSector || 'Finanza e Mercati', selectedScenario?.name || selectedScenario?.id || 'Scenario Classico', selectedScenario?.id || 'HPC-Model', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive)
+        : generateQiskitPythonCode(assetSector || selectedSector || 'Finanza e Mercati', customCsv1Content ?? currentCsv1, customCsv2Content ?? currentCsv2, selectedVincolo, selectedStrategy || 'Prudente', uploadedFile1Name, uploadedFile2Name, isDemoActive, selectedScenario?.modelCode || ''))}
         jsonCode={finalJson || JSON.stringify({
           settore: assetSector || selectedSector || 'Finanza e Mercati',
           scenario: selectedScenario?.name || 'Ottimizzazione',
